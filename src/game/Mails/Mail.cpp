@@ -26,17 +26,13 @@
  */
 
 #include "Mails/Mail.h"
-#include "Server/WorldSession.h"
 #include "Log.h"
-#include "World/World.h"
-#include "Globals/ObjectMgr.h"
 #include "Entities/ObjectGuid.h"
+#include "Globals/ObjectMgr.h"
+#include "Entities/Item.h"
 #include "Entities/Player.h"
-#include "Entities/UpdateMask.h"
-#include "Entities/Unit.h"
-#include "Server/DBCStores.h"
+#include "World/World.h"
 #include "BattleGround/BattleGroundMgr.h"
-#include "AuctionHouse/AuctionHouseMgr.h"
 #include "Loot/LootMgr.h"
 
 /**
