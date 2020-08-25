@@ -81,6 +81,7 @@ void usage(const char* prog)
 }
 
 /// Launch the mangos server
+/// Launch the mangos server
 int main(int argc, char* argv[])
 {
     std::string auctionBotConfig, configFile, serviceParameter;
