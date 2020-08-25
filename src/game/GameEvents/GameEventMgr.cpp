@@ -102,8 +102,8 @@ void GameEventMgr::LoadFromDB()
 
         m_gameEvents.resize(max_event_id + 1);
     }
-
-    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT entry,schedule_type,occurence,length,holiday,linkedTo,description FROM game_event"));
+    // UNIX_TIMESTAMP(start_time),UNIX_TIMESTAMP(end_time)
+    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT entry,schedule_type,occurence,length,holiday,linkedTo,EventGroup,description FROM game_event"));
     if (!result)
     {
         m_gameEvents.clear();
@@ -135,7 +135,8 @@ void GameEventMgr::LoadFromDB()
             gameEvent.length       = fields[3].GetUInt32();
             gameEvent.holiday_id   = HolidayIds(fields[4].GetUInt32());
             gameEvent.linkedTo     = fields[5].GetUInt32();
-            gameEvent.description  = fields[6].GetCppString();
+            gameEvent.eventGroup   = fields[6].GetUInt32();
+            gameEvent.description  = fields[7].GetCppString();
 
             switch (gameEvent.scheduleType)
             {
@@ -146,10 +147,13 @@ void GameEventMgr::LoadFromDB()
                 case GAME_EVENT_SCHEDULE_DATE: break; // loaded from table
                 case GAME_EVENT_SCHEDULE_DMF_1:
                 case GAME_EVENT_SCHEDULE_DMF_2:
+                case GAME_EVENT_SCHEDULE_DMF_3:
                 case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1:
                 case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2:
+                case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3:
                 case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1:
                 case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2:
+                case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3:
                     ComputeEventStartAndEndTime(gameEvent);
                     break;
             }
@@ -171,6 +175,12 @@ void GameEventMgr::LoadFromDB()
             {
                 sLog.outErrorDb("`game_event` game event id (%i) has occurence %u  < length %u and can't be used.", event_id, gameEvent.occurence, gameEvent.length);
                 gameEvent.start = time_t(FAR_FUTURE);
+            }
+
+            if (gameEvent.eventGroup)
+            {
+                auto& group = m_gameEventGroups[gameEvent.eventGroup];
+                group.push_back(event_id);
             }
 
             ++count;
@@ -392,9 +402,11 @@ void GameEventMgr::LoadFromDB()
     //                                   0              1                             2
     result.reset(WorldDatabase.Query("SELECT creature.guid, game_event_creature_data.event, game_event_creature_data.modelid,"
                                  //   3                                      4
-                                 "game_event_creature_data.equipment_id, game_event_creature_data.entry_id, "
+                                 "game_event_creature_data.equipment_id, game_event_creature_data.vendor_id, "
                                  //   5                                     6
-                                 "game_event_creature_data.spell_start, game_event_creature_data.spell_end "
+                                 "game_event_creature_data.entry_id, game_event_creature_data.spell_start, "
+                                 //   7
+                                 "game_event_creature_data.spell_end "
                                  "FROM creature JOIN game_event_creature_data ON creature.guid=game_event_creature_data.guid"));
 
     count = 0;
@@ -434,14 +446,26 @@ void GameEventMgr::LoadFromDB()
             GameEventCreatureData newData;
             newData.modelid = fields[2].GetUInt32();
             newData.equipment_id = fields[3].GetUInt32();
-            newData.entry_id = fields[4].GetUInt32();
-            newData.spell_id_start = fields[5].GetUInt32();
-            newData.spell_id_end = fields[6].GetUInt32();
+            newData.vendor_id = fields[4].GetUInt32();
+            newData.entry_id = fields[5].GetUInt32();
+            newData.spell_id_start = fields[6].GetUInt32();
+            newData.spell_id_end = fields[7].GetUInt32();
 
-            if (newData.equipment_id && !sObjectMgr.GetEquipmentInfo(newData.equipment_id))
+            if (newData.equipment_id && !sObjectMgr.GetEquipmentInfo(newData.equipment_id) && !sObjectMgr.GetEquipmentInfoRaw(newData.equipment_id))
             {
-                sLog.outErrorDb("Table `game_event_creature_data` have creature (Guid: %u) with equipment_id %u not found in table `creature_equip_template`, set to no equipment.", guid, newData.equipment_id);
+                sLog.outErrorDb("Table `game_event_creature_data` have creature (Guid: %u) with equipment_id %u not found in table `creature_equip_template` or `creature_equip_template_raw`, set to no equipment.", guid, newData.equipment_id);
                 newData.equipment_id = 0;
+            }
+
+            if (newData.vendor_id)
+            {
+                if (QueryResult* testResult = WorldDatabase.PQuery("SELECT 1 FROM npc_vendor_template where entry = '%u'", newData.vendor_id))
+                    delete testResult;
+                else
+                {
+                    sLog.outErrorDb("Table `game_event_creature_data` has a creature with (Guid: %u) and vendor_id %u which was not found in table `npc_vendor_template`, set to no vendor.", guid, newData.vendor_id);
+                    newData.vendor_id = 0;
+                }
             }
 
             if (newData.entry_id && !ObjectMgr::GetCreatureTemplate(newData.entry_id))
@@ -1076,15 +1100,18 @@ void GameEventMgr::ComputeEventStartAndEndTime(GameEventData& data)
     firstMonday.tm_sec = 0;
     firstMonday.tm_min = 0;
     firstMonday.tm_hour = 0;
-    int monthRemainder = firstMonday.tm_mon % 2;
+    int monthRemainder = firstMonday.tm_mon % 3;
     switch (data.scheduleType)
     {
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1:
-        case GAME_EVENT_SCHEDULE_DMF_1: firstMonday.tm_mon += (2 - monthRemainder) % 2; break;
+        case GAME_EVENT_SCHEDULE_DMF_1: firstMonday.tm_mon += (3 - monthRemainder) % 3; break; // 0 2 1 - x + 3 - 3
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2:
-        case GAME_EVENT_SCHEDULE_DMF_2: firstMonday.tm_mon += (2 - monthRemainder + 1) % 2; break;
+        case GAME_EVENT_SCHEDULE_DMF_2: firstMonday.tm_mon += (3 - monthRemainder + 1) % 3; break; // 1 0 2 - x + 3 - 2
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3:
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3:
+        case GAME_EVENT_SCHEDULE_DMF_3: firstMonday.tm_mon += (3 - monthRemainder + 2) % 3; break; // 2 1 0 - x + 3 - 1
         default: break;
     }
     mktime(&firstMonday);
@@ -1093,26 +1120,25 @@ void GameEventMgr::ComputeEventStartAndEndTime(GameEventData& data)
     {
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2:
-            firstMonday.tm_mday -= 2; break;
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3: firstMonday.tm_mday -= 2; break;
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2:
-            firstMonday.tm_mday -= 1; break;
-        default:
-            break;
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3: firstMonday.tm_mday -= 1; break;
+        default: break;
     }
     data.start = mktime(&firstMonday);
     switch (data.scheduleType)
     {
         case GAME_EVENT_SCHEDULE_DMF_1:
         case GAME_EVENT_SCHEDULE_DMF_2:
-            firstMonday.tm_mday += 7; break;
+        case GAME_EVENT_SCHEDULE_DMF_3: firstMonday.tm_mday += 7; break;
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2:
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1:
         case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2:
-            firstMonday.tm_mday += 1; break;
-        default:
-            break;
+        case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3: firstMonday.tm_mday += 1; break;
+        default: break;
     }
     data.end = mktime(&firstMonday);
 }
@@ -1125,10 +1151,13 @@ void GameEventMgr::WeeklyEventTimerRecalculation()
         {
             case GAME_EVENT_SCHEDULE_DMF_1:
             case GAME_EVENT_SCHEDULE_DMF_2:
+            case GAME_EVENT_SCHEDULE_DMF_3:
             case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1:
             case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2:
+            case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3:
             case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1:
             case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2:
+            case GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3:
                 ComputeEventStartAndEndTime(gameEvent);
                 break;
             default: break;

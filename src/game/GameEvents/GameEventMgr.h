@@ -36,18 +36,20 @@ enum GameEventScheduleType
     GAME_EVENT_SCHEDULE_DATE        = 1, // old start and end date behaviour
     GAME_EVENT_SCHEDULE_DMF_1       = 2, // first Darkmoon Faire event - first whole week of the month
     GAME_EVENT_SCHEDULE_DMF_2       = 3, // second Darkmoon Faire event
-    // GAME_EVENT_SCHEDULE_DMF_3       = 4, // third Darkmoon Faire event - unused in vanilla
+    GAME_EVENT_SCHEDULE_DMF_3       = 4, // third Darkmoon Faire event
     GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_1 = 5, // first Darkmoon Faire building event
     GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_2 = 6,
-    // GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3 = 7, // unused in vanilla
+    GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_1_3 = 7,
     GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_1 = 8,
     GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_2 = 9,
-    // GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3 = 10, // unused in vanilla
+    GAME_EVENT_SCHEDULE_DMF_BUILDING_STAGE_2_3 = 10,
 };
 
 struct GameEventData
 {
-    GameEventData() : start(1), end(0), occurence(0), length(0), holiday_id(HOLIDAY_NONE), linkedTo(0) {}
+    GameEventData() : start(1), end(0), occurence(0), length(0), holiday_id(HOLIDAY_NONE), linkedTo(0), eventGroup(0)
+    {
+    }
 
     GameEventScheduleType scheduleType;
     time_t start;
@@ -56,6 +58,7 @@ struct GameEventData
     uint32 length;                                          // Length in minutes of the event
     HolidayIds holiday_id;
     uint32 linkedTo;
+    uint32 eventGroup;
     std::string description;
 
     bool isValid() const { return length > 0; }
@@ -66,6 +69,7 @@ struct GameEventCreatureData
     uint32 entry_id;
     uint32 modelid;
     uint32 equipment_id;
+    uint32 vendor_id;
     uint32 spell_id_start;
     uint32 spell_id_end;
 };
@@ -107,6 +111,8 @@ class GameEventMgr
         template<typename T>
         int16 GetGameEventId(uint32 guid_or_poolid);
 
+        std::unordered_map<uint32, std::vector<uint32>> const& GetEventGroups() const { return m_gameEventGroups; }
+
         GameEventCreatureData const* GetCreatureUpdateDataForActiveEvent(uint32 lowguid) const;
 
         void WeeklyEventTimerRecalculation();
@@ -142,12 +148,14 @@ class GameEventMgr
         typedef std::vector<MailList> GameEventMailMap;
         GameEventMailMap  m_gameEventMails;                  // events*2-1
 
-        GameEventGuidMap  m_gameEventCreatureGuids;         // events*2-1
+        GameEventGuidMap  m_gameEventCreatureGuids;          // events*2-1
         GameEventGuidMap  m_gameEventGameobjectGuids;       // events*2-1
         GameEventIdMap    m_gameEventSpawnPoolIds;          // events size, only positive event case
         GameEventDataMap  m_gameEvents;
         ActiveEvents m_activeEvents;
         bool m_isGameEventsInit;
+
+        std::unordered_map<uint32, std::vector<uint32>> m_gameEventGroups; // events size
 };
 
 #define sGameEventMgr MaNGOS::Singleton<GameEventMgr>::Instance()
