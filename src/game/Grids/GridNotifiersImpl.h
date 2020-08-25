@@ -24,11 +24,11 @@
 #include "Entities/Player.h"
 #include "AI/BaseAI/UnitAI.h"
 #include "Spells/SpellAuras.h"
+#include "Server/DBCStores.h"
 #include "Server/DBCEnums.h"
+#include "Server/DBCStores.h"
 #include "Server/SQLStorages.h"
 #include "Spells/SpellMgr.h"
-
-#include <memory>
 
 template<class T>
 inline void MaNGOS::VisibleNotifier::Visit(GridRefManager<T>& m)

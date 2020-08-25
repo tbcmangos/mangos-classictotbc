@@ -99,6 +99,16 @@ void VisibleNotifier::Notify()
                 plr->UpdateVisibilityOf(plr->GetCamera().GetBody(), &player);
         }
     }
+
+    // Now do operations that required done at object visibility change to visible
+
+    // send data at target visibility change (adding to client)
+    for (auto vItr : i_visibleNow)
+    {
+        // target aura duration for caster show only if target exist at caster client
+        if (vItr != &player && vItr->isType(TYPEMASK_UNIT))
+            player.SendAuraDurationsForTarget((Unit*)vItr);
+    }
 }
 
 void MessageDeliverer::Visit(CameraMapType& m)
@@ -187,11 +197,25 @@ bool CannibalizeObjectCheck::operator()(Corpse* u)
     return i_fobj->IsWithinDistInMap(u, i_range);
 }
 
+bool TauntFlagObjectCheck::operator()(Corpse* u)
+{
+    // ignore bones
+    if (u->GetType() == CORPSE_BONES)
+        return false;
+
+    Player* owner = ObjectAccessor::FindPlayer(u->GetOwnerGuid());
+
+    if (!owner || i_fobj->CanAssist(owner))
+        return false;
+
+    return i_fobj->IsWithinDistInMap(u, i_range);
+}
+
 void MaNGOS::RespawnDo::operator()(Creature* u) const
 {
     // prevent respawn creatures for not active BG event
     Map* map = u->GetMap();
-    if (map->IsBattleGround())
+    if (map->IsBattleGroundOrArena())
     {
         BattleGroundEventIdx eventId = sBattleGroundMgr.GetCreatureEventIndex(u->GetGUIDLow());
         if (!((BattleGroundMap*)map)->GetBG()->IsActiveEvent(eventId.event1, eventId.event2))
@@ -205,7 +229,7 @@ void MaNGOS::RespawnDo::operator()(GameObject* u) const
 {
     // prevent respawn gameobject for not active BG event
     Map* map = u->GetMap();
-    if (map->IsBattleGround())
+    if (map->IsBattleGroundOrArena())
     {
         BattleGroundEventIdx eventId = sBattleGroundMgr.GetGameObjectEventIndex(u->GetGUIDLow());
         if (!((BattleGroundMap*)map)->GetBG()->IsActiveEvent(eventId.event1, eventId.event2))
