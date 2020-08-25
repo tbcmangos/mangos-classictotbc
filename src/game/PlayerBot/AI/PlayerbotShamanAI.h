@@ -36,8 +36,8 @@ enum
     CHAIN_HEAL_1                    = 1064,
     CHAIN_LIGHTNING_1               = 421,
     CLEANSING_TOTEM_1               = 8170,
-    CURE_DISEASE_SHAMAN_1           = 2870,
     CURE_POISON_SHAMAN_1            = 526,
+    CURE_DISEASE_SHAMAN_1           = 2870,
     EARTH_ELEMENTAL_TOTEM_1         = 2062,
     EARTH_SHIELD_1                  = 974,
     EARTH_SHOCK_1                   = 8042,
@@ -56,6 +56,7 @@ enum
     GROUNDING_TOTEM_1               = 8177,
     HEALING_STREAM_TOTEM_1          = 5394,
     HEALING_WAVE_1                  = 331,
+    HEROISM_1                       = 32182,
     LESSER_HEALING_WAVE_1           = 8004,
     LIGHTNING_BOLT_1                = 403,
     LIGHTNING_SHIELD_1              = 324,
@@ -63,15 +64,17 @@ enum
     MANA_SPRING_TOTEM_1             = 5675,
     MANA_TIDE_TOTEM_1               = 16190,
     NATURE_RESISTANCE_TOTEM_1       = 10595,
-    NATURES_SWIFTNESS_SHAMAN_1      = 16188,
     PURGE_1                         = 370,
     ROCKBITER_WEAPON_1              = 8017,
     SEARING_TOTEM_1                 = 3599,
     SENTRY_TOTEM_1                  = 6495,
+    SHAMANISTIC_RAGE_1              = 30823,
     STONECLAW_TOTEM_1               = 5730,
     STONESKIN_TOTEM_1               = 8071,
     STORMSTRIKE_1                   = 17364,
     STRENGTH_OF_EARTH_TOTEM_1       = 8075,
+    TOTEM_OF_WRATH_1                = 30706,
+    TOTEMIC_RECALL_1                = 36936,
     TREMOR_TOTEM_1                  = 8143,
     WATER_BREATHING_1               = 131,
     WATER_WALKING_1                 = 546,
@@ -99,11 +102,10 @@ enum
     // SEARING_TOTEM uses spell effect index 0
     // EARTH_ELEMENTAL_TOTEM uses spell effect indexes 1 and 2
 
-    //Spec buffs
 };
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
+class PlayerbotShamanAI : PlayerbotClassAI
 {
     public:
         PlayerbotShamanAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -152,9 +154,11 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
                NATURE_RESISTANCE_TOTEM,
                WIND_FURY_TOTEM,
                STORMSTRIKE,
+               SHAMANISTIC_RAGE,
                WRATH_OF_AIR_TOTEM,
                EARTH_ELEMENTAL_TOTEM,
-               BLOODLUST;
+               BLOODLUST,
+               HEROISM;
 
         // RESTORATION
         uint32 HEALING_WAVE,
@@ -167,8 +171,7 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
                MANA_TIDE_TOTEM,
                EARTH_SHIELD,
                CURE_DISEASE_SHAMAN,
-               CURE_POISON_SHAMAN,
-               NATURES_SWIFTNESS_SHAMAN;
+               CURE_POISON_SHAMAN;
 
         // ELEMENTAL
         uint32 LIGHTNING_BOLT,
@@ -178,17 +181,21 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
                SEARING_TOTEM,
                PURGE,
                FIRE_NOVA_TOTEM,
+               WIND_SHOCK,
                FROST_SHOCK,
                MAGMA_TOTEM,
                CHAIN_LIGHTNING,
+               TOTEM_OF_WRATH,
                FIRE_ELEMENTAL_TOTEM,
                EARTHBIND_TOTEM,
                ELEMENTAL_MASTERY;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
-               EVERY_MAN_FOR_HIMSELF,
+               PERCEPTION,
                SHADOWMELD,
                BLOOD_FURY,
                WAR_STOMP,
@@ -211,6 +218,7 @@ class MANGOS_DLL_SPEC PlayerbotShamanAI : PlayerbotClassAI
                HEALING_STREAM_EFFECT,
                MANA_SPRING_EFFECT,
                TREMOR_TOTEM_EFFECT,
+               TOTEM_OF_WRATH_EFFECT,
                EARTHBIND_EFFECT;
 
         uint32 SpellSequence, LastSpellEnhancement, LastSpellRestoration, LastSpellElemental;

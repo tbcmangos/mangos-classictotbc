@@ -24,10 +24,13 @@ class PlayerbotAI;
 PlayerbotPaladinAI::PlayerbotPaladinAI(Player* const master, Player* const bot, PlayerbotAI* const ai) : PlayerbotClassAI(master, bot, ai)
 {
     RETRIBUTION_AURA              = m_ai->initSpell(RETRIBUTION_AURA_1);
+    CRUSADER_AURA                 = m_ai->initSpell(CRUSADER_AURA_1);
+    CRUSADER_STRIKE               = m_ai->initSpell(CRUSADER_STRIKE_1);
     SEAL_OF_COMMAND               = m_ai->initSpell(SEAL_OF_COMMAND_1);
     SEAL_OF_RIGHTEOUSNESS         = m_ai->initSpell(SEAL_OF_RIGHTEOUSNESS_1);
     SEAL_OF_JUSTICE               = m_ai->initSpell(SEAL_OF_JUSTICE_1);
     SEAL_OF_LIGHT                 = m_ai->initSpell(SEAL_OF_LIGHT_1);
+    SEAL_OF_VENGEANCE             = m_ai->initSpell(SEAL_OF_VENGEANCE_1);
     SEAL_OF_WISDOM                = m_ai->initSpell(SEAL_OF_WISDOM_1);
     SEAL_OF_THE_CRUSADER          = m_ai->initSpell(SEAL_OF_THE_CRUSADER_1);
     JUDGEMENT                     = m_ai->initSpell(JUDGEMENT_1);
@@ -43,6 +46,7 @@ PlayerbotPaladinAI::PlayerbotPaladinAI(Player* const master, Player* const bot, 
     BLESSING_OF_WISDOM            = m_ai->initSpell(BLESSING_OF_WISDOM_1);
     GREATER_BLESSING_OF_WISDOM    = m_ai->initSpell(GREATER_BLESSING_OF_WISDOM_1);
     CONSECRATION                  = m_ai->initSpell(CONSECRATION_1);
+    AVENGING_WRATH                = m_ai->initSpell(AVENGING_WRATH_1);
     LAY_ON_HANDS                  = m_ai->initSpell(LAY_ON_HANDS_1);
     EXORCISM                      = m_ai->initSpell(EXORCISM_1);
     BLESSING_OF_KINGS             = m_ai->initSpell(BLESSING_OF_KINGS_1);
@@ -51,6 +55,7 @@ PlayerbotPaladinAI::PlayerbotPaladinAI(Player* const master, Player* const bot, 
     GREATER_BLESSING_OF_SANCTUARY = m_ai->initSpell(GREATER_BLESSING_OF_SANCTUARY_1);
     HAMMER_OF_JUSTICE             = m_ai->initSpell(HAMMER_OF_JUSTICE_1);
     RIGHTEOUS_FURY                = m_ai->initSpell(RIGHTEOUS_FURY_1);
+    RIGHTEOUS_DEFENSE             = m_ai->initSpell(RIGHTEOUS_DEFENSE_1);
     SHADOW_RESISTANCE_AURA        = m_ai->initSpell(SHADOW_RESISTANCE_AURA_1);
     DEVOTION_AURA                 = m_ai->initSpell(DEVOTION_AURA_1);
     FIRE_RESISTANCE_AURA          = m_ai->initSpell(FIRE_RESISTANCE_AURA_1);
@@ -60,16 +65,24 @@ PlayerbotPaladinAI::PlayerbotPaladinAI(Player* const master, Player* const bot, 
     DIVINE_INTERVENTION           = m_ai->initSpell(DIVINE_INTERVENTION_1);
     DIVINE_SHIELD                 = m_ai->initSpell(DIVINE_SHIELD_1);
     HOLY_SHIELD                   = m_ai->initSpell(HOLY_SHIELD_1);
+    AVENGERS_SHIELD               = m_ai->initSpell(AVENGERS_SHIELD_1);
     BLESSING_OF_SACRIFICE         = m_ai->initSpell(BLESSING_OF_SACRIFICE_1);
     REDEMPTION                    = m_ai->initSpell(REDEMPTION_1);
     PURIFY                        = m_ai->initSpell(PURIFY_1);
     CLEANSE                       = m_ai->initSpell(CLEANSE_1);
+
+    // Warrior auras
+    DEFENSIVE_STANCE              = 71;   //Def Stance
+    BERSERKER_STANCE              = 2458; //Ber Stance
+    BATTLE_STANCE                 = 2457; //Bat Stance
 
     FORBEARANCE                   = 25771; // cannot be protected
 
     RECENTLY_BANDAGED             = 11196; // first aid check
 
     // racial
+    ARCANE_TORRENT                = m_ai->initSpell(ARCANE_TORRENT_MANA_CLASSES);
+    GIFT_OF_THE_NAARU             = m_ai->initSpell(GIFT_OF_THE_NAARU_ALL); // draenei
     STONEFORM                     = m_ai->initSpell(STONEFORM_ALL); // dwarf
     PERCEPTION                    = m_ai->initSpell(PERCEPTION_ALL); // human
 
@@ -251,7 +264,13 @@ CombatManeuverReturns PlayerbotPaladinAI::DoNextCombatManeuverPVE(Unit* pTarget)
         case PALADIN_SPEC_RETRIBUTION:
             if (HAMMER_OF_WRATH > 0 && pTarget->GetHealth() < pTarget->GetMaxHealth() * 0.20 && m_ai->CastSpell(HAMMER_OF_WRATH, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            return RETURN_CONTINUE;
+            if (CRUSADER_STRIKE > 0 && m_bot->IsSpellReady(CRUSADER_STRIKE) && m_ai->CastSpell(CRUSADER_STRIKE, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (JUDGEMENT > 0 && m_ai->CastSpell(JUDGEMENT, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (AVENGING_WRATH > 0 && m_ai->CastSpell(AVENGING_WRATH, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            return RETURN_NO_ACTION_OK;
 
         case PALADIN_SPEC_PROTECTION:
             //Taunt if orders specify
@@ -259,7 +278,9 @@ CombatManeuverReturns PlayerbotPaladinAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 return RETURN_CONTINUE;
             if (HOLY_SHIELD > 0 && !m_bot->HasAura(HOLY_SHIELD) && m_ai->CastSpell(HOLY_SHIELD, *m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (SHIELD_OF_RIGHTEOUSNESS > 0 && m_bot->IsSpellReady(SHIELD_OF_RIGHTEOUSNESS) && m_ai->CastSpell(SHIELD_OF_RIGHTEOUSNESS, *pTarget) == SPELL_CAST_OK)
+            if (AVENGERS_SHIELD > 0 && m_bot->IsSpellReady(AVENGERS_SHIELD) && m_ai->CastSpell(AVENGERS_SHIELD, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (JUDGEMENT > 0 && m_ai->CastSpell(JUDGEMENT, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             return RETURN_NO_ACTION_OK;
     }
@@ -393,6 +414,9 @@ void PlayerbotPaladinAI::CheckAuras()
     if (!m_bot) return;
 
     uint32 spec = m_bot->GetSpec();
+    PlayerbotAI::ResistType ResistType = m_ai->GetResistType();
+    //Bool to determine whether or not we have resist orders
+    bool resist = false;
 
     // If we have resist orders, adjust accordingly
     if (m_ai->GetCombatOrder() & PlayerbotAI::ORDERS_RESIST_FROST)
@@ -754,8 +778,6 @@ bool PlayerbotPaladinAI::BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit* targe
 // Match up with "Pull()" below
 bool PlayerbotPaladinAI::CanPull()
 {
-    if (HAND_OF_RECKONING > 0 && m_bot->IsSpellReady(HAND_OF_RECKONING))
-        return true;
     return EXORCISM > 0 && m_bot->IsSpellReady(EXORCISM);
 }
 

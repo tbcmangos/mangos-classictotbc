@@ -22,9 +22,7 @@
 class PlayerbotAI;
 PlayerbotWarriorAI::PlayerbotWarriorAI(Player* const master, Player* const bot, PlayerbotAI* const ai) : PlayerbotClassAI(master, bot, ai)
 {
-    SHOOT_BOW               = m_ai->initSpell(SHOOT_BOW_1); // GENERAL
-    SHOOT_GUN               = m_ai->initSpell(SHOOT_GUN_1); // GENERAL
-    SHOOT_XBOW              = m_ai->initSpell(SHOOT_XBOW_1); // GENERAL
+    AUTO_SHOT               = m_ai->initSpell(AUTO_SHOT_2); // GENERAL
 
     BATTLE_STANCE           = m_ai->initSpell(BATTLE_STANCE_1); //ARMS
     CHARGE                  = m_ai->initSpell(CHARGE_1); //ARMS
@@ -39,6 +37,7 @@ PlayerbotWarriorAI::PlayerbotWarriorAI(Player* const master, Player* const bot, 
     MORTAL_STRIKE           = m_ai->initSpell(MORTAL_STRIKE_1);  //ARMS
     BLOODRAGE               = m_ai->initSpell(BLOODRAGE_1); //PROTECTION
     DEFENSIVE_STANCE        = m_ai->initSpell(DEFENSIVE_STANCE_1); //PROTECTION
+    DEVASTATE               = m_ai->initSpell(DEVASTATE_1); //PROTECTION
     SUNDER_ARMOR            = m_ai->initSpell(SUNDER_ARMOR_1); //PROTECTION
     TAUNT                   = m_ai->initSpell(TAUNT_1); //PROTECTION
     SHIELD_BASH             = m_ai->initSpell(SHIELD_BASH_1); //PROTECTION
@@ -47,7 +46,10 @@ PlayerbotWarriorAI::PlayerbotWarriorAI(Player* const master, Player* const bot, 
     DISARM                  = m_ai->initSpell(DISARM_1); //PROTECTION
     SHIELD_WALL             = m_ai->initSpell(SHIELD_WALL_1); //PROTECTION
     SHIELD_SLAM             = m_ai->initSpell(SHIELD_SLAM_1); //PROTECTION
+    DEVASTATE               = m_ai->initSpell(DEVASTATE_1); //PROTECTION
+    SHOCKWAVE               = m_ai->initSpell(SHOCKWAVE_1); //PROTECTION
     CONCUSSION_BLOW         = m_ai->initSpell(CONCUSSION_BLOW_1); //PROTECTION
+    SPELL_REFLECTION        = m_ai->initSpell(SPELL_REFLECTION_1); //PROTECTION
     LAST_STAND              = m_ai->initSpell(LAST_STAND_1); //PROTECTION
     BATTLE_SHOUT            = m_ai->initSpell(BATTLE_SHOUT_1); //FURY
     DEMORALIZING_SHOUT      = m_ai->initSpell(DEMORALIZING_SHOUT_1); //FURY
@@ -64,16 +66,19 @@ PlayerbotWarriorAI::PlayerbotWarriorAI(Player* const master, Player* const bot, 
     PUMMEL                  = m_ai->initSpell(PUMMEL_1); //FURY
     BLOODTHIRST             = m_ai->initSpell(BLOODTHIRST_1); //FURY
     RECKLESSNESS            = m_ai->initSpell(RECKLESSNESS_1); //FURY
+    RAMPAGE                 = 0; // passive
+    COMMANDING_SHOUT        = m_ai->initSpell(COMMANDING_SHOUT_1); //FURY
     PIERCING_HOWL           = m_ai->initSpell(PIERCING_HOWL_1); //FURY
 
     RECENTLY_BANDAGED       = 11196; // first aid check
 
     // racial
+    GIFT_OF_THE_NAARU       = m_ai->initSpell(GIFT_OF_THE_NAARU_ALL); // draenei
     STONEFORM               = m_ai->initSpell(STONEFORM_ALL); // dwarf
     ESCAPE_ARTIST           = m_ai->initSpell(ESCAPE_ARTIST_ALL); // gnome
     PERCEPTION              = m_ai->initSpell(PERCEPTION_ALL); // human
     SHADOWMELD              = m_ai->initSpell(SHADOWMELD_ALL); // night elf
-    BLOOD_FURY              = m_ai->initSpell(BLOOD_FURY_ALL); // orc
+    BLOOD_FURY              = m_ai->initSpell(BLOOD_FURY_MELEE_CLASSES); // orc
     WAR_STOMP               = m_ai->initSpell(WAR_STOMP_ALL); // tauren
     BERSERKING              = m_ai->initSpell(BERSERKING_ALL); // troll
     WILL_OF_THE_FORSAKEN    = m_ai->initSpell(WILL_OF_THE_FORSAKEN_ALL); // undead
@@ -290,6 +295,9 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
     //float fTargetDist = m_bot->GetCombatDistance(pTarget, true);
 
+    //If we have devastate it will replace SA in our rotation
+    uint32 SUNDER = (DEVASTATE > 0 ? DEVASTATE : SUNDER_ARMOR);
+
     //Used to determine if this bot is highest on threat
     Unit* newTarget = m_ai->FindAttacker((PlayerbotAI::ATTACKERINFOTYPE)(PlayerbotAI::AIT_VICTIMSELF | PlayerbotAI::AIT_HIGHESTTHREAT), m_bot);
     Unit* pVictim = pTarget->GetVictim();
@@ -300,8 +308,17 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
     else if (BLOODRAGE > 0 && m_ai->GetRageAmount() <= 10)
         m_ai->CastSpell(BLOODRAGE);
 
-    // Prevent low health humanoid from fleeing with Hamstring
-    if ((m_bot->HasAura(BATTLE_STANCE, EFFECT_INDEX_0) || m_bot->HasAura(BERSERKER_STANCE, EFFECT_INDEX_0)) && pTarget->GetHealthPercent() < 20 && !m_ai->IsElite(pTarget, true))
+    // Prevent low health humanoid or player from fleeing with Hamstring
+    bool canBeSlowed = false;
+    if (pTarget->GetTypeId() == TYPEID_PLAYER)
+        canBeSlowed = true;
+    else
+    {
+        auto* creature = (Creature*) pTarget;
+        if (creature->GetCreatureInfo()->CreatureType == CREATURE_TYPE_HUMANOID && !creature->IsWorldBoss())
+            canBeSlowed = true;
+    }
+    if (canBeSlowed && (m_bot->HasAura(BATTLE_STANCE, EFFECT_INDEX_0) || m_bot->HasAura(BERSERKER_STANCE, EFFECT_INDEX_0)) && pTarget->GetHealthPercent() < 20)
     {
         if (HAMSTRING > 0 && !pTarget->HasAura(HAMSTRING, EFFECT_INDEX_0) && m_ai->CastSpell(HAMSTRING, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
@@ -328,6 +345,8 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         if (BLOODTHIRST > 0 && m_bot->IsSpellReady(BLOODTHIRST) && m_ai->CastSpell(BLOODTHIRST, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         if (WHIRLWIND > 0 && m_bot->IsSpellReady(WHIRLWIND) && m_ai->CastSpell(WHIRLWIND, *pTarget) == SPELL_CAST_OK)
+            return RETURN_CONTINUE;
+        if (SLAM > 0 && m_ai->CastSpell(SLAM, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         if (HEROIC_STRIKE > 0 && m_ai->CastSpell(HEROIC_STRIKE, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
@@ -388,6 +407,7 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 m_ai->TellMaster("I'm using LAST STAND");
                 return RETURN_CONTINUE;
             }
+
             // Cast Shield Wall only if Last Stand is on cooldown and not active
             if (SHIELD_WALL > 0 && (!m_bot->IsSpellReady(LAST_STAND) || LAST_STAND == 0) && !m_bot->HasAura(LAST_STAND, EFFECT_INDEX_0) && !m_bot->HasAura(SHIELD_WALL, EFFECT_INDEX_0) && m_ai->CastSpell(SHIELD_WALL, *m_bot) == SPELL_CAST_OK)
             {
@@ -396,24 +416,15 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
             }
         }
 
-        // Try to interrupt spell if target is casting one and target is not a worldboss (they are almost all immune to interrupt)
-        if (pTarget->IsNonMeleeSpellCasted(true) && !m_ai->IsElite(pTarget, true))
+        // Try to interrupt spell if target is casting one
+        if (pTarget->IsNonMeleeSpellCasted(true))
         {
             if (SHIELD_BASH > 0 && m_ai->CastSpell(SHIELD_BASH, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-        }
-
-        //Do not waste rage applying Sunder Armor if it is already stacked 5 times
-        if (SUNDER_ARMOR > 0)
-        {
-            if (!pTarget->HasAura(SUNDER_ARMOR) && m_ai->CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)   // no stacks: cast it
+            if (PUMMEL > 0 && m_ai->CastSpell(PUMMEL, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            else
-            {
-                SpellAuraHolder* holder = pTarget->GetSpellAuraHolder(SUNDER_ARMOR);
-                if (holder && (holder->GetStackAmount() < 5) && m_ai->CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)
-                    return RETURN_CONTINUE;
-            }
+            if (SPELL_REFLECTION > 0 && !m_bot->HasAura(SPELL_REFLECTION, EFFECT_INDEX_0) && m_ai->CastSpell(SPELL_REFLECTION, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
         }
 
         if (REVENGE > 0 && m_bot->IsSpellReady(REVENGE))
@@ -426,16 +437,29 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
         }
         if (REND > 0 && !pTarget->HasAura(REND, EFFECT_INDEX_0) && m_ai->CastSpell(REND, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-
+        //Do not waste rage applying Sunder Armor if it is already stacked 5 times
+        if (SUNDER_ARMOR > 0)
+        {
+            if (!pTarget->HasAura(SUNDER_ARMOR) && m_ai->CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)   // no stacks: cast it
+                return RETURN_CONTINUE;
+            else
+            {
+                SpellAuraHolder* holder = pTarget->GetSpellAuraHolder(SUNDER_ARMOR);
+                if (holder && (holder->GetStackAmount() < 5) && m_ai->CastSpell(SUNDER_ARMOR, *pTarget) == SPELL_CAST_OK)
+                    return RETURN_CONTINUE;
+            }
+        }
         if (DEMORALIZING_SHOUT > 0 && !pTarget->HasAura(DEMORALIZING_SHOUT, EFFECT_INDEX_0) && m_ai->CastSpell(DEMORALIZING_SHOUT, *pTarget) == SPELL_CAST_OK)
-            return RETURN_CONTINUE;
-        // check that target is dangerous (elite) before casting shield block: preserve bot cooldowns
-        if (SHIELD_BLOCK > 0 && m_ai->IsElite(pTarget) && !m_bot->HasAura(SHIELD_BLOCK, EFFECT_INDEX_0) && m_ai->CastSpell(SHIELD_BLOCK, *m_bot) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         // TODO: only cast disarm if target has equipment?
         if (DISARM > 0 && !pTarget->HasAura(DISARM, EFFECT_INDEX_0) && m_ai->CastSpell(DISARM, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
+        // check that target is dangerous (elite) before casting shield block: preserve bot cooldowns
+        if (SHIELD_BLOCK > 0 && m_ai->IsElite(pTarget) && !m_bot->HasAura(SHIELD_BLOCK, EFFECT_INDEX_0) && m_ai->CastSpell(SHIELD_BLOCK, *m_bot) == SPELL_CAST_OK)
+            return RETURN_CONTINUE;
         if (CONCUSSION_BLOW > 0 && m_bot->IsSpellReady(CONCUSSION_BLOW) && m_ai->CastSpell(CONCUSSION_BLOW, *pTarget) == SPELL_CAST_OK)
+            return RETURN_CONTINUE;
+        if (SHOCKWAVE > 0 && m_bot->IsSpellReady(SHOCKWAVE) && m_ai->CastSpell(SHOCKWAVE, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
         if (SHIELD_SLAM > 0 && m_bot->IsSpellReady(SHIELD_SLAM) && m_ai->CastSpell(SHIELD_SLAM, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
@@ -456,9 +480,7 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 return RETURN_CONTINUE;
             if (MOCKING_BLOW > 0 && pVictim != m_bot && m_ai->GetHealthPercent() > 25 && !pTarget->HasAura(MOCKING_BLOW, EFFECT_INDEX_0) && !pTarget->HasAura(CHALLENGING_SHOUT, EFFECT_INDEX_0) && m_ai->CastSpell(MOCKING_BLOW, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
-            if (m_bot->getRace() == RACE_TAUREN && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && !pTarget->HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !pTarget->HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai->CastSpell(WAR_STOMP, *pTarget) == SPELL_CAST_OK)
-                return RETURN_CONTINUE;
-            if (m_bot->getRace() == RACE_HUMAN && m_bot->hasUnitState(UNIT_STAT_STUNNED) || m_bot->HasAuraType(SPELL_AURA_MOD_FEAR) || m_bot->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) || m_bot->HasAuraType(SPELL_AURA_MOD_CHARM) && m_ai->CastSpell(EVERY_MAN_FOR_HIMSELF, *m_bot) == SPELL_CAST_OK)
+            if (m_bot->getRace() == RACE_TAUREN && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && !pTarget->HasAura(PIERCING_HOWL, EFFECT_INDEX_0) && !pTarget->HasAura(SHOCKWAVE, EFFECT_INDEX_0) && !pTarget->HasAura(CONCUSSION_BLOW, EFFECT_INDEX_0) && m_ai->CastSpell(WAR_STOMP, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             if (m_bot->getRace() == RACE_UNDEAD && m_bot->HasAuraType(SPELL_AURA_MOD_FEAR) || m_bot->HasAuraType(SPELL_AURA_MOD_CHARM) && m_ai->CastSpell(WILL_OF_THE_FORSAKEN, *m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
@@ -469,6 +491,17 @@ CombatManeuverReturns PlayerbotWarriorAI::DoNextCombatManeuverPVE(Unit* pTarget)
             if (m_bot->getRace() == RACE_ORC && !m_bot->HasAura(BLOOD_FURY, EFFECT_INDEX_0) && m_ai->CastSpell(BLOOD_FURY, *m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             if (m_bot->getRace() == RACE_TROLL && !m_bot->HasAura(BERSERKING, EFFECT_INDEX_0) && m_ai->CastSpell(BERSERKING, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (m_bot->getRace() == RACE_DRAENEI && m_ai->GetHealthPercent() < 25 && !m_bot->HasAura(GIFT_OF_THE_NAARU, EFFECT_INDEX_0) && m_ai->CastSpell(GIFT_OF_THE_NAARU, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            break;
+
+        case WarriorDefensive:
+            if (DISARM > 0 && !pTarget->HasAura(DISARM, EFFECT_INDEX_0) && m_ai->CastSpell(DISARM, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (SHIELD_BLOCK > 0 && !m_bot->HasAura(SHIELD_BLOCK, EFFECT_INDEX_0) && m_ai->CastSpell(SHIELD_BLOCK, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (SHIELD_WALL > 0 && !m_bot->HasAura(SHIELD_WALL, EFFECT_INDEX_0) && m_ai->CastSpell(SHIELD_WALL, *m_bot) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
             break;*/
 
@@ -489,8 +522,16 @@ void PlayerbotWarriorAI::CheckShouts()
     if (!m_ai)  return;
     if (!m_bot) return;
 
-    if (!m_bot->HasAura(BATTLE_SHOUT, EFFECT_INDEX_0) && m_ai->CastSpell(BATTLE_SHOUT) == SPELL_CAST_OK)
-        return;
+    if (m_bot->GetSpec() == WARRIOR_SPEC_PROTECTION && COMMANDING_SHOUT > 0)
+    {
+        if (!m_bot->HasAura(COMMANDING_SHOUT, EFFECT_INDEX_0) && m_ai->CastSpell(COMMANDING_SHOUT))
+            return;
+    }
+    else // Not prot, or prot but no Commanding Shout yet
+    {
+        if (!m_bot->HasAura(BATTLE_SHOUT, EFFECT_INDEX_0) && m_ai->CastSpell(BATTLE_SHOUT) == SPELL_CAST_OK)
+            return;
+    }
 }
 
 void PlayerbotWarriorAI::DoNonCombatActions()
@@ -562,59 +603,27 @@ bool PlayerbotWarriorAI::Pull()
     if (!m_bot) return false;
     if (!m_ai)  return false;
 
-    // In Classic, Warriors had 3 different spells for shooting with ranged weapons
-    // So we need to determine which one to use
-    // First step: look for the item equiped in ranged slot
-    Item* pItem = m_bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
-    if (!pItem)
-    {
-        m_ai->TellMaster("I don't have a ranged weapon equiped.");
-        return false;
-    }
-
-    ItemPrototype const* pProto = pItem->GetProto();
-    if (pProto && pProto->Class == ITEM_CLASS_WEAPON)
-    {
-        switch (pProto->SubClass)
-        {
-            case ITEM_SUBCLASS_WEAPON_BOW:
-                SHOOT = SHOOT_BOW;
-                break;
-            case ITEM_SUBCLASS_WEAPON_GUN:
-                SHOOT = SHOOT_GUN;
-                break;
-            case ITEM_SUBCLASS_WEAPON_CROSSBOW:
-                SHOOT = SHOOT_XBOW;
-                break;
-            default:
-                m_ai->TellMaster("Can't pull: equiped range item is neither a gun, a bow nor a crossbow.");
-                return false;
-        }
-    }
-    else
-    {
-        m_ai->TellMaster("Can't pull: equiped range item is unkown.");
-        return false;
-    }
-
     if (m_bot->GetDistance(m_ai->GetCurrentTarget(), true, DIST_CALC_COMBAT_REACH_WITH_MELEE) > ATTACK_DISTANCE)
     {
-        if (!m_ai->In_Reach(m_ai->GetCurrentTarget(), SHOOT))
+        if (!m_ai->In_Range(m_ai->GetCurrentTarget(), AUTO_SHOT))
         {
             m_ai->TellMaster("Can't pull: I'm out of range.");
             return false;
         }
+
         if (!m_bot->IsWithinLOSInMap(m_ai->GetCurrentTarget()))
         {
             m_ai->TellMaster("Can't pull: target is out of sight.");
             return false;
         }
 
-        // shoot at the target
-        m_ai->FaceTarget(m_ai->GetCurrentTarget());
-        m_bot->CastSpell(m_ai->GetCurrentTarget(), SHOOT, TRIGGERED_OLD_TRIGGERED);
-        m_ai->TellMaster("I'm PULLING %s.", m_ai->GetCurrentTarget()->GetName());
-        return true;
+        // activate auto shot: Reworked to account for AUTO_SHOT being a triggered spell
+        if (AUTO_SHOT && m_ai->GetCurrentSpellId() != AUTO_SHOT)
+        {
+            m_ai->FaceTarget(m_ai->GetCurrentTarget());
+            m_bot->CastSpell(m_ai->GetCurrentTarget(), AUTO_SHOT, TRIGGERED_OLD_TRIGGERED);
+            return true;
+        }
     }
     else // target is in melee range
     {

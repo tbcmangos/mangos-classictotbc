@@ -30,7 +30,7 @@ class PlayerbotClassAI;
 
 typedef std::unordered_map<ObjectGuid, Player*> PlayerBotMap;
 
-class MANGOS_DLL_SPEC PlayerbotMgr
+class PlayerbotMgr
 {
         // static functions, available without a PlayerbotMgr instance
     public:
@@ -59,6 +59,7 @@ class MANGOS_DLL_SPEC PlayerbotMgr
         void LogoutPlayerBot(ObjectGuid guid);          // mark bot to be removed on next update
         Player* GetPlayerBot(ObjectGuid guid) const;
         Player* GetMaster() const { return m_master; };
+
         PlayerBotMap::const_iterator GetPlayerBotsBegin() const { return m_playerBots.begin(); }
         PlayerBotMap::const_iterator GetPlayerBotsEnd()   const { return m_playerBots.end();   }
 
@@ -75,6 +76,7 @@ class MANGOS_DLL_SPEC PlayerbotMgr
         bool m_confDisableBots;
         bool m_confDebugWhisper;
         float m_confFollowDistance[2];
+        uint32 gConfigSellLevelDiff;
         bool m_confCollectCombat;
         bool m_confCollectQuest;
         bool m_confCollectProfession;

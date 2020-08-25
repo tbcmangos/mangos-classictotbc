@@ -29,6 +29,7 @@ PlayerbotHunterAI::PlayerbotHunterAI(Player* const master, Player* const bot, Pl
     PET_REVIVE                    = m_ai->initSpell(REVIVE_PET_1);
     PET_MEND                      = m_ai->initSpell(MEND_PET_1);
     PET_FEED                      = 1539;
+
     BESTIAL_WRATH                 = m_ai->initSpell(BESTIAL_WRATH_1);
 
     INTIMIDATION                  = m_ai->initSpell(INTIMIDATION_1); // (generic)
@@ -59,6 +60,7 @@ PlayerbotHunterAI::PlayerbotHunterAI(Player* const master, Player* const bot, Pl
     WING_CLIP                     = m_ai->initSpell(WING_CLIP_1);
     MONGOOSE_BITE                 = m_ai->initSpell(MONGOOSE_BITE_1);
     DISENGAGE                     = m_ai->initSpell(DISENGAGE_1);
+    MISDIRECTION                  = m_ai->initSpell(MISDIRECTION_1);
     DETERRENCE                    = m_ai->initSpell(DETERRENCE_1);
     FEIGN_DEATH                   = m_ai->initSpell(FEIGN_DEATH_1);
 
@@ -67,6 +69,7 @@ PlayerbotHunterAI::PlayerbotHunterAI(Player* const master, Player* const bot, Pl
     IMMOLATION_TRAP               = m_ai->initSpell(IMMOLATION_TRAP_1);
     FROST_TRAP                    = m_ai->initSpell(FROST_TRAP_1);
     EXPLOSIVE_TRAP                = m_ai->initSpell(EXPLOSIVE_TRAP_1);
+    SNAKE_TRAP                    = m_ai->initSpell(SNAKE_TRAP_1);
 
     // BUFFS
     ASPECT_OF_THE_HAWK            = m_ai->initSpell(ASPECT_OF_THE_HAWK_1);
@@ -77,9 +80,11 @@ PlayerbotHunterAI::PlayerbotHunterAI(Player* const master, Player* const bot, Pl
     RECENTLY_BANDAGED             = 11196; // first aid check
 
     // racial
+    ARCANE_TORRENT                = m_ai->initSpell(ARCANE_TORRENT_MANA_CLASSES);
+    GIFT_OF_THE_NAARU             = m_ai->initSpell(GIFT_OF_THE_NAARU_ALL); // draenei
     STONEFORM                     = m_ai->initSpell(STONEFORM_ALL); // dwarf
     SHADOWMELD                    = m_ai->initSpell(SHADOWMELD_ALL);
-    BLOOD_FURY                    = m_ai->initSpell(BLOOD_FURY_ALL); // orc
+    BLOOD_FURY                    = m_ai->initSpell(BLOOD_FURY_MELEE_CLASSES); // orc
     WAR_STOMP                     = m_ai->initSpell(WAR_STOMP_ALL); // tauren
     BERSERKING                    = m_ai->initSpell(BERSERKING_ALL); // troll
 
@@ -347,7 +352,10 @@ CombatManeuverReturns PlayerbotHunterAI::DoNextCombatManeuverPVE(Unit* pTarget)
             return RETURN_CONTINUE;
         if (FROST_TRAP > 0 && !pTarget->HasAura(FROST_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(IMMOLATION_TRAP, EFFECT_INDEX_0) && !pTarget->HasAura(EXPLOSIVE_TRAP, EFFECT_INDEX_0) && m_ai->CastSpell(FROST_TRAP, *pTarget) == SPELL_CAST_OK)
             return RETURN_CONTINUE;
-
+        else if (m_bot->getRace() == RACE_DRAENEI && m_ai->GetHealthPercent() < 25 && !m_bot->HasAura(GIFT_OF_THE_NAARU, EFFECT_INDEX_0) && m_ai->CastSpell(GIFT_OF_THE_NAARU, *m_bot) == SPELL_CAST_OK)
+            return RETURN_CONTINUE;
+        else if (pet && pet->IsAlive() && MISDIRECTION > 0 && pVictim == m_bot && !m_bot->HasAura(MISDIRECTION, EFFECT_INDEX_0) && m_ai->CastSpell(MISDIRECTION, *pet) == SPELL_CAST_OK)
+            return RETURN_CONTINUE;
 //        if (m_bot->getRace() == RACE_TAUREN && !pTarget->HasAura(WAR_STOMP, EFFECT_INDEX_0) && m_ai->CastSpell(WAR_STOMP, *pTarget) == SPELL_CAST_OK)
 //            return RETURN_CONTINUE;
 //        else if (m_bot->getRace() == RACE_DWARF && m_bot->HasAuraState(AURA_STATE_DEADLY_POISON) && m_ai->CastSpell(STONEFORM, *m_bot) == SPELL_CAST_OK)
@@ -411,7 +419,7 @@ void PlayerbotHunterAI::DoNonCombatActions()
         return;
 
     // check for pet
-    if (PET_SUMMON > 0 && !m_petSummonFailed && HasPet(m_bot))
+    if (PET_SUMMON > 0 && !m_petSummonFailed && m_bot->GetPetGuid())
     {
         // we can summon pet, and no critical summon errors before
         Pet* pet = m_bot->GetPet();
@@ -476,9 +484,10 @@ void PlayerbotHunterAI::DoNonCombatActions()
                     if (pet->HaveInDiet(pItemProto)) // is pItem in pets diet
                     {
                         // DEBUG_LOG ("[PlayerbotHunterAI]: DoNonCombatActions - Food for pet: %s",pItemProto->Name1);
-                        caster->CastSpell(caster, 23355, TRIGGERED_OLD_TRIGGERED); // pet feed visual
+                        // caster->CastSpell(caster, 23355, TRIGGERED_OLD_TRIGGERED); // pet feed visual
                         uint32 count = 1; // number of items used
-                        int32 benefit = pet->GetCurrentFoodBenefitLevel(pItemProto->ItemLevel); // nutritional value of food
+                        int32 benefit = pet->GetCurrentFoodBenefitLevel(pItemProto->ItemLevel) * 15; // nutritional value of food
+                        DEBUG_LOG("FEED_PET benefit (%i)", benefit);
                         m_bot->DestroyItemCount(pItem, count, true); // remove item from inventory
                         m_bot->CastCustomSpell(m_bot, PET_FEED, &benefit, nullptr, nullptr, TRIGGERED_OLD_TRIGGERED); // feed pet
                         m_ai->TellMaster("feeding pet.");
@@ -504,9 +513,9 @@ void PlayerbotHunterAI::DoNonCombatActions()
                             if (pet->HaveInDiet(pItemProto)) // is pItem in pets diet
                             {
                                 // DEBUG_LOG ("[PlayerbotHunterAI]: DoNonCombatActions - Food for pet: %s",pItemProto->Name1);
-                                caster->CastSpell(caster, 23355, TRIGGERED_OLD_TRIGGERED); // pet feed visual
+                                // caster->CastSpell(caster, 23355, TRIGGERED_OLD_TRIGGERED); // pet feed visual
                                 uint32 count = 1; // number of items used
-                                int32 benefit = pet->GetCurrentFoodBenefitLevel(pItemProto->ItemLevel); // nutritional value of food
+                                int32 benefit = pet->GetCurrentFoodBenefitLevel(pItemProto->ItemLevel) * 15; // nutritional value of food
                                 m_bot->DestroyItemCount(pItem, count, true); // remove item from inventory
                                 m_bot->CastCustomSpell(m_bot, PET_FEED, &benefit, nullptr, nullptr, TRIGGERED_OLD_TRIGGERED); // feed pet
                                 m_ai->TellMaster("feeding pet.");

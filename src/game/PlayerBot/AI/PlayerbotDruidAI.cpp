@@ -27,6 +27,8 @@ PlayerbotDruidAI::PlayerbotDruidAI(Player* const master, Player* const bot, Play
     WRATH                         = m_ai->initSpell(WRATH_1);
     ROOTS                         = m_ai->initSpell(ENTANGLING_ROOTS_1);
     INSECT_SWARM                  = m_ai->initSpell(INSECT_SWARM_1);
+    FORCE_OF_NATURE               = m_ai->initSpell(FORCE_OF_NATURE_1);
+    HURRICANE                     = m_ai->initSpell(HURRICANE_1);
     MARK_OF_THE_WILD              = m_ai->initSpell(MARK_OF_THE_WILD_1); // buffs
     GIFT_OF_THE_WILD              = m_ai->initSpell(GIFT_OF_THE_WILD_1);
     THORNS                        = m_ai->initSpell(THORNS_1);
@@ -37,6 +39,7 @@ PlayerbotDruidAI::PlayerbotDruidAI(Player* const master, Player* const bot, Play
     FAERIE_FIRE_FERAL             = m_ai->initSpell(FAERIE_FIRE_FERAL_1);
     REJUVENATION                  = m_ai->initSpell(REJUVENATION_1); // heals
     REGROWTH                      = m_ai->initSpell(REGROWTH_1);
+    LIFEBLOOM                     = m_ai->initSpell(LIFEBLOOM_1);
     OMEN_OF_CLARITY               = m_ai->initSpell(OMEN_OF_CLARITY_1);
     NATURES_SWIFTNESS             = m_ai->initSpell(NATURES_SWIFTNESS_DRUID_1);
     HEALING_TOUCH                 = m_ai->initSpell(HEALING_TOUCH_1);
@@ -51,16 +54,20 @@ PlayerbotDruidAI::PlayerbotDruidAI(Player* const master, Player* const bot, Play
     DIRE_BEAR_FORM                = m_ai->initSpell(DIRE_BEAR_FORM_1);
     BEAR_FORM                     = m_ai->initSpell(BEAR_FORM_1);
     CAT_FORM                      = m_ai->initSpell(CAT_FORM_1);
+    TREE_OF_LIFE                  = m_ai->initSpell(TREE_OF_LIFE_1);
     TRAVEL_FORM                   = m_ai->initSpell(TRAVEL_FORM_1);
     // Cat Attack type's
     RAKE                          = m_ai->initSpell(RAKE_1);
     CLAW                          = m_ai->initSpell(CLAW_1); // 45
     COWER                         = m_ai->initSpell(COWER_1); // 20
     SHRED                         = m_ai->initSpell(SHRED_1);
+    MANGLE                        = m_ai->initSpell(MANGLE_1); // 45
     TIGERS_FURY                   = m_ai->initSpell(TIGERS_FURY_1);
+    MANGLE_CAT                    = m_ai->initSpell(MANGLE_CAT_1); //40
     // Cat Finishing Move's
     RIP                           = m_ai->initSpell(RIP_1); // 30
     FEROCIOUS_BITE                = m_ai->initSpell(FEROCIOUS_BITE_1); // 35
+    MAIM                          = m_ai->initSpell(MAIM_1); // 35
     // Bear/Dire Bear Attacks & Buffs
     BASH                          = m_ai->initSpell(BASH_1);
     MAUL                          = m_ai->initSpell(MAUL_1); // 15
@@ -69,6 +76,8 @@ PlayerbotDruidAI::PlayerbotDruidAI(Player* const master, Player* const bot, Play
     CHALLENGING_ROAR              = m_ai->initSpell(CHALLENGING_ROAR_1);
     ENRAGE                        = m_ai->initSpell(ENRAGE_1);
     GROWL                         = m_ai->initSpell(GROWL_1);
+    MANGLE_BEAR                   = m_ai->initSpell(MANGLE_BEAR_1);
+    LACERATE                      = m_ai->initSpell(LACERATE_1);
 
     RECENTLY_BANDAGED             = 11196; // first aid check
 
@@ -252,7 +261,7 @@ CombatManeuverReturns PlayerbotDruidAI::DoNextCombatManeuverPVE(Unit* pTarget)
 
         case DRUID_SPEC_RESTORATION: // There is no Resto DAMAGE rotation. If you insist, go Balance...
         case DRUID_SPEC_BALANCE:
-            if (m_bot->HasAura(BEAR) || m_bot->HasAura(CAT_FORM))
+            if (m_bot->HasAura(BEAR) || m_bot->HasAura(CAT_FORM) || m_bot->HasAura(TREE_OF_LIFE))
                 return RETURN_NO_ACTION_UNKNOWN; // Didn't shift out of inappropriate form
 
             return _DoNextPVECombatManeuverSpellDPS(pTarget);
@@ -263,6 +272,11 @@ CombatManeuverReturns PlayerbotDruidAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 return RETURN_CONTINUE;
             if (ROOTS > 0 && !pTarget->HasAura(ROOTS, EFFECT_INDEX_0) && CastSpell(ROOTS, pTarget))
                 return RETURN_CONTINUE;
+            if (HURRICANE > 0 && ai->In_Reach(target,HURRICANE) && m_ai->GetAttackerCount() >= 5 && CastSpell(HURRICANE, pTarget))
+            {
+                m_ai->SetIgnoreUpdateTime(10);
+                return RETURN_CONTINUE;
+            }
             */
     }
 
@@ -307,6 +321,12 @@ CombatManeuverReturns PlayerbotDruidAI::_DoNextPVECombatManeuverBear(Unit* pTarg
     if (DEMORALIZING_ROAR > 0 && !pTarget->HasAura(DEMORALIZING_ROAR, EFFECT_INDEX_0) && CastSpell(DEMORALIZING_ROAR, pTarget))
         return RETURN_CONTINUE;
 
+    if (MANGLE_BEAR > 0 && !pTarget->HasAura(MANGLE_BEAR) && CastSpell(MANGLE_BEAR, pTarget))
+        return RETURN_CONTINUE;
+
+    if (LACERATE > 0 && !pTarget->HasAura(LACERATE, EFFECT_INDEX_0) && CastSpell(LACERATE, pTarget))
+        return RETURN_CONTINUE;
+
     if (MAUL > 0 && CastSpell(MAUL, pTarget))
         return RETURN_CONTINUE;
 
@@ -329,6 +349,7 @@ CombatManeuverReturns PlayerbotDruidAI::_DoNextPVECombatManeuverCat(Unit* pTarge
     // Attempt to do a finishing move
     if (m_bot->GetComboPoints() >= 5)
     {
+        // 30 Energy
         if (RIP > 0 && !pTarget->HasAura(RIP, EFFECT_INDEX_0))
         {
             if (CastSpell(RIP, pTarget))
@@ -352,6 +373,9 @@ CombatManeuverReturns PlayerbotDruidAI::_DoNextPVECombatManeuverCat(Unit* pTarge
         return RETURN_CONTINUE;
 
     if (TIGERS_FURY > 0 && m_bot->IsSpellReady(TIGERS_FURY) && !m_bot->HasAura(TIGERS_FURY, EFFECT_INDEX_0) && CastSpell(TIGERS_FURY))
+        return RETURN_CONTINUE;
+
+    if (MANGLE_CAT > 0 && !pTarget->HasAura(MANGLE_CAT) && CastSpell(MANGLE_CAT))
         return RETURN_CONTINUE;
 
     if (RAKE > 0 && !pTarget->HasAura(RAKE) && CastSpell(RAKE, pTarget))
@@ -392,6 +416,9 @@ CombatManeuverReturns PlayerbotDruidAI::_DoNextPVECombatManeuverSpellDPS(Unit* p
         return RETURN_NO_ACTION_OK;
 
     if (MOONFIRE > 0 && m_ai->In_Reach(pTarget, MOONFIRE) && !pTarget->HasAura(MOONFIRE, EFFECT_INDEX_0) && CastSpell(MOONFIRE, pTarget))
+        return RETURN_CONTINUE;
+
+    if (FORCE_OF_NATURE > 0 && m_ai->In_Reach(pTarget, FORCE_OF_NATURE) && CastSpell(FORCE_OF_NATURE))
         return RETURN_CONTINUE;
 
     if (NATURE > 0 && CastSpell(NATURE, pTarget))
@@ -450,6 +477,10 @@ CombatManeuverReturns PlayerbotDruidAI::HealPlayer(Player* target)
     if (hp >= 80)
         return RETURN_NO_ACTION_OK;
 
+    // Reset form if needed
+    if (!m_bot->HasAura(TREE_OF_LIFE) || TREE_OF_LIFE == 0)
+        GoBuffForm(GetPlayerBot());
+
     // Start heals. Do lowest HP checks at the top
 
     // Emergency heal: target needs to be healed NOW!
@@ -481,6 +512,9 @@ CombatManeuverReturns PlayerbotDruidAI::HealPlayer(Player* target)
     }
 
     if (hp < 60 && HEALING_TOUCH > 0 && m_ai->In_Reach(target, HEALING_TOUCH) && CastSpell(HEALING_TOUCH, target))
+        return RETURN_CONTINUE;
+
+    if (hp < 65 && LIFEBLOOM > 0 && m_ai->In_Reach(target, LIFEBLOOM) && !target->HasAura(LIFEBLOOM) && CastSpell(LIFEBLOOM, target))
         return RETURN_CONTINUE;
 
     if (hp < 80 && REJUVENATION > 0 && m_ai->In_Reach(target, REJUVENATION) && !target->HasAura(REJUVENATION) && CastSpell(REJUVENATION, target))
@@ -549,6 +583,12 @@ uint8 PlayerbotDruidAI::CheckForms()
     // regardless of spec
     if (m_ai->IsHealer() || spec == DRUID_SPEC_RESTORATION)
     {
+        if (m_bot->HasAura(TREE_OF_LIFE))
+            return RETURN_OK_NOCHANGE;
+
+        if (!TREE_OF_LIFE)
+            return RETURN_OK_CANNOTSHIFT;
+
         if (m_bot->HasAura(CAT_FORM, EFFECT_INDEX_0))
         {
             m_bot->RemoveAurasDueToSpell(CAT_FORM_1);
@@ -575,7 +615,10 @@ uint8 PlayerbotDruidAI::CheckForms()
             return RETURN_OK_SHIFTING;
         }
 
-        return RETURN_OK_NOCHANGE;
+        if (CastSpell(TREE_OF_LIFE))
+            return RETURN_OK_SHIFTING;
+        else
+            return RETURN_FAIL;
     }
 
     if (spec == DRUID_SPEC_BALANCE)
@@ -751,7 +794,7 @@ bool PlayerbotDruidAI::CastHoTOnTank()
 
     if ((PlayerbotAI::ORDERS_HEAL & m_ai->GetCombatOrder()) == 0) return false;
 
-    // Druid HoTs: Rejuvenation, Regrowth, Tranquility (channeled, AoE)
+    // Druid HoTs: Rejuvenation, Regrowth, Tranquility (channeled, AoE), Lifebloom, and Wild Growth
     if (REJUVENATION > 0)
         return (RETURN_CONTINUE & CastSpell(REJUVENATION, m_ai->GetGroupTank()));
 

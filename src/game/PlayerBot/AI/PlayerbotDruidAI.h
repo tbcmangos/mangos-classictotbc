@@ -33,6 +33,7 @@ enum DruidSpells
     CLAW_1                          = 1082,
     COWER_1                         = 8998,
     CURE_POISON_1                   = 8946,
+    CYCLONE_1                       = 33786,
     DASH_1                          = 1850,
     DEMORALIZING_ROAR_1             = 99,
     DIRE_BEAR_FORM_1                = 9634,
@@ -42,6 +43,8 @@ enum DruidSpells
     FAERIE_FIRE_FERAL_1             = 16857,
     FERAL_CHARGE_BEAR_1             = 16979,
     FEROCIOUS_BITE_1                = 22568,
+    FLIGHT_FORM_1                   = 33943,
+    FORCE_OF_NATURE_1               = 33831,
     FRENZIED_REGENERATION_1         = 22842,
     GIFT_OF_THE_WILD_1              = 21849,
     GROWL_1                         = 6795,
@@ -50,6 +53,12 @@ enum DruidSpells
     HURRICANE_1                     = 16914,
     INNERVATE_1                     = 29166,
     INSECT_SWARM_1                  = 5570,
+    LACERATE_1                      = 33745,
+    LIFEBLOOM_1                     = 33763,
+    MAIM_1                          = 22570,
+    MANGLE_1                        = 33917,
+    MANGLE_BEAR_1                   = 33878,
+    MANGLE_CAT_1                    = 33876,
     MARK_OF_THE_WILD_1              = 1126,
     MAUL_1                          = 6807,
     MOONFIRE_1                      = 8921,
@@ -70,17 +79,19 @@ enum DruidSpells
     SOOTHE_ANIMAL_1                 = 2908,
     STARFIRE_1                      = 2912,
     SWIFTMEND_1                     = 18562,
+    SWIFT_FLIGHT_FORM_1             = 40120,
     SWIPE_BEAR_1                    = 779,
     THORNS_1                        = 467,
     TIGERS_FURY_1                   = 5217,
     TRANQUILITY_1                   = 740,
     TRAVEL_FORM_1                   = 783,
-    WRATH_1                         = 5176
+    TREE_OF_LIFE_1                  = 33891,
+    WRATH_1                         = 5176,
 };
 
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
+class PlayerbotDruidAI : PlayerbotClassAI
 {
     public:
         PlayerbotDruidAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -140,6 +151,7 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                BEAR_FORM,
                DIRE_BEAR_FORM,
                MOONKIN_FORM,
+               TREE_OF_LIFE,
                TRAVEL_FORM;
 
         // druid cat attacks
@@ -149,7 +161,10 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                RAKE,
                RIP,
                SHRED,
-               FEROCIOUS_BITE;
+               FEROCIOUS_BITE,
+               MAIM,
+               MANGLE,
+               MANGLE_CAT;
 
         // druid bear/dire bear attacks & buffs
         uint32 BASH,
@@ -159,7 +174,9 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                CHALLENGING_ROAR,
                GROWL,
                ENRAGE,
-               FAERIE_FIRE_FERAL;
+               FAERIE_FIRE_FERAL,
+               MANGLE_BEAR,
+               LACERATE;
 
         // druid caster DPS attacks & debuffs
         uint32 MOONFIRE,
@@ -169,6 +186,8 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                STARFIRE,
                INSECT_SWARM,
                FAERIE_FIRE,
+               FORCE_OF_NATURE,
+               HURRICANE,
                HIBERNATE;
 
         // druid buffs
@@ -180,7 +199,8 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                BARKSKIN;
 
         // druid heals
-        uint32 REJUVENATION,
+        uint32 LIFEBLOOM,
+               REJUVENATION,
                REGROWTH,
                HEALING_TOUCH,
                SWIFTMEND,
@@ -191,9 +211,11 @@ class MANGOS_DLL_SPEC PlayerbotDruidAI : PlayerbotClassAI
                ABOLISH_POISON;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
-               EVERY_MAN_FOR_HIMSELF,
+               PERCEPTION,
                SHADOWMELD,
                BLOOD_FURY,
                WAR_STOMP,

@@ -35,7 +35,8 @@ enum RoguePoisonDisplayId
     CRIPPLING_POISON_DISPLAYID      = 13708,
     MIND_NUMBLING_POISON_DISPLAYID  = 13709,
     INSTANT_POISON_DISPLAYID        = 13710,
-    WOUND_POISON_DISPLAYID          = 13708
+    WOUND_POISON_DISPLAYID          = 37278,
+    ANESTHETIC_POISON_DISPLAYID     = 34432,
 };
 
 enum RogueSpells
@@ -46,9 +47,12 @@ enum RogueSpells
     BLADE_FLURRY_1                  = 13877,
     BLIND_1                         = 2094,
     CHEAP_SHOT_1                    = 1833,
+    CLOAK_OF_SHADOWS_1              = 31224,
     COLD_BLOOD_1                    = 14177,
+    DEADLY_THROW_1                  = 26679,
     DISARM_TRAP_1                   = 1842,
     DISTRACT_1                      = 1725,
+    ENVENOM_1                       = 32645,
     EVASION_1                       = 5277,
     EVISCERATE_1                    = 2098,
     EXPOSE_ARMOR_1                  = 8647,
@@ -59,6 +63,7 @@ enum RogueSpells
     HEMORRHAGE_1                    = 16511,
     KICK_1                          = 1766,
     KIDNEY_SHOT_1                   = 408,
+    MUTILATE_1                      = 1329,
     PICK_LOCK_1                     = 1804,
     PICK_POCKET_1                   = 921,
     PREMEDITATION_1                 = 14183,
@@ -66,6 +71,8 @@ enum RogueSpells
     RIPOSTE_1                       = 14251,
     RUPTURE_1                       = 1943,
     SAP_1                           = 6770,
+    SHADOWSTEP_1                    = 36554,
+    SHIV_1                          = 5938,
     SINISTER_STRIKE_1               = 1752,
     SLICE_AND_DICE_1                = 5171,
     SPRINT_1                        = 2983,
@@ -74,7 +81,7 @@ enum RogueSpells
 };
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotRogueAI : PlayerbotClassAI
+class PlayerbotRogueAI : PlayerbotClassAI
 {
     public:
         PlayerbotRogueAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -102,14 +109,17 @@ class MANGOS_DLL_SPEC PlayerbotRogueAI : PlayerbotClassAI
                EVASION,
                SPRINT,
                KICK,
-               FEINT;
+               FEINT,
+               SHIV;
 
         // SUBTLETY
-        uint32 STEALTH,
+        uint32 SHADOWSTEP,
+               STEALTH,
                VANISH,
                HEMORRHAGE,
                BLIND,
                PICK_POCKET,
+               CLOAK_OF_SHADOWS,
                CRIPPLING_POISON,
                DEADLY_POISON,
                MIND_NUMBING_POISON,
@@ -127,10 +137,15 @@ class MANGOS_DLL_SPEC PlayerbotRogueAI : PlayerbotClassAI
                AMBUSH,
                RUPTURE,
                CHEAP_SHOT,
-               KIDNEY_SHOT;
+               KIDNEY_SHOT,
+               MUTILATE,
+               ENVENOM,
+               DEADLY_THROW;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
                PERCEPTION,
                SHADOWMELD,

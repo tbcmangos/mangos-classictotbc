@@ -31,6 +31,8 @@ enum
 enum PriestSpells
 {
     ABOLISH_DISEASE_1               = 552,
+    BINDING_HEAL_1                  = 32546,
+    CIRCLE_OF_HEALING_1             = 34861,
     CURE_DISEASE_1                  = 528,
     DESPERATE_PRAYER_1              = 19236,
     DEVOURING_PLAGUE_1              = 2944,
@@ -50,16 +52,19 @@ enum PriestSpells
     LEVITATE_1                      = 1706,
     LIGHTWELL_1                     = 724,
     MANA_BURN_1                     = 8129,
+    MASS_DISPEL_1                   = 32375,
     MIND_BLAST_1                    = 8092,
     MIND_CONTROL_1                  = 605,
     MIND_FLAY_1                     = 15407,
     MIND_SOOTHE_1                   = 453,
     MIND_VISION_1                   = 2096,
+    PAIN_SUPPRESSION_1              = 33206,
     POWER_INFUSION_1                = 10060,
     POWER_WORD_FORTITUDE_1          = 1243,
     POWER_WORD_SHIELD_1             = 17,
     PRAYER_OF_FORTITUDE_1           = 21562,
     PRAYER_OF_HEALING_1             = 596,
+    PRAYER_OF_MENDING_1             = 33076,
     PRAYER_OF_SHADOW_PROTECTION_1   = 27683,
     PRAYER_OF_SPIRIT_1              = 27681,
     PSYCHIC_SCREAM_1                = 8122,
@@ -67,17 +72,20 @@ enum PriestSpells
     RESURRECTION_1                  = 2006,
     SHACKLE_UNDEAD_1                = 9484,
     SHADOW_PROTECTION_1             = 976,
+    SHADOW_WORD_DEATH_1             = 32379,
     SHADOW_WORD_PAIN_1              = 589,
+    SHADOWFIEND_1                   = 34433,
     SHADOWFORM_1                    = 15473,
-    SHOOT_1                         = 5019,
+    SHOOT_1                                          = 5019,
     SILENCE_1                       = 15487,
     SMITE_1                         = 585,
     VAMPIRIC_EMBRACE_1              = 15286,
+    VAMPIRIC_TOUCH_1                = 34914,
     WEAKNED_SOUL                    = 6788
 };
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotPriestAI : PlayerbotClassAI
+class PlayerbotPriestAI : PlayerbotClassAI
 {
     public:
         PlayerbotPriestAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -112,7 +120,9 @@ class MANGOS_DLL_SPEC PlayerbotPriestAI : PlayerbotClassAI
         static bool BuffHelper(PlayerbotAI* ai, uint32 spellId, Unit* target);
 
         // holy
-        uint32 CLEARCASTING,
+        uint32 BINDING_HEAL,
+               CIRCLE_OF_HEALING,
+               CLEARCASTING,
                DESPERATE_PRAYER,
                FLASH_HEAL,
                GREATER_HEAL,
@@ -122,6 +132,7 @@ class MANGOS_DLL_SPEC PlayerbotPriestAI : PlayerbotClassAI
                LESSER_HEAL,
                MANA_BURN,
                PRAYER_OF_HEALING,
+               PRAYER_OF_MENDING,
                RENEW,
                RESURRECTION,
                SHACKLE_UNDEAD,
@@ -141,7 +152,9 @@ class MANGOS_DLL_SPEC PlayerbotPriestAI : PlayerbotClassAI
                MIND_FLAY,
                DEVOURING_PLAGUE,
                SHADOW_PROTECTION,
+               VAMPIRIC_TOUCH,
                PRAYER_OF_SHADOW_PROTECTION,
+               SHADOWFIEND,
                SHADOWFORM,
                VAMPIRIC_EMBRACE;
 
@@ -158,7 +171,9 @@ class MANGOS_DLL_SPEC PlayerbotPriestAI : PlayerbotClassAI
                INNER_FOCUS;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ELUNES_GRACE,
                ESCAPE_ARTIST,
                PERCEPTION,

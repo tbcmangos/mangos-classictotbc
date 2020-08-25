@@ -11,6 +11,8 @@ enum
 
 enum PaladinSpells
 {
+    AVENGERS_SHIELD_1               = 31935,
+    AVENGING_WRATH_1                = 31884,
     BLESSING_OF_KINGS_1             = 20217,
     BLESSING_OF_MIGHT_1             = 19740,
     BLESSING_OF_SANCTUARY_1         = 20911,
@@ -18,8 +20,11 @@ enum PaladinSpells
     CLEANSE_1                       = 4987,
     CONCENTRATION_AURA_1            = 19746,
     CONSECRATION_1                  = 26573,
+    CRUSADER_AURA_1                 = 32223,
+    CRUSADER_STRIKE_1               = 35395,
     DEVOTION_AURA_1                 = 465,
     DIVINE_FAVOR_1                  = 20216,
+    DIVINE_ILLUMINATION_1           = 31842,
     DIVINE_INTERVENTION_1           = 19752,
     DIVINE_PROTECTION_1             = 498,
     DIVINE_SHIELD_1                 = 642,
@@ -47,11 +52,13 @@ enum PaladinSpells
     REDEMPTION_1                    = 7328,
     REPENTANCE_1                    = 20066,
     RETRIBUTION_AURA_1              = 7294,
+    RIGHTEOUS_DEFENSE_1             = 31789,
     RIGHTEOUS_FURY_1                = 25780,
     SEAL_OF_COMMAND_1               = 20375,
     SEAL_OF_JUSTICE_1               = 20164,
     SEAL_OF_LIGHT_1                 = 20165,
     SEAL_OF_RIGHTEOUSNESS_1         = 21084,
+    SEAL_OF_VENGEANCE_1             = 31801,
     SEAL_OF_WISDOM_1                = 20166,
     SEAL_OF_THE_CRUSADER_1          = 21082,
     SENSE_UNDEAD_1                  = 5502,
@@ -65,7 +72,7 @@ enum PaladinSpells
 };
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
+class PlayerbotPaladinAI : PlayerbotClassAI
 {
     public:
         PlayerbotPaladinAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -110,13 +117,18 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
         // Retribution
         uint32 RETRIBUTION_AURA,
                SEAL_OF_COMMAND,
+               JUDGEMENT,
                GREATER_BLESSING_OF_WISDOM,
                GREATER_BLESSING_OF_MIGHT,
                BLESSING_OF_WISDOM,
                BLESSING_OF_MIGHT,
                HAMMER_OF_JUSTICE,
                RIGHTEOUS_FURY,
-               JUDGEMENT;
+               CRUSADER_AURA,
+               CRUSADER_STRIKE,
+               AVENGING_WRATH,
+               JUDGEMENT_OF_JUSTICE,
+               ART_OF_WAR;
 
         // Holy
         uint32 FLASH_OF_LIGHT,
@@ -126,14 +138,17 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
                CONSECRATION,
                CONCENTRATION_AURA,
                DIVINE_FAVOR,
+               SACRED_SHIELD,
                HOLY_SHOCK,
                HOLY_WRATH,
                LAY_ON_HANDS,
                EXORCISM,
                REDEMPTION,
+               DIVINE_PLEA,
                SEAL_OF_JUSTICE,
                SEAL_OF_LIGHT,
                SEAL_OF_RIGHTEOUSNESS,
+               SEAL_OF_VENGEANCE,
                SEAL_OF_WISDOM,
                SEAL_OF_THE_CRUSADER,
                PURIFY,
@@ -150,7 +165,6 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
                DEFENSIVE_STANCE,
                BERSERKER_STANCE,
                BATTLE_STANCE,
-               DIVINE_SACRIFICE,
                DIVINE_PROTECTION,
                DIVINE_INTERVENTION,
                HOLY_SHIELD,
@@ -158,16 +172,15 @@ class MANGOS_DLL_SPEC PlayerbotPaladinAI : PlayerbotClassAI
                RIGHTEOUS_DEFENSE,
                BLESSING_OF_SANCTUARY,
                GREATER_BLESSING_OF_SANCTUARY,
-               BLESSING_OF_SACRIFICE,
-               SHIELD_OF_RIGHTEOUSNESS,
-               HAND_OF_RECKONING,
-               HAMMER_OF_THE_RIGHTEOUS;
+               BLESSING_OF_SACRIFICE;
 
         // cannot be protected
         uint32 FORBEARANCE;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
                PERCEPTION,
                SHADOWMELD,

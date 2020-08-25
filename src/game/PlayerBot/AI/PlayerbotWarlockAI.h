@@ -52,7 +52,8 @@ enum DemonEntry
     DEMON_IMP        = 416,
     DEMON_VOIDWALKER = 1860,
     DEMON_SUCCUBUS   = 1863,
-    DEMON_FELHUNTER  = 417
+    DEMON_FELHUNTER  = 417,
+    DEMON_FELGUARD   = 17252
 };
 
 enum DemonSpellIconIds
@@ -61,8 +62,14 @@ enum DemonSpellIconIds
     BLOOD_PACT_ICON       = 541,
     FIREBOLT_ICON         = 18,
     FIRE_SHIELD_ICON      = 16,
+    // Felguard
+    ANGUISH_ICON          = 173,
+    CLEAVE_ICON           = 277,
+    INTERCEPT_ICON        = 516,
     // Felhunter
     DEVOUR_MAGIC_ICON     = 47,
+    FEL_INTELLIGENCE_ICON = 1940,
+    SHADOW_BITE_ICON      = 2027,
     SPELL_LOCK_ICON       = 77,
     // Succubus
     LASH_OF_PAIN_ICON     = 596,
@@ -104,34 +111,42 @@ enum WarlockSpells
     ENSLAVE_DEMON_1                 = 1098,
     EYE_OF_KILROGG_1                = 126,
     FEAR_1                          = 5782,
+    FEL_ARMOR_1                     = 28176,
     FEL_DOMINATION_1                = 18708,
     HEALTH_FUNNEL_1                 = 755,
     HELLFIRE_1                      = 1949,
     HOWL_OF_TERROR_1                = 5484,
     IMMOLATE_1                      = 348,
+    INCINERATE_1                    = 29722,
     INFERNO_1                       = 1122,
     LIFE_TAP_1                      = 1454,
     RAIN_OF_FIRE_1                  = 5740,
     RITUAL_OF_DOOM_1                = 18540,
+    RITUAL_OF_SOULS_1               = 29893,
     RITUAL_OF_SUMMONING_1           = 698,
     SEARING_PAIN_1                  = 5676,
+    SEED_OF_CORRUPTION_1            = 27243,
     SENSE_DEMONS_1                  = 5500,
     SHADOW_BOLT_1                   = 686,
     SHADOW_WARD_1                   = 6229,
     SHADOWBURN_1                    = 17877,
+    SHADOWFURY_1                    = 30283,
     SHOOT_3                         = 5019,
     SIPHON_LIFE_1                   = 18265,
     SOUL_FIRE_1                     = 6353,
     SOUL_LINK_1                     = 19028,
+    SOULSHATTER_1                   = 29858,
+    SUMMON_FELGUARD_1               = 30146,
     SUMMON_FELHUNTER_1              = 691,
     SUMMON_IMP_1                    = 688,
     SUMMON_SUCCUBUS_1               = 712,
     SUMMON_VOIDWALKER_1             = 697,
-    UNENDING_BREATH_1               = 5697
+    UNENDING_BREATH_1               = 5697,
+    UNSTABLE_AFFLICTION_1           = 30108
 };
 
 //class Player;
-class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
+class PlayerbotWarlockAI : PlayerbotClassAI
 {
     public:
         PlayerbotWarlockAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -168,8 +183,7 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
                CURSE_OF_TONGUES,
                CURSE_OF_THE_ELEMENTS,
                CURSE_OF_DOOM;
-
-        // RANGED
+        // ranged
         uint32 SHOOT;
 
         // AFFLICTION
@@ -179,6 +193,8 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
                DRAIN_LIFE,
                DRAIN_MANA,
                LIFE_TAP,
+               UNSTABLE_AFFLICTION,
+               SEED_OF_CORRUPTION,
                DARK_PACT,
                HOWL_OF_TERROR,
                FEAR,
@@ -187,9 +203,11 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
         // DESTRUCTION
         uint32 SHADOW_BOLT,
                IMMOLATE,
+               INCINERATE,
                SEARING_PAIN,
                CONFLAGRATE,
                SOUL_FIRE,
+               SHADOWFURY,
                HELLFIRE,
                RAIN_OF_FIRE,
                SHADOWBURN;
@@ -198,7 +216,10 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
         uint32 BANISH,
                DEMON_SKIN,
                DEMON_ARMOR,
+               DEMONIC_EMPOWERMENT,
                SHADOW_WARD,
+               FEL_ARMOR,
+               SOULSHATTER,
                ENSLAVE_DEMON,
                SOUL_LINK,
                SOUL_LINK_AURA,
@@ -213,7 +234,8 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
         uint32 SUMMON_IMP,
                SUMMON_VOIDWALKER,
                SUMMON_SUCCUBUS,
-               SUMMON_FELHUNTER;
+               SUMMON_FELHUNTER,
+               SUMMON_FELGUARD;
 
         // DEMON SKILLS
         uint32 BLOOD_PACT,
@@ -222,6 +244,8 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
                ANGUISH,
                INTERCEPT,
                DEVOUR_MAGIC,
+               FEL_INTELLIGENCE,
+               SHADOW_BITE,
                SPELL_LOCK,
                LASH_OF_PAIN,
                SEDUCTION,
@@ -229,10 +253,13 @@ class MANGOS_DLL_SPEC PlayerbotWarlockAI : PlayerbotClassAI
                CONSUME_SHADOWS,
                SACRIFICE,
                SUFFERING,
+               CLEAVE,
                TORMENT;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
                PERCEPTION,
                SHADOWMELD,

@@ -25,6 +25,8 @@ PlayerbotMageAI::PlayerbotMageAI(Player* const master, Player* const bot, Player
     ARCANE_MISSILES         = m_ai->initSpell(ARCANE_MISSILES_1);
     ARCANE_EXPLOSION        = m_ai->initSpell(ARCANE_EXPLOSION_1);
     COUNTERSPELL            = m_ai->initSpell(COUNTERSPELL_1);
+    SLOW                    = m_ai->initSpell(SLOW_1);
+    ARCANE_BLAST            = m_ai->initSpell(ARCANE_BLAST_1);
     ARCANE_POWER            = m_ai->initSpell(ARCANE_POWER_1);
     DAMPEN_MAGIC            = m_ai->initSpell(DAMPEN_MAGIC_1);
     AMPLIFY_MAGIC           = m_ai->initSpell(AMPLIFY_MAGIC_1);
@@ -45,13 +47,18 @@ PlayerbotMageAI::PlayerbotMageAI(Player* const master, Player* const bot, Player
     PYROBLAST               = m_ai->initSpell(PYROBLAST_1);
     BLAST_WAVE              = m_ai->initSpell(BLAST_WAVE_1);
     COMBUSTION              = m_ai->initSpell(COMBUSTION_1);
+    DRAGONS_BREATH          = m_ai->initSpell(DRAGONS_BREATH_1);
     FIRE_WARD               = m_ai->initSpell(FIRE_WARD_1);
+    MOLTEN_ARMOR            = m_ai->initSpell(MOLTEN_ARMOR_1);
+    ICY_VEINS               = m_ai->initSpell(ICY_VEINS_1);
     FROSTBOLT               = m_ai->initSpell(FROSTBOLT_1);
     FROST_NOVA              = m_ai->initSpell(FROST_NOVA_1);
     BLIZZARD                = m_ai->initSpell(BLIZZARD_1);
     CONE_OF_COLD            = m_ai->initSpell(CONE_OF_COLD_1);
     ICE_BARRIER             = m_ai->initSpell(ICE_BARRIER_1);
+    SUMMON_WATER_ELEMENTAL  = m_ai->initSpell(SUMMON_WATER_ELEMENTAL_1);
     FROST_WARD              = m_ai->initSpell(FROST_WARD_1);
+    ICE_LANCE               = m_ai->initSpell(ICE_LANCE_1);
     FROST_ARMOR             = m_ai->initSpell(FROST_ARMOR_1);
     ICE_ARMOR               = m_ai->initSpell(ICE_ARMOR_1);
     ICE_BLOCK               = m_ai->initSpell(ICE_BLOCK_1);
@@ -73,6 +80,8 @@ PlayerbotMageAI::PlayerbotMageAI(Player* const master, Player* const bot, Player
     RECENTLY_BANDAGED       = 11196; // first aid check
 
     // racial
+    ARCANE_TORRENT          = m_ai->initSpell(ARCANE_TORRENT_MANA_CLASSES); // blood elf
+    GIFT_OF_THE_NAARU       = m_ai->initSpell(GIFT_OF_THE_NAARU_ALL); // draenei
     ESCAPE_ARTIST           = m_ai->initSpell(ESCAPE_ARTIST_ALL); // gnome
     PERCEPTION              = m_ai->initSpell(PERCEPTION_ALL); // human
     BERSERKING              = m_ai->initSpell(BERSERKING_ALL); // troll
@@ -242,6 +251,8 @@ CombatManeuverReturns PlayerbotMageAI::DoNextCombatManeuverPVE(Unit* pTarget)
     switch (spec)
     {
         case MAGE_SPEC_FROST:
+            if (ICY_VEINS > 0 && m_ai->In_Reach(m_bot, ICY_VEINS) && !m_bot->HasAura(ICY_VEINS, EFFECT_INDEX_0) && CastSpell(ICY_VEINS, m_bot))
+                return RETURN_CONTINUE;
             if (COLD_SNAP && m_bot->IsSpellReady(COLD_SNAP) && CheckFrostCooldowns() > 2 && m_ai->SelfBuff(COLD_SNAP) == SPELL_CAST_OK)  // Clear frost spell cooldowns if bot has more than 2 active
                 return RETURN_CONTINUE;
             if (CONE_OF_COLD > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FROST) && m_bot->IsSpellReady(CONE_OF_COLD) && meleeReach)
@@ -255,6 +266,11 @@ CombatManeuverReturns PlayerbotMageAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 return RETURN_CONTINUE;
             if (FROST_NOVA > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FROST) && m_bot->IsSpellReady(FROST_NOVA) && meleeReach && !pTarget->HasAura(FROST_NOVA, EFFECT_INDEX_0) && CastSpell(FROST_NOVA, pTarget))
                 return RETURN_CONTINUE;
+            if (ICE_LANCE > 0 && !m_ai->IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FROST) && m_ai->In_Reach(pTarget, ICE_LANCE) && CastSpell(ICE_LANCE, pTarget))
+                return RETURN_CONTINUE;
+            if (SUMMON_WATER_ELEMENTAL > 0 && CastSpell(SUMMON_WATER_ELEMENTAL))
+                return RETURN_CONTINUE;
+
             // Default frost spec action
             if (FROSTBOLT > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FROST) && m_ai->In_Reach(pTarget, FROSTBOLT))
                 return CastSpell(FROSTBOLT, pTarget);
@@ -290,6 +306,9 @@ CombatManeuverReturns PlayerbotMageAI::DoNextCombatManeuverPVE(Unit* pTarget)
             // 3 stacks of Scorch and fireball DoT: use fire blast if available
             if (FIRE_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FIRE) && m_bot->IsSpellReady(FIRE_BLAST) && CastSpell(FIRE_BLAST, pTarget))
                 return RETURN_CONTINUE;
+            if (DRAGONS_BREATH > 0 && !m_ai->IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FIRE) && meleeReach && CastSpell(DRAGONS_BREATH, pTarget))
+                return RETURN_CONTINUE;
+
             // All DoTs, cooldowns used, try to maximise scorch stacks (5) to get a even nicer crit% bonus
             if (IMPROVED_SCORCH > 0 && SCORCH > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FIRE))
             {
@@ -325,6 +344,11 @@ CombatManeuverReturns PlayerbotMageAI::DoNextCombatManeuverPVE(Unit* pTarget)
             // Default arcane spec actions (yes, two fire spells)
             if (FIRE_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FIRE) && m_bot->IsSpellReady(FIRE_BLAST) && CastSpell(FIRE_BLAST, pTarget))
                 return RETURN_CONTINUE;
+            if (SLOW > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_ARCANE) && m_ai->In_Reach(pTarget, SLOW) && !pTarget->HasAura(SLOW, EFFECT_INDEX_0) && CastSpell(SLOW, pTarget))
+                return RETURN_CONTINUE;
+            if (ARCANE_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_ARCANE) && m_ai->In_Reach(pTarget, ARCANE_BLAST) && CastSpell(ARCANE_BLAST, pTarget))
+                return RETURN_CONTINUE;
+
             if (FIREBALL > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_FIRE) && m_ai->In_Reach(pTarget, FIREBALL))
                 return CastSpell(FIREBALL, pTarget);
             // If no fireball, arcane missiles
@@ -372,9 +396,9 @@ uint8 PlayerbotMageAI::CheckFrostCooldowns()
     return uiFrostActiveCooldown;
 }
 
-static const uint32 uPriorizedManaGemIds[4] =
+static const uint32 uPriorizedManaGemIds[5] =
 {
-    MANA_RUBY_DISPLAYID, MANA_CITRINE_DISPLAYID, MANA_AGATE_DISPLAYID, MANA_JADE_DISPLAYID
+    MANA_EMERALD_DISPLAYID, MANA_RUBY_DISPLAYID, MANA_CITRINE_DISPLAYID, MANA_AGATE_DISPLAYID, MANA_JADE_DISPLAYID
 };
 
 // Return a mana gem Item based on the priorized list
@@ -414,7 +438,12 @@ void PlayerbotMageAI::DoNonCombatActions()
         return;
 
     // Buff armor
-    if (MAGE_ARMOR)
+    if (MOLTEN_ARMOR)
+    {
+        if (m_ai->SelfBuff(MOLTEN_ARMOR) == SPELL_CAST_OK)
+            return;
+    }
+    else if (MAGE_ARMOR)
     {
         if (m_ai->SelfBuff(MAGE_ARMOR) == SPELL_CAST_OK)
             return;
@@ -461,6 +490,7 @@ void PlayerbotMageAI::DoNonCombatActions()
             m_ai->SetIgnoreUpdateTime(3);
             return;
         }
+
         if (m_ai->FindFood() == nullptr && CONJURE_FOOD && m_ai->CastSpell(CONJURE_FOOD, *m_bot) == SPELL_CAST_OK)
         {
             m_ai->TellMaster("I'm conjuring some food.");

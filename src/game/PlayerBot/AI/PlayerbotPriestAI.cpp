@@ -37,6 +37,9 @@ PlayerbotPriestAI::PlayerbotPriestAI(Player* const master, Player* const bot, Pl
     HOLY_FIRE                     = m_ai->initSpell(HOLY_FIRE_1);
     DESPERATE_PRAYER              = m_ai->initSpell(DESPERATE_PRAYER_1);
     PRAYER_OF_HEALING             = m_ai->initSpell(PRAYER_OF_HEALING_1);
+    CIRCLE_OF_HEALING             = m_ai->initSpell(CIRCLE_OF_HEALING_1);
+    BINDING_HEAL                  = m_ai->initSpell(BINDING_HEAL_1);
+    PRAYER_OF_MENDING             = m_ai->initSpell(PRAYER_OF_MENDING_1);
     CURE_DISEASE                  = m_ai->initSpell(CURE_DISEASE_1);
     ABOLISH_DISEASE               = m_ai->initSpell(ABOLISH_DISEASE_1);
     SHACKLE_UNDEAD                = m_ai->initSpell(SHACKLE_UNDEAD_1);
@@ -49,7 +52,9 @@ PlayerbotPriestAI::PlayerbotPriestAI(Player* const master, Player* const bot, Pl
     MIND_FLAY                     = m_ai->initSpell(MIND_FLAY_1);
     DEVOURING_PLAGUE              = m_ai->initSpell(DEVOURING_PLAGUE_1);
     SHADOW_PROTECTION             = m_ai->initSpell(SHADOW_PROTECTION_1);
+    VAMPIRIC_TOUCH                = m_ai->initSpell(VAMPIRIC_TOUCH_1);
     PRAYER_OF_SHADOW_PROTECTION   = m_ai->initSpell(PRAYER_OF_SHADOW_PROTECTION_1);
+    SHADOWFIEND                   = m_ai->initSpell(SHADOWFIEND_1);
     SHADOWFORM                    = m_ai->initSpell(SHADOWFORM_1);
     VAMPIRIC_EMBRACE              = m_ai->initSpell(VAMPIRIC_EMBRACE_1);
 
@@ -64,13 +69,16 @@ PlayerbotPriestAI::PlayerbotPriestAI(Player* const master, Player* const bot, Pl
     FEAR_WARD                     = m_ai->initSpell(FEAR_WARD_1);
     DIVINE_SPIRIT                 = m_ai->initSpell(DIVINE_SPIRIT_1);
     PRAYER_OF_SPIRIT              = m_ai->initSpell(PRAYER_OF_SPIRIT_1);
+    MASS_DISPEL                   = m_ai->initSpell(MASS_DISPEL_1);
     POWER_INFUSION                = m_ai->initSpell(POWER_INFUSION_1);
     INNER_FOCUS                   = m_ai->initSpell(INNER_FOCUS_1);
     PRIEST_DISPEL_MAGIC           = m_ai->initSpell(DISPEL_MAGIC_1);
 
-    RECENTLY_BANDAGED             = 11196; // first aid check
+    RECENTLY_BANDAGED  = 11196; // first aid check
 
     // racial
+    ARCANE_TORRENT                = m_ai->initSpell(ARCANE_TORRENT_MANA_CLASSES);
+    GIFT_OF_THE_NAARU             = m_ai->initSpell(GIFT_OF_THE_NAARU_ALL); // draenei
     STONEFORM                     = m_ai->initSpell(STONEFORM_ALL); // dwarf
     ELUNES_GRACE                  = m_ai->initSpell(ELUNES_GRACE_1); // night elf
     PERCEPTION                    = m_ai->initSpell(PERCEPTION_ALL); // human
@@ -130,6 +138,13 @@ CombatManeuverReturns PlayerbotPriestAI::DoFirstCombatManeuverPVE(Unit* /*pTarge
 
     if (m_ai->IsHealer())
     {
+        // TODO: This must be done with toggles: FullHealth allowed
+        Unit* healTarget = GetHealTarget(JOB_TANK);
+        // This is cast on a target, which activates (and switches to another target within the group) upon receiving+healing damage
+        // Mana efficient even at one use
+        if (healTarget && PRAYER_OF_MENDING > 0 && m_ai->In_Reach(healTarget, PRAYER_OF_MENDING) && !healTarget->HasAura(PRAYER_OF_MENDING, EFFECT_INDEX_0) && CastSpell(PRAYER_OF_MENDING, healTarget) & RETURN_CONTINUE)
+            return RETURN_FINISHED_FIRST_MOVES;
+
         // Cast renew on tank
         if (CastHoTOnTank())
             return RETURN_FINISHED_FIRST_MOVES;
@@ -191,7 +206,7 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
              && !m_ai->IsHealer())
         m_ai->SetCombatStyle(PlayerbotAI::COMBAT_MELEE);
 
-    // Dwarves priests will try to buff with Fear Ward
+    // Priests will try to buff with Fear Ward
     if (FEAR_WARD > 0 && m_bot->IsSpellReady(FEAR_WARD))
     {
         // Buff tank first
@@ -304,6 +319,8 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
         case PRIEST_SPEC_SHADOW:
             if (DEVOURING_PLAGUE > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai->In_Reach(pTarget, DEVOURING_PLAGUE) && !pTarget->HasAura(DEVOURING_PLAGUE, EFFECT_INDEX_0) && CastSpell(DEVOURING_PLAGUE, pTarget))
                 return RETURN_CONTINUE;
+            if (VAMPIRIC_TOUCH > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai->In_Reach(pTarget, VAMPIRIC_TOUCH) && !pTarget->HasAura(VAMPIRIC_TOUCH, EFFECT_INDEX_0) && CastSpell(VAMPIRIC_TOUCH, pTarget))
+                return RETURN_CONTINUE;
             if (SHADOW_WORD_PAIN > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai->In_Reach(pTarget, SHADOW_WORD_PAIN) && !pTarget->HasAura(SHADOW_WORD_PAIN, EFFECT_INDEX_0) && CastSpell(SHADOW_WORD_PAIN, pTarget))
                 return RETURN_CONTINUE;
             if (MIND_BLAST > 0 && !PlayerbotAI::IsImmuneToSchool(pTarget, SPELL_SCHOOL_MASK_SHADOW) && m_ai->In_Reach(pTarget, MIND_BLAST) && (m_bot->IsSpellReady(MIND_BLAST)) && CastSpell(MIND_BLAST, pTarget))
@@ -313,6 +330,8 @@ CombatManeuverReturns PlayerbotPriestAI::DoNextCombatManeuverPVE(Unit* pTarget)
                 m_ai->SetIgnoreUpdateTime(3);
                 return RETURN_CONTINUE;
             }
+            if (SHADOWFIEND > 0 && m_ai->In_Reach(pTarget, SHADOWFIEND) && !m_bot->GetPet() && CastSpell(SHADOWFIEND))
+                return RETURN_CONTINUE;
             if (SHADOWFORM == 0 && MIND_FLAY == 0 && SMITE > 0 && m_ai->In_Reach(pTarget, SMITE) && CastSpell(SMITE, pTarget)) // low levels
                 return RETURN_CONTINUE;
             break;
@@ -386,6 +405,7 @@ CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
         return r;
 
     uint8 hp = target->GetHealthPercent();
+    uint8 hpSelf = m_ai->GetHealthPercent();
 
     if (hp >= 90)
         return RETURN_NO_ACTION_OK;
@@ -414,6 +434,11 @@ CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
         return RETURN_CONTINUE;
     if (hp < 50 && GREATER_HEAL > 0 && m_ai->In_Reach(target, GREATER_HEAL) && m_ai->CastSpell(GREATER_HEAL, *target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
+    // Heals target AND self for equal amount
+    if (hp < 60 && hpSelf < 80 && BINDING_HEAL > 0 && m_ai->In_Reach(target, BINDING_HEAL) && m_ai->CastSpell(BINDING_HEAL, *target) == SPELL_CAST_OK)
+        return RETURN_CONTINUE;
+    if (hp < 60 && PRAYER_OF_MENDING > 0 && m_ai->In_Reach(target, PRAYER_OF_MENDING) && !target->HasAura(PRAYER_OF_MENDING, EFFECT_INDEX_0) && CastSpell(PRAYER_OF_MENDING, target))
+        return RETURN_FINISHED_FIRST_MOVES;
     if (hp < 70 && HEAL > 0 && m_ai->In_Reach(target, HEAL) && m_ai->CastSpell(HEAL, *target) == SPELL_CAST_OK)
         return RETURN_CONTINUE;
     if (hp < 90 && RENEW > 0 && m_ai->In_Reach(target, RENEW) && !target->HasAura(RENEW) && m_ai->CastSpell(RENEW, *target) == SPELL_CAST_OK)
@@ -421,6 +446,9 @@ CombatManeuverReturns PlayerbotPriestAI::HealPlayer(Player* target)
 
     // Group heal. Not really useful until a group check is available?
     //if (hp < 40 && PRAYER_OF_HEALING > 0 && m_ai->CastSpell(PRAYER_OF_HEALING, *target) & RETURN_CONTINUE)
+    //    return RETURN_CONTINUE;
+    // Group heal. Not really useful until a group check is available?
+    //if (hp < 50 && CIRCLE_OF_HEALING > 0 && m_ai->CastSpell(CIRCLE_OF_HEALING, *target) & RETURN_CONTINUE)
     //    return RETURN_CONTINUE;
 
     return RETURN_NO_ACTION_OK;
@@ -572,7 +600,7 @@ bool PlayerbotPriestAI::CastHoTOnTank()
 
     if (!m_ai->IsHealer()) return false;
 
-    // Priest HoTs: Renew, Penance (with talents, channeled)
+    // Priest HoTs: Renew (with talents, channeled)
     if (RENEW > 0 && m_ai->In_Reach(m_ai->GetGroupTank(), RENEW))
         return (RETURN_CONTINUE & CastSpell(RENEW, m_ai->GetGroupTank()));
 

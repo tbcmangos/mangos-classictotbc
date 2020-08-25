@@ -3,7 +3,7 @@
 #####################################
 
 [PlayerbotConf]
-ConfVersion=2019031701
+ConfVersion=2018101401
 
 ###################################################################################################################
 # PLAYERBOTAI CONFIGURATION
@@ -28,8 +28,8 @@ ConfVersion=2019031701
 #        Default: 9
 #
 #    PlayerbotAI.RestrictBotLevel
-#        Restrict the allowed bot level (Current Max 60)
-#        Default: 60
+#        Restrict the allowed bot level (Current Max 80)
+#        Default: 80
 #
 #    PlayerbotAI.BotguyQuests
 #        List of Quest ids, any of which, once completed will enable botguy menu on NPCs
@@ -69,6 +69,10 @@ ConfVersion=2019031701
 #        Allow bots to automatically sell all [GRAY|POOR] quality items as the player activates vendor
 #        Default: 0 - off
 #                 1 - on
+#    PlayerbotAI.SellAll.LevelDiff
+#         If 'sell all' command is given prior to selling, bots will sell all low level white items.. this number is the number
+#         of levels LOWER than the bots level the Item must be before bot will sell it.
+#         Default: 10 (10 levels lower than the bot) Don't set to 0 or they'll sell everything! *SellGarbage must be set to 1 to use this*
 #
 ###################################################################################################################
 
@@ -77,7 +81,7 @@ PlayerbotAI.DebugWhisper = 0
 PlayerbotAI.FollowDistanceMin = 0.5
 PlayerbotAI.FollowDistanceMax = 1.0
 PlayerbotAI.MaxNumBots = 9
-PlayerbotAI.RestrictBotLevel = 60
+PlayerbotAI.RestrictBotLevel = 80
 PlayerbotAI.BotguyQuests = ""
 PlayerbotAI.BotguyCost = 0
 PlayerbotAI.Collect.Combat = 1
@@ -89,3 +93,4 @@ PlayerbotAI.Collect.Objects = 1
 PlayerbotAI.Collect.DistanceMax = 50
 PlayerbotAI.Collect.Distance = 25
 PlayerbotAI.SellGarbage = 0
+PlayerbotAI.SellAll.LevelDiff = 10

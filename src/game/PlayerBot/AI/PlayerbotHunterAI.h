@@ -20,6 +20,7 @@
 #define _PLAYERHUNTERAI_H
 
 #include "../Base/PlayerbotClassAI.h"
+#include "../Spells/Spell.h"
 
 enum
 {
@@ -34,6 +35,7 @@ enum HunterSpells
     ASPECT_OF_THE_HAWK_1            = 13165,
     ASPECT_OF_THE_MONKEY_1          = 13163,
     ASPECT_OF_THE_PACK_1            = 13159,
+    ASPECT_OF_THE_VIPER_1           = 34074,
     ASPECT_OF_THE_WILD_1            = 20043,
     AUTO_SHOT_1                     = 75,
     BEAST_LORE_1                    = 1462,
@@ -53,7 +55,9 @@ enum HunterSpells
     FROST_TRAP_1                    = 13809,
     HUNTERS_MARK_1                  = 1130,
     IMMOLATION_TRAP_1               = 13795,
+    KILL_COMMAND_1                  = 34026,
     MEND_PET_1                      = 136,
+    MISDIRECTION_1                  = 34477,
     MONGOOSE_BITE_1                 = 1495,
     MULTISHOT_1                     = 2643,
     RAPID_FIRE_1                    = 3045,
@@ -62,6 +66,7 @@ enum HunterSpells
     SCARE_BEAST_1                   = 1513,
     SCORPID_STING_1                 = 3043,
     SERPENT_STING_1                 = 1978,
+    SNAKE_TRAP_1                    = 34600,
     TAME_BEAST_1                    = 1515,
     TRACK_BEASTS_1                  = 1494,
     TRACK_DEMONS_1                  = 19878,
@@ -82,13 +87,14 @@ enum HunterSpells
     INTIMIDATION_1                  = 19577,
     READINESS_1                     = 23989,
     SCATTER_SHOT_1                  = 19503,
+    SILENCING_SHOT_1                = 34490,
     TRUESHOT_AURA_1                 = 19506,
     WYVERN_STING_1                  = 19386
 };
 
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotHunterAI : PlayerbotClassAI
+class PlayerbotHunterAI : PlayerbotClassAI
 {
     public:
         PlayerbotHunterAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -134,7 +140,6 @@ class MANGOS_DLL_SPEC PlayerbotHunterAI : PlayerbotClassAI
                CONCUSSIVE_SHOT,
                DISTRACTING_SHOT,
                MULTI_SHOT,
-               EXPLOSIVE_SHOT,
                SERPENT_STING,
                SCORPID_STING,
                VIPER_STING,
@@ -151,20 +156,26 @@ class MANGOS_DLL_SPEC PlayerbotHunterAI : PlayerbotClassAI
                DETERRENCE,
                FEIGN_DEATH;
 
-        uint32 FREEZING_TRAP,
+        uint32 BEAR_TRAP,
+               FREEZING_TRAP,
                IMMOLATION_TRAP,
                FROST_TRAP,
-               EXPLOSIVE_TRAP;
+               EXPLOSIVE_TRAP,
+               ARCANE_TRAP,
+               SNAKE_TRAP;
 
         uint32 ASPECT_OF_THE_HAWK,
                ASPECT_OF_THE_MONKEY,
                RAPID_FIRE,
-               TRUESHOT_AURA;
+               TRUESHOT_AURA,
+               MISDIRECTION;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
-               EVERY_MAN_FOR_HIMSELF,
+               PERCEPTION,
                SHADOWMELD,
                BLOOD_FURY,
                WAR_STOMP,

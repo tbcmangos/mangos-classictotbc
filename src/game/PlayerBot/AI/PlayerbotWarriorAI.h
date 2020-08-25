@@ -31,6 +31,7 @@ enum
 
 enum WarriorSpells
 {
+    AUTO_SHOT_2                     = 75,
     BATTLE_SHOUT_1                  = 6673,
     BATTLE_STANCE_1                 = 2457,
     BERSERKER_RAGE_1                = 18499,
@@ -40,10 +41,12 @@ enum WarriorSpells
     CHALLENGING_SHOUT_1             = 1161,
     CHARGE_1                        = 100,
     CLEAVE_1                        = 845,
+    COMMANDING_SHOUT_1              = 469,
     CONCUSSION_BLOW_1               = 12809,
     DEATH_WISH_1                    = 12292,
     DEFENSIVE_STANCE_1              = 71,
     DEMORALIZING_SHOUT_1            = 1160,
+    DEVASTATE_1                     = 20243,
     DISARM_1                        = 676,
     EXECUTE_1                       = 5308,
     HAMSTRING_1                     = 1715,
@@ -65,22 +68,22 @@ enum WarriorSpells
     SHIELD_BLOCK_1                  = 2565,
     SHIELD_SLAM_1                   = 23922,
     SHIELD_WALL_1                   = 871,
-    SHOOT_BOW_1                     = 2480,
-    SHOOT_GUN_1                     = 7918,
-    SHOOT_XBOW_1                    = 7919,
+    SHOCKWAVE_1                     = 46968,
     SLAM_1                          = 1464,
+    SPELL_REFLECTION_1              = 23920,
     SUNDER_ARMOR_1                  = 7386,
     SWEEPING_STRIKES_1              = 12328,
     TAUNT_1                         = 355,
     THUNDER_CLAP_1                  = 6343,
-    WHIRLWIND_1                     = 1680
+    VICTORY_RUSH_1                  = 34428,
+    WHIRLWIND_1                     = 1680,
 
-                                      //Procs
+    //Procs
 };
 
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
+class PlayerbotWarriorAI : PlayerbotClassAI
 {
     public:
         PlayerbotWarriorAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -114,7 +117,9 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
                MOCKING_BLOW,
                RETALIATION,
                SWEEPING_STRIKES,
-               MORTAL_STRIKE;
+               MORTAL_STRIKE,
+               TASTE_FOR_BLOOD,
+               SUDDEN_DEATH;
 
         // PROTECTION
         uint32 DEFENSIVE_STANCE,
@@ -127,7 +132,10 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
                DISARM,
                SHIELD_WALL,
                SHIELD_SLAM,
+               DEVASTATE,
+               SHOCKWAVE,
                CONCUSSION_BLOW,
+               SPELL_REFLECTION,
                LAST_STAND;
 
         // FURY
@@ -147,10 +155,14 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
                PUMMEL,
                BLOODTHIRST,
                RECKLESSNESS,
+               RAMPAGE,
+               COMMANDING_SHOUT,
                PIERCING_HOWL;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
                PERCEPTION,
                SHADOWMELD,
@@ -160,10 +172,7 @@ class MANGOS_DLL_SPEC PlayerbotWarriorAI : PlayerbotClassAI
                WILL_OF_THE_FORSAKEN;
 
         // general
-        uint32 SHOOT,
-               SHOOT_BOW,
-               SHOOT_GUN,
-               SHOOT_XBOW;
+        uint32 AUTO_SHOT;
 
         uint32 SpellSequence;
 };

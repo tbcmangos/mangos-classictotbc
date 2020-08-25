@@ -33,12 +33,14 @@ enum ManaGemIds
     MANA_RUBY_DISPLAYID             = 7045,
     MANA_CITRINE_DISPLAYID          = 6496,
     MANA_AGATE_DISPLAYID            = 6851,
-    MANA_JADE_DISPLAYID             = 7393
+    MANA_JADE_DISPLAYID             = 7393,
+    MANA_EMERALD_DISPLAYID          = 1262,
 };
 
 enum MageSpells
 {
     AMPLIFY_MAGIC_1                 = 1008,
+    ARCANE_BLAST_1                  = 30451,
     ARCANE_BRILLIANCE_1             = 23028,
     ARCANE_EXPLOSION_1              = 1449,
     ARCANE_INTELLECT_1              = 1459,
@@ -48,7 +50,7 @@ enum MageSpells
     BLINK_1                         = 1953,
     BLIZZARD_1                      = 10,
     CLEARCASTING_1                  = 12536,
-    COLD_SNAP_1                     = 12472,
+    COLD_SNAP_1                     = 11958,
     COMBUSTION_1                    = 11129,
     CONE_OF_COLD_1                  = 120,
     CONJURE_FOOD_1                  = 587,
@@ -56,6 +58,7 @@ enum MageSpells
     CONJURE_WATER_1                 = 5504,
     COUNTERSPELL_1                  = 2139,
     DAMPEN_MAGIC_1                  = 604,
+    DRAGONS_BREATH_1                = 31661,
     EVOCATION_1                     = 12051,
     FIRE_BLAST_1                    = 2136,
     FIRE_WARD_1                     = 543,
@@ -67,16 +70,23 @@ enum MageSpells
     FROSTBOLT_1                     = 116,
     ICE_ARMOR_1                     = 7302,
     ICE_BARRIER_1                   = 11426,
-    ICE_BLOCK_1                     = 11958,
+    ICE_BLOCK_1                     = 27619,
+    ICE_LANCE_1                     = 30455,
+    ICY_VEINS_1                     = 12472,
+    INVISIBILITY_1                  = 66,
     MAGE_ARMOR_1                    = 6117,
     MANA_SHIELD_1                   = 1463,
+    MOLTEN_ARMOR_1                  = 30482,
     POLYMORPH_1                     = 118,
     PRESENCE_OF_MIND_1              = 12043,
     PYROBLAST_1                     = 11366,
     REMOVE_CURSE_MAGE_1             = 475,
     SCORCH_1                        = 2948,
-    SHOOT_2                         = 5019,
-    SLOW_FALL_1                     = 130
+    SHOOT_2                                          = 5019,
+    SLOW_1                          = 31589,
+    SLOW_FALL_1                     = 130,
+    SPELLSTEAL_1                    = 30449,
+    SUMMON_WATER_ELEMENTAL_1        = 31687
 };
 
 enum MageTalents
@@ -93,7 +103,7 @@ static const uint32 uiImprovedScorch[3] =
 
 //class Player;
 
-class MANGOS_DLL_SPEC PlayerbotMageAI : PlayerbotClassAI
+class PlayerbotMageAI : PlayerbotClassAI
 {
     public:
         PlayerbotMageAI(Player* const master, Player* const bot, PlayerbotAI* const ai);
@@ -127,12 +137,13 @@ class MANGOS_DLL_SPEC PlayerbotMageAI : PlayerbotClassAI
         uint32 ARCANE_MISSILES,
                ARCANE_EXPLOSION,
                COUNTERSPELL,
+               SLOW,
+               ARCANE_BLAST,
                EVOCATION,
                POLYMORPH,
                PRESENCE_OF_MIND,
                ARCANE_POWER;
-
-        // RANGED
+        // ranged
         uint32 SHOOT;
 
         // FIRE
@@ -145,14 +156,18 @@ class MANGOS_DLL_SPEC PlayerbotMageAI : PlayerbotClassAI
                PYROBLAST,
                BLAST_WAVE,
                COMBUSTION,
+               DRAGONS_BREATH,
                FIRE_WARD;
 
         // FROST
         uint32 FROSTBOLT,
                FROST_NOVA,
                BLIZZARD,
+               ICY_VEINS,
                CONE_OF_COLD,
                ICE_BARRIER,
+               SUMMON_WATER_ELEMENTAL,
+               ICE_LANCE,
                FROST_WARD,
                ICE_BLOCK,
                COLD_SNAP;
@@ -161,6 +176,7 @@ class MANGOS_DLL_SPEC PlayerbotMageAI : PlayerbotClassAI
         uint32 FROST_ARMOR,
                ICE_ARMOR,
                MAGE_ARMOR,
+               MOLTEN_ARMOR,
                ARCANE_INTELLECT,
                ARCANE_BRILLIANCE,
                MANA_SHIELD,
@@ -169,7 +185,9 @@ class MANGOS_DLL_SPEC PlayerbotMageAI : PlayerbotClassAI
                MAGE_REMOVE_CURSE;
 
         // racial
-        uint32 STONEFORM,
+        uint32 ARCANE_TORRENT,
+               GIFT_OF_THE_NAARU,
+               STONEFORM,
                ESCAPE_ARTIST,
                PERCEPTION,
                SHADOWMELD,

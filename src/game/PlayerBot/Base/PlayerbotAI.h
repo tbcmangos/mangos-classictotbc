@@ -20,6 +20,7 @@
 #define _PLAYERBOTAI_H
 
 #include "Common.h"
+#include "../../Entities/Creature.h"
 #include "../../Entities/ObjectGuid.h"
 #include "../../Entities/Unit.h"
 #include "../../GameEvents/GameEventMgr.h"
@@ -36,11 +37,17 @@ class PlayerbotMgr;
 
 enum RacialTraits
 {
+    ARCANE_TORRENT_MANA_CLASSES    = 28730,
+    ARCANE_TORRENT_ROGUE           = 25046,
     BERSERKING_ALL                 = 26297,
-    BLOOD_FURY_ALL                 = 20572,
+    BLOOD_FURY_MELEE_CLASSES       = 20572,
+    BLOOD_FURY_WARLOCK             = 33702,
+    BLOOD_FURY_SHAMAN              = 33697,
     ESCAPE_ARTIST_ALL              = 20589,
+    GIFT_OF_THE_NAARU_ALL          = 28880,
     PERCEPTION_ALL                 = 20600,
     SHADOWMELD_ALL                 = 20580,
+    GIFT_OF_THE_NAARU_WARRIOR      = 28880,
     STONEFORM_ALL                  = 20594,
     WAR_STOMP_ALL                  = 20549,
     WILL_OF_THE_FORSAKEN_ALL       = 7744
@@ -56,9 +63,12 @@ enum ProfessionSpells
     FIRST_AID_1                    = 3273,
     FISHING_1                      = 7620,
     HERB_GATHERING_1               = 2366,
+    JEWELCRAFTING_1                = 25229,
     MINING_1                       = 2575,
     SKINNING_1                     = 8613,
-    TAILORING_1                    = 3908
+    TAILORING_1                    = 3908,
+    DISENCHANTING_1                = 13262,
+    PROSPECTING_1                  = 31252
 };
 
 enum NotableItems
@@ -71,7 +81,8 @@ enum NotableItems
     // Lock Charges
     SMALL_SEAFORIUM_CHARGE         = 4367,
     LARGE_SEAFORIUM_CHARGE         = 4398,
-    POWERFUL_SEAFORIUM_CHARGE      = 18594
+    POWERFUL_SEAFORIUM_CHARGE      = 18594,
+    ELEMENTAL_SEAFORIUM_CHARGE     = 23819
 };
 
 enum SharpeningStoneDisplayId
@@ -82,7 +93,9 @@ enum SharpeningStoneDisplayId
     SOLID_SHARPENING_DISPLAYID          = 24676,
     DENSE_SHARPENING_DISPLAYID          = 24677,
     CONSECRATED_SHARPENING_DISPLAYID    = 24674,    // will not be used because bot can not know if it will face undead targets
-    ELEMENTAL_SHARPENING_DISPLAYID      = 21072
+    ELEMENTAL_SHARPENING_DISPLAYID      = 21072,
+    FEL_SHARPENING_DISPLAYID            = 39192,
+    ADAMANTITE_SHARPENING_DISPLAYID     = 39193,
 };
 
 enum WeightStoneDisplayId
@@ -91,7 +104,9 @@ enum WeightStoneDisplayId
     COARSE_WEIGHTSTONE_DISPLAYID        = 24684,
     HEAVY_WEIGHTSTONE_DISPLAYID         = 24685,
     SOLID_WEIGHTSTONE_DISPLAYID         = 24686,
-    DENSE_WEIGHTSTONE_DISPLAYID         = 24687
+    DENSE_WEIGHTSTONE_DISPLAYID         = 24687,
+    FEL_WEIGHTSTONE_DISPLAYID           = 39548,
+    ADAMANTITE_WEIGHTSTONE_DISPLAYID    = 39549,
 };
 
 enum ManaPotionsId
@@ -102,6 +117,11 @@ enum ManaPotionsId
     GREATER_MANA_POTION                 = 15718,
     SUPERIOR_MANA_POTION                = 24151,
     MAJOR_MANA_POTION                   = 21672,
+    SUPER_MANA_POTION                   = 37808,
+    UNSTABLE_MANA_POTION                = 23731,
+    FEL_MANA_POTION                     = 44295,
+    CRYSTAL_MANA_POTION                 = 47133,
+    AUCHENAI_MANA_POTION                = 37808,
     MINOR_REJUVENATION_POTION           = 2345,
     MAJOR_REJUVENATION_POTION           = 18253
 };
@@ -126,7 +146,12 @@ enum HealingItemDisplayId
     HEALING_POTION                      = 15712,
     LESSER_HEALING_POTION               = 15711,
     DISCOLORED_HEALING_POTION           = 15736,
-    MINOR_HEALING_POTION                = 15710
+    MINOR_HEALING_POTION                = 15710,
+    VOLATILE_HEALING_POTION             = 24212,
+    SUPER_HEALING_POTION                = 37807,
+    CRYSTAL_HEALING_POTION              = 47132,
+    FEL_REGENERATION_POTION             = 37864,
+    MAJOR_DREAMLESS_SLEEP_POTION        = 37845,
 };
 
 enum MainSpec
@@ -160,6 +185,22 @@ enum MainSpec
     PALADIN_SPEC_PROTECTION     = 383
 };
 
+enum AutoEquipEnum
+{
+    AUTOEQUIP_OFF  = 0,
+    AUTOEQUIP_ON   = 1,
+    AUTOEQUIP_ONCE = 2
+};
+
+enum m_FollowAutoGo
+{
+    FOLLOWAUTOGO_OFF        = 0,
+    FOLLOWAUTOGO_INIT       = 1,
+    FOLLOWAUTOGO_SET        = 2,
+    FOLLOWAUTOGO_RESET      = 3,
+    FOLLOWAUTOGO_RUN        = 4
+};
+
 enum CombatManeuverReturns
 {
     // TODO: RETURN_NO_ACTION_UNKNOWN is not part of ANY_OK or ANY_ERROR. It's also bad form and should be eliminated ASAP.
@@ -175,7 +216,7 @@ enum CombatManeuverReturns
     RETURN_ANY_ERROR                    = 0x4C  // All the ERROR values bitwise OR'ed
 };
 
-class MANGOS_DLL_SPEC PlayerbotAI
+class PlayerbotAI
 {
     public:
         enum ScenarioType
@@ -195,7 +236,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
             COMBAT_RANGED               = 0x02              // class is ranged attacker
         };
 
-        // masters orders that should be obeyed by the AI during the updteAI routine
+        // masters orders that should be obeyed by the AI during the updateAI routine
         // the master will auto set the target of the bot
         enum CombatOrderType
         {
@@ -224,6 +265,15 @@ class MANGOS_DLL_SPEC PlayerbotAI
             ORDERS_RESET                = 0xFFFF
         };
 
+        enum ResistType
+        {
+            SCHOOL_NONE     = 0,
+            SCHOOL_FIRE     = 1,
+            SCHOOL_NATURE   = 2,
+            SCHOOL_FROST    = 3,
+            SCHOOL_SHADOW   = 4
+        };
+
         enum CombatTargetType
         {
             TARGET_NORMAL               = 0x00,
@@ -238,7 +288,8 @@ class MANGOS_DLL_SPEC PlayerbotAI
             BOTSTATE_DEAD,              // we are dead and wait for becoming ghost
             BOTSTATE_DEADRELEASED,      // we released as ghost and wait to revive
             BOTSTATE_LOOTING,           // looting mode, used just after combat
-            BOTSTATE_FLYING,             // bot is flying
+            BOTSTATE_FLYING,            // bot is flying
+            BOTSTATE_TAME,              // bot hunter taming
             BOTSTATE_DELAYED            // bot delay action
         };
 
@@ -263,26 +314,32 @@ class MANGOS_DLL_SPEC PlayerbotAI
         enum TaskFlags
         {
             NONE                        = 0x00,  // do nothing
-            SELL                        = 0x01,  // sell items
-            REPAIR                      = 0x02,  // repair items
-            ADD                         = 0x03,  // add auction
-            REMOVE                      = 0x04,  // remove auction
-            RESET                       = 0x05,  // reset all talents
-            WITHDRAW                    = 0x06,  // withdraw item from bank
-            DEPOSIT                     = 0x07,  // deposit item in bank
-            LIST                        = 0x08,  // list quests
-            END                         = 0x09,  // turn in quests
-            TAKE                        = 0x0A   // take quest
+            SELL_ITEMS                  = 0x01,  // sell items
+            BUY_ITEMS                   = 0x02,  // buy items
+            REPAIR_ITEMS                = 0x03,  // repair items
+            ADD_AUCTION                 = 0x04,  // add auction
+            REMOVE_AUCTION              = 0x05,  // remove auction
+            LIST_AUCTION                = 0x06,  // list bot auctions
+            RESET_TALENTS               = 0x07,  // reset all talents
+            BANK_WITHDRAW               = 0x08,  // withdraw item from bank
+            BANK_DEPOSIT                = 0x09,  // deposit item in bank
+            BANK_BALANCE                = 0x0A,  // list bot bank balance
+            LIST_QUEST                  = 0x0B,  // list quests
+            END_QUEST                   = 0x0C,  // turn in quests
+            TAKE_QUEST                  = 0x0D   // take quest
         };
 
         enum AnnounceFlags
         {
             NOTHING                     = 0x00,
             INVENTORY_FULL              = 0x01,
-            CANT_AFFORD                 = 0x02
+            CANT_AFFORD                 = 0x02,
+            CANT_USE_TOO_FAR            = 0x03
         };
 
         typedef std::pair<enum TaskFlags, uint32> taskPair;
+        typedef std::pair<uint32, uint32> lootPair;
+        typedef std::list<lootPair> BotLootList;
         typedef std::list<taskPair> BotTaskList;
         typedef std::list<enum NPCFlags> BotNPCList;
         typedef std::map<uint32, uint32> BotNeedItem;
@@ -327,7 +384,9 @@ class MANGOS_DLL_SPEC PlayerbotAI
             HL_SPELL,
             HL_TARGET,
             HL_NAME,
-            HL_AUCTION
+            HL_AUCTION,
+            HL_MAIL,
+            HL_RECIPE
         };
 
     public:
@@ -363,6 +422,9 @@ class MANGOS_DLL_SPEC PlayerbotAI
         // Initialize spell using rank 1 spell id
         uint32 initSpell(uint32 spellId);
         uint32 initPetSpell(uint32 spellIconId);
+
+        // extract mail ids from links
+        void extractMailIds(const std::string& text, std::list<uint32>& mailIds) const;
 
         // extract quest ids from links
         void extractQuestIds(const std::string& text, std::list<uint32>& questIds) const;
@@ -425,6 +487,8 @@ class MANGOS_DLL_SPEC PlayerbotAI
         bool PickPocket(Unit* pTarget);
         bool HasTool(uint32 TC);        // TODO implement this for opening lock
         bool HasSpellReagents(uint32 spellId);
+        void ItemCountInInv(uint32 itemid, uint32& count);
+        uint32 GetSpellCharges(uint32 spellId);
 
         uint8 GetHealthPercent(const Unit& target) const;
         uint8 GetHealthPercent() const;
@@ -439,7 +503,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
         Item* FindDrink() const;
         Item* FindBandage() const;
         Item* FindMount(uint32 matchingRidingSkill) const;
-        Item* FindItem(uint32 ItemId);
+        Item* FindItem(uint32 ItemId, bool Equipped_too = false);
         Item* FindItemInBank(uint32 ItemId);
         Item* FindKeyForLockValue(uint32 reqSkillValue);
         Item* FindBombForLockValue(uint32 reqSkillValue);
@@ -447,6 +511,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
         Item* FindStoneFor(Item* weapon) const;
         Item* FindManaRegenItem() const;
         bool  FindAmmo() const;
+        uint8 _findItemSlot(Item* target);
         bool CanStore();
 
         // ******* Actions ****************************************
@@ -465,7 +530,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
         bool In_Reach(Unit* Target, uint32 spellId);
         bool CanReachWithSpellAttack(Unit* target);
 
-        void UseItem(Item* item, uint16 targetFlag, ObjectGuid targetGUID);
+        void UseItem(Item* item, uint32 targetFlag, ObjectGuid targetGUID);
         void UseItem(Item* item, uint8 targetInventorySlot);
         void UseItem(Item* item, Unit* target);
         void UseItem(Item* item);
@@ -485,7 +550,23 @@ class MANGOS_DLL_SPEC PlayerbotAI
         Unit* gPrimtarget;
         Unit* gSectarget;
         uint32 gQuestFetch;
+
+        bool m_AutoEquipToggle;             //switch for autoequip
+        uint32 SellWhite;                   //switch for white item auto sell
+        uint8 DistOverRide;
+        float gDist[2]; //gDist, gTemp vars are used for variable follow distance
+        float gTempDist;
+        float gTempDist2;
+        uint8 m_FollowAutoGo;
+        uint8 IsUpOrDown; //tracks variable follow distance
         void BotDataRestore();
+        void AutoUpgradeEquipment();
+        void FollowAutoReset();
+        void AutoEquipComparison(Item* pItem, Item* pItem2);
+        uint32 ItemStatsCount(ItemPrototype const* proto);
+        float getItemDPS(ItemPrototype const* proto) const;
+        bool ItemStatComparison(const ItemPrototype* pProto, const ItemPrototype* pProto2);
+
         void CombatOrderRestore();
         void InterruptCurrentCastingSpell();
         void Attack(Unit* forcedTarget = nullptr);
@@ -556,21 +637,22 @@ class MANGOS_DLL_SPEC PlayerbotAI
         bool HasDispelOrder() { return !(m_combatOrder & ORDERS_NODISPEL); }
         bool IsDPS() { return (m_combatOrder & ORDERS_ASSIST) ? true : false; }
         bool Impulse() { srand(time(nullptr)); return (((rand() % 100) > 50) ? true : false); }
+        ResistType GetResistType() { return this->m_resistType; }
         void SetMovementOrder(MovementOrderType mo, Unit* followTarget = 0);
         MovementOrderType GetMovementOrder() { return this->m_movementOrder; }
         void MovementReset();
         void MovementClear();
-
-        void SetInFront(const Unit* obj);
 
         void ItemLocalization(std::string& itemName, const uint32 itemID) const;
         void QuestLocalization(std::string& questTitle, const uint32 questID) const;
         void CreatureLocalization(std::string& creatureName, const uint32 entry) const;
         void GameObjectLocalization(std::string& gameobjectName, const uint32 entry) const;
 
-        uint8 GetFreeBagSpace() const;
-        void SellGarbage(bool listNonTrash = true, bool bDetailTrashSold = false, bool verbose = true);
+        uint32 GetFreeBagSpace() const;
+        void SellGarbage(Player& player, bool listNonTrash = true, bool bDetailTrashSold = false, bool verbose = true);
         void Sell(const uint32 itemid);
+        void Buy(Creature* vendor, const uint32 itemid);
+        std::string DropItem(const uint32 itemid);
         void AddAuction(const uint32 itemid, Creature* aCreature);
         void ListAuctions();
         bool RemoveAuction(const uint32 auctionid);
@@ -581,12 +663,12 @@ class MANGOS_DLL_SPEC PlayerbotAI
         bool Deposit(const uint32 itemid);
         void BankBalance();
         std::string Cash(uint32 copper);
+        std::string AuctionResult(std::string subject, std::string body);
 
     private:
         bool ExtractCommand(const std::string sLookingFor, std::string& text, bool bUseShort = false);
         // outsource commands for code clarity
         void _HandleCommandReset(std::string& text, Player& fromPlayer);
-        void _HandleCommandReport(std::string& text, Player& fromPlayer);
         void _HandleCommandOrders(std::string& text, Player& fromPlayer);
         void _HandleCommandFollow(std::string& text, Player& fromPlayer);
         void _HandleCommandStay(std::string& text, Player& fromPlayer);
@@ -595,22 +677,31 @@ class MANGOS_DLL_SPEC PlayerbotAI
         void _HandleCommandNeutralize(std::string& text, Player& fromPlayer);
         void _HandleCommandCast(std::string& text, Player& fromPlayer);
         void _HandleCommandSell(std::string& text, Player& fromPlayer);
+        void _HandleCommandBuy(std::string& text, Player& fromPlayer);
+        void _HandleCommandDrop(std::string& text, Player& fromPlayer);
         void _HandleCommandRepair(std::string& text, Player& fromPlayer);
         void _HandleCommandAuction(std::string& text, Player& fromPlayer);
+        void _HandleCommandMail(std::string& text, Player& fromPlayer);
         void _HandleCommandBank(std::string& text, Player& fromPlayer);
+        void _HandleCommandTalent(std::string& text, Player& fromPlayer);
         void _HandleCommandUse(std::string& text, Player& fromPlayer);
         void _HandleCommandEquip(std::string& text, Player& fromPlayer);
         void _HandleCommandFind(std::string& text, Player& fromPlayer);
         void _HandleCommandGet(std::string& text, Player& fromPlayer);
         void _HandleCommandCollect(std::string& text, Player& fromPlayer);
         void _HandleCommandQuest(std::string& text, Player& fromPlayer);
+        void _HandleCommandCraft(std::string& text, Player& fromPlayer);
+        void _HandleCommandEnchant(std::string& text, Player& fromPlayer);
+        void _HandleCommandProcess(std::string& text, Player& fromPlayer);
         void _HandleCommandPet(std::string& text, Player& fromPlayer);
         void _HandleCommandSpells(std::string& text, Player& fromPlayer);
         void _HandleCommandSurvey(std::string& text, Player& fromPlayer);
         void _HandleCommandSkill(std::string& text, Player& fromPlayer);
+        bool _HandleCommandSkillLearnHelper(TrainerSpell const* tSpell, uint32 spellId, uint32 cost);
         void _HandleCommandStats(std::string& text, Player& fromPlayer);
         void _HandleCommandHelp(std::string& text, Player& fromPlayer);
         void _HandleCommandHelp(const char* szText, Player& fromPlayer) { std::string text = szText; _HandleCommandHelp(text, fromPlayer); }
+        void _HandleCommandGM(std::string& text, Player& fromPlayer);
         std::string _HandleCommandHelpHelper(std::string sCommand, std::string sExplain, HELPERLINKABLES reqLink = HL_NONE, bool bReqLinkMultiples = false, bool bCommandShort = false);
 
         // ****** Closed Actions ********************************
@@ -625,6 +716,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
 
         void _doSellItem(Item* const item, std::ostringstream& report, std::ostringstream& canSell, uint32& TotalCost, uint32& TotalSold);
         void MakeItemLink(const Item* item, std::ostringstream& out, bool IncludeQuantity = true);
+        void MakeItemText(const Item* item, std::ostringstream& out, bool IncludeQuantity = true);
         void MakeItemLink(const ItemPrototype* item, std::ostringstream& out);
 
         // it is safe to keep these back reference pointers because m_bot
@@ -639,6 +731,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
 
         CombatStyle m_combatStyle;
         CombatOrderType m_combatOrder;
+        ResistType m_resistType;
         MovementOrderType m_movementOrder;
 
         ScenarioType m_ScenarioType;
@@ -647,6 +740,7 @@ class MANGOS_DLL_SPEC PlayerbotAI
         BotState m_botState;
 
         // list of items, creatures or gameobjects needed to fullfill quests
+        BotLootList m_botQuestLoot; // keep track of quest items in loot;
         BotNeedItem m_needItemList;
         BotNeedItem m_needCreatureOrGOList;
 
@@ -659,12 +753,15 @@ class MANGOS_DLL_SPEC PlayerbotAI
         ObjectGuid m_lootPrev;              // previous loot
         BotEntryList m_collectObjects;      // object entries searched for in findNearbyGO
         BotTaxiNode m_taxiNodes;            // flight node chain;
+        BotEntryList m_noToolList;          // list of required tools
 
         uint8 m_collectionFlags;            // what the bot should look for to loot
         uint32 m_collectDist;               // distance to collect objects
         bool m_inventory_full;
+        uint32 m_itemTarget;
 
         uint32 m_CurrentlyCastingSpellId;
+        uint32 m_CraftSpellId;
         //bool m_IsFollowingMaster;
 
         // if master commands bot to do something, store here until updateAI
@@ -688,14 +785,20 @@ class MANGOS_DLL_SPEC PlayerbotAI
 
         Unit* m_followTarget;       // whom to follow in non combat situation?
 
+        uint8 gPrimOrder;
+        uint8 gSecOrder;
+
         uint32 FISHING,
                HERB_GATHERING,
                MINING,
-               SKINNING;
+               SKINNING,
+               ASPECT_OF_THE_MONKEY;
 
         SpellRanges m_spellRangeMap;
 
         float m_destX, m_destY, m_destZ; // latest coordinates for chase and point movement types
+
+        bool m_bDebugCommandChat;
 };
 
 #endif

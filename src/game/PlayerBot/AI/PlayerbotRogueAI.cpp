@@ -30,9 +30,11 @@ PlayerbotRogueAI::PlayerbotRogueAI(Player* const master, Player* const bot, Play
     GOUGE                    = m_ai->initSpell(GOUGE_1);
     SPRINT                   = m_ai->initSpell(SPRINT_1);
 
+    SHADOWSTEP               = m_ai->initSpell(SHADOWSTEP_1);
     STEALTH                  = m_ai->initSpell(STEALTH_1);
     VANISH                   = m_ai->initSpell(VANISH_1);
     EVASION                  = m_ai->initSpell(EVASION_1);
+    CLOAK_OF_SHADOWS         = m_ai->initSpell(CLOAK_OF_SHADOWS_1);
     HEMORRHAGE               = m_ai->initSpell(HEMORRHAGE_1);
     GHOSTLY_STRIKE           = m_ai->initSpell(GHOSTLY_STRIKE_1);
     BLIND                    = m_ai->initSpell(BLIND_1);
@@ -49,15 +51,17 @@ PlayerbotRogueAI::PlayerbotRogueAI(Player* const master, Player* const bot, Play
     RUPTURE                  = m_ai->initSpell(RUPTURE_1);
     CHEAP_SHOT               = m_ai->initSpell(CHEAP_SHOT_1);
     AMBUSH                   = m_ai->initSpell(AMBUSH_1);
+    MUTILATE                 = m_ai->initSpell(MUTILATE_1);
     COLD_BLOOD               = m_ai->initSpell(COLD_BLOOD_1);
 
     RECENTLY_BANDAGED        = 11196; // first aid check
     // racial
+    ARCANE_TORRENT           = m_ai->initSpell(ARCANE_TORRENT_ROGUE);
     STONEFORM                = m_ai->initSpell(STONEFORM_ALL); // dwarf
     ESCAPE_ARTIST            = m_ai->initSpell(ESCAPE_ARTIST_ALL); // gnome
     PERCEPTION               = m_ai->initSpell(PERCEPTION_ALL); // human
     SHADOWMELD               = m_ai->initSpell(SHADOWMELD_ALL);
-    BLOOD_FURY               = m_ai->initSpell(BLOOD_FURY_ALL); // orc
+    BLOOD_FURY               = m_ai->initSpell(BLOOD_FURY_MELEE_CLASSES); // orc
     BERSERKING               = m_ai->initSpell(BERSERKING_ALL); // troll
     WILL_OF_THE_FORSAKEN     = m_ai->initSpell(WILL_OF_THE_FORSAKEN_ALL); // undead
 }
@@ -326,7 +330,13 @@ CombatManeuverReturns PlayerbotRogueAI::DoNextCombatManeuverPVP(Unit* pTarget)
     bool meleeReach = m_bot->CanReachWithMeleeAttack(pTarget);
 
     // decide what to do:
-    if (m_bot->HasAura(STEALTH, EFFECT_INDEX_0))
+    if (pVictim == m_bot && CLOAK_OF_SHADOWS > 0 && m_bot->HasAura(SPELL_AURA_PERIODIC_DAMAGE) && !m_bot->HasAura(CLOAK_OF_SHADOWS, EFFECT_INDEX_0) && m_ai->CastSpell(CLOAK_OF_SHADOWS) == SPELL_CAST_OK)
+    {
+        if (m_ai->GetManager()->m_confDebugWhisper)
+            m_ai->TellMaster("CoS!");
+        return RETURN_CONTINUE;
+    }
+    else if (m_bot->HasAura(STEALTH, EFFECT_INDEX_0))
         SpellSequence = RogueStealth;
     else if (pTarget->IsNonMeleeSpellCasted(true))
         SpellSequence = RogueSpellPreventing;
@@ -441,6 +451,20 @@ CombatManeuverReturns PlayerbotRogueAI::DoNextCombatManeuverPVP(Unit* pTarget)
                 return RETURN_CONTINUE;
             if (HEMORRHAGE > 0 && m_ai->CastSpell(HEMORRHAGE, *pTarget) == SPELL_CAST_OK)
                 return RETURN_CONTINUE;
+            if (SHADOWSTEP > 0 && m_ai->CastSpell(SHADOWSTEP, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (m_bot->getRace() == RACE_BLOODELF && !pTarget->HasAura(ARCANE_TORRENT, EFFECT_INDEX_0) && m_ai->CastSpell(ARCANE_TORRENT, *pTarget) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            if (m_bot->getRace() == RACE_UNDEAD && (m_bot->HasAuraType(SPELL_AURA_MOD_FEAR) || m_bot->HasAuraType(SPELL_AURA_MOD_CHARM)) && m_ai->CastSpell(WILL_OF_THE_FORSAKEN, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+//            if (m_bot->getRace() == RACE_DWARF && m_bot->HasAuraState(AURA_STATE_DEADLY_POISON) && m_ai->CastSpell(STONEFORM, *m_bot))
+//                return RETURN_CONTINUE;
+            if (m_bot->getRace() == RACE_GNOME && (m_bot->hasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_ROOT) || m_bot->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED)) && m_ai->CastSpell(ESCAPE_ARTIST, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            else if (m_bot->getRace() == RACE_ORC && !m_bot->HasAura(BLOOD_FURY, EFFECT_INDEX_0) && m_ai->CastSpell(BLOOD_FURY, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
+            else if (m_bot->getRace() == RACE_TROLL && !m_bot->HasAura(BERSERKING, EFFECT_INDEX_0) && m_ai->CastSpell(BERSERKING, *m_bot) == SPELL_CAST_OK)
+                return RETURN_CONTINUE;
 
             break;
     }
@@ -448,11 +472,9 @@ CombatManeuverReturns PlayerbotRogueAI::DoNextCombatManeuverPVP(Unit* pTarget)
     return RETURN_NO_ACTION_OK;
 }
 
-// Note: in Classic, wound poison and crippling poison share the same display ID
-// If bot has both in his/her inventory, the first one picked will be used, be it a wound poison or not
-static const uint32 uPriorizedPoisonIds[3] =
+static const uint32 uPriorizedPoisonIds[4] =
 {
-    INSTANT_POISON_DISPLAYID, WOUND_POISON_DISPLAYID, DEADLY_POISON_DISPLAYID
+    ANESTHETIC_POISON_DISPLAYID, INSTANT_POISON_DISPLAYID, WOUND_POISON_DISPLAYID, DEADLY_POISON_DISPLAYID
 };
 
 // Return a poison Item based
