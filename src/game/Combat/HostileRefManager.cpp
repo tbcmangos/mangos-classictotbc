@@ -20,7 +20,8 @@
 #include "Combat/ThreatManager.h"
 #include "Entities/Unit.h"
 #include "Server/DBCStructure.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+#include "Maps/Map.h"
 
 HostileRefManager::HostileRefManager(Unit* owner) : iOwner(owner)
 {
@@ -55,7 +56,7 @@ void HostileRefManager::threatAssist(Unit* victim, float threat, SpellEntry cons
     float threatPerTarget = threat / size;
     for (HostileReference* validReference : validRefs)
     {
-        validReference->getSource()->addThreat(victim, threatPerTarget, false, (threatSpell ? GetSpellSchoolMask(threatSpell) : SPELL_SCHOOL_MASK_NORMAL), threatSpell);
+        validReference->getSource()->addThreat(victim, threatPerTarget, false, (threatSpell ? GetSpellSchoolMask(threatSpell) : SPELL_SCHOOL_MASK_NORMAL), threatSpell, true);
         victim->GetCombatManager().TriggerCombatTimer(validReference->getSource()->getOwner());
     }
 }
@@ -199,6 +200,11 @@ void HostileRefManager::setOnlineOfflineState(Unit* victim, bool isOnline)
     }
 }
 
+Unit* HostileRefManager::GetThreatRedirectionTarget() const
+{
+    return m_redirectionTargetGuid ? iOwner->GetMap()->GetUnit(m_redirectionTargetGuid) : nullptr;
+}
+
 HostileReference* HostileRefManager::getFirst()
 {
     return static_cast<HostileReference*>(RefManager<Unit, ThreatManager>::getFirst());
@@ -237,5 +243,6 @@ void HostileRefManager::HandleSuppressed(bool apply, bool immunity)
         }
     }
 }
+
 
 //=================================================

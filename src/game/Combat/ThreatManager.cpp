@@ -31,7 +31,7 @@
 //==============================================================
 
 // The pHatingUnit is not used yet
-float ThreatCalcHelper::CalcThreat(Unit* hatedUnit, Unit* hatingUnit, float threat, bool crit, SpellSchoolMask schoolMask, SpellEntry const* threatSpell)
+float ThreatCalcHelper::CalcThreat(Unit* hatedUnit, Unit* hatingUnit, float threat, bool crit, SpellSchoolMask schoolMask, SpellEntry const* threatSpell, bool assist)
 {
     // all flat mods applied early
     if (!threat)
@@ -41,6 +41,9 @@ float ThreatCalcHelper::CalcThreat(Unit* hatedUnit, Unit* hatingUnit, float thre
         return 0.f;
 
     if (hatingUnit->GetTypeId() == TYPEID_PLAYER) // players have entries with 0 threat during charm
+        return 0.f;
+
+    if (!assist && hatedUnit->IsSupportThreatOnly())
         return 0.f;
 
     if (threatSpell)
@@ -297,7 +300,6 @@ void ThreatContainer::modifyAllThreatPercent(int32 threatPercent)
             itr->addThreatPercent(threatPercent);
     }
 }
-
 //============================================================
 // Check if the list is dirty and sort if necessary
 
@@ -440,7 +442,7 @@ void ThreatManager::clearReferences()
 
 //============================================================
 
-void ThreatManager::addThreat(Unit* victim, float threat, bool crit, SpellSchoolMask schoolMask, SpellEntry const* threatSpell)
+void ThreatManager::addThreat(Unit* victim, float threat, bool crit, SpellSchoolMask schoolMask, SpellEntry const* threatSpell, bool assist)
 {
     // function deals with adding threat and adding players and pets into ThreatList
     // mobs, NPCs, guards have ThreatList and HateOfflineList
@@ -459,7 +461,19 @@ void ThreatManager::addThreat(Unit* victim, float threat, bool crit, SpellSchool
     if (!victim->IsAlive() || !getOwner()->IsAlive())
         return;
 
-    float calculatedThreat = ThreatCalcHelper::CalcThreat(victim, iOwner, threat, crit, schoolMask, threatSpell);
+    float calculatedThreat = ThreatCalcHelper::CalcThreat(victim, iOwner, threat, crit, schoolMask, threatSpell, assist);
+
+    if (calculatedThreat > 0.0f)
+    {
+        if (Unit* redirectedTarget = victim->getHostileRefManager().GetThreatRedirectionTarget())
+        {
+            if (redirectedTarget != getOwner() && redirectedTarget->IsAlive())
+            {
+                addThreatDirectly(redirectedTarget, calculatedThreat);
+                calculatedThreat = 0;                                 // but still need add to threat list
+            }
+        }
+    }
 
     addThreatDirectly(victim, calculatedThreat);
 }
@@ -553,6 +567,8 @@ void ThreatManager::TauntUpdate()
         auto iter = tauntStates.find(ref->getTarget()->GetObjectGuid());
         if (iter != tauntStates.end())
             ref->SetTauntState((*iter).second);
+        else if (ref->getTarget()->HasAuraTypeWithCaster(SPELL_AURA_DETAUNT, ref->getSource()->getOwner()->GetObjectGuid()))
+            ref->SetTauntState(STATE_DETAUNTED);
         else
             ref->SetTauntState(STATE_NONE);
     }
