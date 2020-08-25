@@ -60,10 +60,17 @@ enum GroupType
     GROUPTYPE_RAID   = 1
 };
 
+enum GroupFlagMask
+{
+    GROUP_ASSISTANT      = 0x01,
+    GROUP_MAIN_ASSISTANT = 0x02,
+    GROUP_MAIN_TANK      = 0x04,
+};
+
 enum GroupUpdateFlags
 {
     GROUP_UPDATE_FLAG_NONE              = 0x00000000,       // nothing
-    GROUP_UPDATE_FLAG_STATUS            = 0x00000001,       // uint8, flags
+    GROUP_UPDATE_FLAG_STATUS            = 0x00000001,       // uint16, flags
     GROUP_UPDATE_FLAG_CUR_HP            = 0x00000002,       // uint16
     GROUP_UPDATE_FLAG_MAX_HP            = 0x00000004,       // uint16
     GROUP_UPDATE_FLAG_POWER_TYPE        = 0x00000008,       // uint8
@@ -72,7 +79,7 @@ enum GroupUpdateFlags
     GROUP_UPDATE_FLAG_LEVEL             = 0x00000040,       // uint16
     GROUP_UPDATE_FLAG_ZONE              = 0x00000080,       // uint16
     GROUP_UPDATE_FLAG_POSITION          = 0x00000100,       // uint16, uint16
-    GROUP_UPDATE_FLAG_AURAS             = 0x00000200,       // uint32 mask, for each bit set uint16 spellid
+    GROUP_UPDATE_FLAG_AURAS             = 0x00000200,       // uint64 mask, for each bit set uint16 spellid + uint8 unk
     GROUP_UPDATE_FLAG_PET_GUID          = 0x00000400,       // uint64 pet guid
     GROUP_UPDATE_FLAG_PET_NAME          = 0x00000800,       // pet name, nullptr terminated string
     GROUP_UPDATE_FLAG_PET_MODEL_ID      = 0x00001000,       // uint16, model id
@@ -81,8 +88,7 @@ enum GroupUpdateFlags
     GROUP_UPDATE_FLAG_PET_POWER_TYPE    = 0x00008000,       // uint8 pet power type
     GROUP_UPDATE_FLAG_PET_CUR_POWER     = 0x00010000,       // uint16 pet cur power
     GROUP_UPDATE_FLAG_PET_MAX_POWER     = 0x00020000,       // uint16 pet max power
-    GROUP_UPDATE_FLAG_PET_AURAS         = 0x00040000,       // uint32 mask, for each bit set uint16 spellid, pet auras...
-
+    GROUP_UPDATE_FLAG_PET_AURAS         = 0x00040000,       // uint64 mask, for each bit set uint16 spellid + uint8 unk, pet auras...
     GROUP_UPDATE_PET                    = 0x0007FC00,       // all pet flags
     GROUP_UPDATE_FULL                   = 0x0007FFFF,       // all known flags
 };
@@ -140,6 +146,7 @@ class Group
 
         // properties accessories
         uint32 GetId() const { return m_Id; }
+        ObjectGuid GetObjectGuid() const { return ObjectGuid(HIGHGUID_GROUP, GetId()); }
         bool IsFull() const { return (m_groupType == GROUPTYPE_NORMAL) ? (m_memberSlots.size() >= MAX_GROUP_SIZE) : (m_memberSlots.size() >= MAX_RAID_SIZE); }
         bool isRaidGroup() const { return m_groupType == GROUPTYPE_RAID; }
         bool isBattleGroup()   const { return m_bgGroup != nullptr; }
@@ -196,7 +203,7 @@ class Group
         void ConvertToRaid();
 
         void SetBattlegroundGroup(BattleGround* bg) { m_bgGroup = bg; }
-        uint32 CanJoinBattleGroundQueue(BattleGroundTypeId bgTypeId, BattleGroundQueueTypeId bgQueueTypeId, uint32 MinPlayerCount, uint32 MaxPlayerCount);
+        uint32 CanJoinBattleGroundQueue(BattleGroundTypeId bgTypeId, BattleGroundQueueTypeId bgQueueTypeId, uint32 MinPlayerCount, uint32 MaxPlayerCount, bool isRated, uint32 arenaSlot);
 
         void ChangeMembersGroup(ObjectGuid guid, uint8 group);
         void ChangeMembersGroup(Player* player, uint8 group);
@@ -229,7 +236,9 @@ class Group
         }
 
         void SetTargetIcon(uint8 id, ObjectGuid targetGuid);
-        uint16 InInstance();
+
+        void SetDifficulty(Difficulty difficulty);
+        Difficulty GetDifficulty() const { return m_difficulty; }
         bool InCombatToInstance(uint32 instanceId);
         void ResetInstances(InstanceResetMethod method, Player* SendMsgTo);
 
@@ -240,8 +249,8 @@ class Group
         void UpdatePlayerOnlineStatus(Player* player, bool online = true);
         void UpdateOfflineLeader(time_t time, uint32 delay);
         // ignore: GUID of player that will be ignored
-        void BroadcastPacket(WorldPacket& packet, bool ignorePlayersInBGRaid, int group = -1, ObjectGuid ignore = ObjectGuid());
-        void BroadcastReadyCheck(WorldPacket& packet);
+        void BroadcastPacket(WorldPacket const& packet, bool ignorePlayersInBGRaid, int group = -1, ObjectGuid ignore = ObjectGuid()) const;
+        void BroadcastReadyCheck(WorldPacket const& packet) const;
         void OfflineReadyCheck();
 
         void RewardGroupAtKill(Unit* pVictim, Player* player_tap);
@@ -260,9 +269,10 @@ class Group
         void DelinkMember(GroupReference* /*pRef*/) const { }
 
         InstanceGroupBind* BindToInstance(DungeonPersistentState* state, bool permanent, bool load = false);
-        void UnbindInstance(uint32 mapid, bool unload = false);
+        void UnbindInstance(uint32 mapid, uint8 difficulty, bool unload = false);
         InstanceGroupBind* GetBoundInstance(uint32 mapid);
-        BoundInstancesMap& GetBoundInstances() { return m_boundInstances; }
+        InstanceGroupBind* GetBoundInstance(Map* aMap, Difficulty difficulty);
+        BoundInstancesMap& GetBoundInstances(Difficulty difficulty) { return m_boundInstances[difficulty]; }
 
     protected:
         bool _addMember(ObjectGuid guid, const char* name, bool isAssistant = false);
@@ -322,6 +332,17 @@ class Group
                 --m_subGroupsCounts[subgroup];
         }
 
+        GroupFlagMask GetFlags(MemberSlot const& slot) const
+        {
+            uint8 flags = 0;
+            if (slot.assistant)
+                flags |= GROUP_ASSISTANT;
+            if (slot.guid == m_mainAssistantGuid)
+                flags |= GROUP_MAIN_ASSISTANT;
+            if (slot.guid == m_mainTankGuid)
+                flags |= GROUP_MAIN_TANK;
+            return GroupFlagMask(flags);
+        }
         uint32              m_Id;                           // 0 for not created or BG groups
         MemberSlotList      m_memberSlots;
         GroupRefManager     m_memberMgr;
@@ -332,13 +353,14 @@ class Group
         ObjectGuid          m_mainTankGuid;
         ObjectGuid          m_mainAssistantGuid;
         GroupType           m_groupType;
+        Difficulty          m_difficulty;
         BattleGround*       m_bgGroup;
         ObjectGuid          m_targetIcons[TARGET_ICON_COUNT];
         LootMethod          m_lootMethod;
         ItemQualities       m_lootThreshold;
         ObjectGuid          m_masterLooterGuid;
         ObjectGuid          m_currentLooterGuid;
-        BoundInstancesMap   m_boundInstances;
+        BoundInstancesMap   m_boundInstances[MAX_DIFFICULTY];
         uint8*              m_subGroupsCounts;
 };
 #endif

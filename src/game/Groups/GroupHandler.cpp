@@ -24,7 +24,6 @@
 #include "Server/WorldSession.h"
 #include "World/World.h"
 #include "Globals/ObjectMgr.h"
-#include "Globals/ObjectAccessor.h"
 #include "Entities/Player.h"
 #include "Groups/Group.h"
 #include "Social/SocialMgr.h"
@@ -84,7 +83,7 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
 
     if (initiator->GetInstanceId() != 0 && recipient->GetInstanceId() != 0 && initiator->GetInstanceId() != recipient->GetInstanceId() && initiator->GetMapId() == recipient->GetMapId())
     {
-        SendPartyResult(PARTY_OP_INVITE, membername, ERR_ALREADY_IN_GROUP_S); // error message is not so appropriated but no other option for classic
+        SendPartyResult(PARTY_OP_INVITE, membername, ERR_TARGET_NOT_IN_INSTANCE_S);
         return;
     }
 
@@ -361,7 +360,7 @@ void WorldSession::HandleGroupDisbandOpcode(WorldPacket& /*recv_data*/)
 
     if (player->InBattleGround())
     {
-        SendPartyResult(PARTY_OP_INVITE, "", ERR_NOT_LEADER);  // error message is not so appropriated but no other option for classic
+        SendPartyResult(PARTY_OP_INVITE, "", ERR_INVITE_RESTRICTED);
         return;
     }
 
@@ -536,9 +535,10 @@ void WorldSession::HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandlePartyAssignmentOpcode(WorldPacket& recv_data)
 {
-    uint8 flag1, flag2;
+    uint8 role;
+    uint8 apply;
     ObjectGuid guid;
-    recv_data >> flag1 >> flag2;
+    recv_data >> role >> apply;                             // role 0 = Main Tank, 1 = Main Assistant
     recv_data >> guid;
 
     DEBUG_LOG("MSG_PARTY_ASSIGNMENT");
@@ -547,21 +547,28 @@ void WorldSession::HandlePartyAssignmentOpcode(WorldPacket& recv_data)
     if (!group)
         return;
 
-    // if(flag1) Main Assist
-    //     0x4
-    // if(flag2) Main Tank
-    //     0x2
-
     /** error handling **/
     if (!group->IsLeader(GetPlayer()->GetObjectGuid()))
         return;
     /********************/
 
     // everything is fine, do it
-    if (flag1 == 1)
-        group->SetMainAssistant(guid);
-    if (flag2 == 1)
-        group->SetMainTank(guid);
+    if (apply)
+    {
+        switch (role)
+        {
+            case 0: group->SetMainTank(guid); break;
+            case 1: group->SetMainAssistant(guid); break;
+            default: break;
+        }
+    }
+    else
+    {
+        if (group->GetMainTankGuid() == guid)
+            group->SetMainTank(ObjectGuid());
+        if (group->GetMainAssistantGuid() == guid)
+            group->SetMainAssistant(ObjectGuid());
+    }
 }
 
 void WorldSession::HandleRaidReadyCheckOpcode(WorldPacket& recv_data)
@@ -636,13 +643,13 @@ void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacke
     data << uint32(mask);
 
     if (mask & GROUP_UPDATE_FLAG_STATUS)
-        data << uint8(GetGroupMemberStatus(player));
+        data << uint16(GetGroupMemberStatus(player));
 
     if (mask & GROUP_UPDATE_FLAG_CUR_HP)
-        data << uint16(player->GetHealth());
+        data << (uint16) player->GetHealth();
 
     if (mask & GROUP_UPDATE_FLAG_MAX_HP)
-        data << uint16(player->GetMaxHealth());
+        data << (uint16) player->GetMaxHealth();
 
     Powers powerType = player->GetPowerType();
     if (mask & GROUP_UPDATE_FLAG_POWER_TYPE)
@@ -666,13 +673,13 @@ void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacke
     if (mask & GROUP_UPDATE_FLAG_AURAS)
     {
         const uint64& auramask = player->GetAuraUpdateMask();
-        data << uint32(auramask);
-        // In all checked pre-2.x data of packets included only positive auras
-        for (uint32 i = 0; i < MAX_POSITIVE_AURAS; ++i)
+        data << uint64(auramask);
+        for (uint32 i = 0; i < MAX_AURAS; ++i)
         {
             if (auramask & (uint64(1) << i))
             {
                 data << uint16(player->GetUInt32Value(UNIT_FIELD_AURA + i));
+                data << uint8(1);
             }
         }
     }
@@ -742,18 +749,18 @@ void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacke
         if (charm)
         {
             const uint64& auramask = charm->GetAuraUpdateMask();
-            data << uint32(auramask);
-            // In all checked pre-2.x data of packets included only positive auras
-            for (uint32 i = 0; i < MAX_POSITIVE_AURAS; ++i)
+            data << uint64(auramask);
+            for (uint32 i = 0; i < MAX_AURAS; ++i)
             {
                 if (auramask & (uint64(1) << i))
                 {
                     data << uint16(charm->GetUInt32Value(UNIT_FIELD_AURA + i));
+                    data << uint8(1);
                 }
             }
         }
         else
-            data << uint32(0);
+            data << uint64(0);
     }
 }
 
@@ -770,7 +777,7 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data)
         WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL, 3 + 4 + 2);
         data << guid.WriteAsPacked();
         data << uint32(GROUP_UPDATE_FLAG_STATUS);
-        data << uint8(MEMBER_STATUS_OFFLINE);
+        data << uint16(MEMBER_STATUS_OFFLINE);
         SendPacket(data);
         return;
     }
@@ -786,7 +793,7 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data)
 
     Powers powerType = player->GetPowerType();
     data << uint32(mask1);                                  // group update mask
-    data << uint8(GetGroupMemberStatus(player));            // member's online status
+    data << uint16(GetGroupMemberStatus(player));           // member's online status
     data << uint16(player->GetHealth());                    // GROUP_UPDATE_FLAG_CUR_HP
     data << uint16(player->GetMaxHealth());                 // GROUP_UPDATE_FLAG_MAX_HP
     data << uint8(powerType);                               // GROUP_UPDATE_FLAG_POWER_TYPE
@@ -821,18 +828,19 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data)
     data << uint16(iCoordX);                              // GROUP_UPDATE_FLAG_POSITION
     data << uint16(iCoordY);                              // GROUP_UPDATE_FLAG_POSITION
 
-    uint32 auramask = 0;
+    uint64 auramask = 0;
     size_t maskPos = data.wpos();
-    data << uint32(auramask);                               // placeholder
+    data << uint64(auramask);                               // placeholder
     for (uint8 i = 0; i < MAX_AURAS; ++i)
     {
         if (uint32 aura = player->GetUInt32Value(UNIT_FIELD_AURA + i))
         {
-            auramask |= (uint32(1) << i);
+            auramask |= (uint64(1) << i);
             data << uint16(aura);
+            data << uint8(1);
         }
     }
-    data.put<uint32>(maskPos, auramask);                    // GROUP_UPDATE_FLAG_AURAS
+    data.put<uint64>(maskPos, auramask);                    // GROUP_UPDATE_FLAG_AURAS
 
     if (charm)
     {
@@ -846,23 +854,24 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data)
         data << uint16(charm->GetPower(charmPowerType));        // GROUP_UPDATE_FLAG_PET_CUR_POWER
         data << uint16(charm->GetMaxPower(charmPowerType));     // GROUP_UPDATE_FLAG_PET_MAX_POWER
 
-        uint32 petauramask = 0;
+        uint64 petauramask = 0;
         size_t petMaskPos = data.wpos();
-        data << uint32(petauramask);                        // placeholder
+        data << uint64(petauramask);                        // placeholder
         for (uint8 i = 0; i < MAX_AURAS; ++i)
         {
             if (uint32 petaura = charm->GetUInt32Value(UNIT_FIELD_AURA + i))
             {
-                petauramask |= (uint32(1) << i);
+                petauramask |= (uint64(1) << i);
                 data << uint16(petaura);
+                data << uint8(1);
             }
         }
-        data.put<uint32>(petMaskPos, petauramask);          // GROUP_UPDATE_FLAG_PET_AURAS
+        data.put<uint64>(petMaskPos, petauramask);          // GROUP_UPDATE_FLAG_PET_AURAS
     }
     else
     {
         data << uint8(0);                                   // GROUP_UPDATE_FLAG_PET_NAME
-        data << uint32(0);                                  // GROUP_UPDATE_FLAG_PET_AURAS
+        data << uint64(0);                                  // GROUP_UPDATE_FLAG_PET_AURAS
     }
 
     SendPacket(data);
