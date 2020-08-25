@@ -20,7 +20,6 @@
 #define _LINKEDLIST
 
 #include <cstddef>
-#include "Platform/Define.h"
 
 //============================================
 class LinkedListHead;
@@ -83,7 +82,7 @@ class LinkedListElement
 
 //============================================
 
-class MANGOS_DLL_SPEC LinkedListHead
+class LinkedListHead
 {
     private:
 
@@ -154,6 +153,7 @@ class MANGOS_DLL_SPEC LinkedListHead
                 typedef _Ty const* const_pointer;
                 typedef _Ty& reference;
                 typedef _Ty const& const_reference;
+
 
                 Iterator()
                     : _Ptr(nullptr)
