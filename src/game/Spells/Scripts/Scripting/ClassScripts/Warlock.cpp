@@ -19,6 +19,24 @@
 #include "Spells/Scripts/SpellScript.h"
 #include "Spells/SpellAuras.h"
 
+enum
+{
+    SPELL_UNSTABLE_AFFLICTION_SILENCE = 31117,
+};
+
+struct UnstableAffliction : public AuraScript
+{
+    void OnDispel(SpellAuraHolder* holder, Unit* dispeller, uint32 /*dispellingSpellId*/, uint32 /*originalStacks*/) const override
+    {
+        // use clean value for initial damage
+        int32 damage = holder->m_auras[EFFECT_INDEX_0]->GetSpellProto()->CalculateSimpleValue(EFFECT_INDEX_0);
+        damage *= 9;
+
+        // backfire damage and silence - confirmed to have original caster
+        dispeller->CastCustomSpell(dispeller, 31117, &damage, nullptr, nullptr, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, holder->GetCasterGuid());
+    }
+};
+
 struct CurseOfAgony : public AuraScript
 {
     void OnPeriodicCalculateAmount(Aura* aura, uint32& amount) const override
@@ -35,5 +53,6 @@ struct CurseOfAgony : public AuraScript
 
 void LoadWarlockScripts()
 {
+    RegisterAuraScript<UnstableAffliction>("spell_unstable_affliction");
     RegisterAuraScript<CurseOfAgony>("spell_curse_of_agony");
 }

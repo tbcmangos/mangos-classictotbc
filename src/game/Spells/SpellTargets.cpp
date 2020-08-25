@@ -94,6 +94,36 @@ SpellTargetInfo SpellTargetInfoTable[MAX_SPELL_TARGETS] =
     /*[61]*/    { "TARGET_UNIT_RAID_AND_CLASS",                           TARGET_TYPE_UNIT,             TARGET_GROUP,      TARGET_ENUMERATOR_CHAIN  },
     /*[62]*/    { "TARGET_PLAYER_RAID_NYI",                               TARGET_TYPE_PLAYER,           TARGET_GROUP,      TARGET_ENUMERATOR_SINGLE },
     /*[63]*/    { "TARGET_LOCATION_UNIT_POSITION",                        TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[64]*/    { "TARGET_LOCATION_UNIT_FRONT",                           TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[65]*/    { "TARGET_LOCATION_UNIT_BACK",                            TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[66]*/    { "TARGET_LOCATION_UNIT_RIGHT",                           TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[67]*/    { "TARGET_LOCATION_UNIT_LEFT",                            TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[68]*/    { "TARGET_LOCATION_UNIT_FRONT_RIGHT",                     TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[69]*/    { "TARGET_LOCATION_UNIT_BACK_RIGHT",                      TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[70]*/    { "TARGET_LOCATION_UNIT_BACK_LEFT",                       TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[71]*/    { "TARGET_LOCATION_UNIT_FRONT_LEFT",                      TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[72]*/    { "TARGET_LOCATION_CASTER_RANDOM_SIDE",                   TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[73]*/    { "TARGET_LOCATION_CASTER_RANDOM_CIRCUMFERENCE",          TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[74]*/    { "TARGET_LOCATION_UNIT_RANDOM_SIDE",                     TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[75]*/    { "TARGET_LOCATION_UNIT_RANDOM_CIRCUMFERENCE",            TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[76]*/    { "TARGET_LOCATION_DYNOBJ_POSITION",                      TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[77]*/    { "TARGET_UNIT_CHANNEL_TARGET",                           TARGET_TYPE_UNIT,             TARGET_NEUTRAL,    TARGET_ENUMERATOR_SINGLE },
+    /*[78]*/    { "TARGET_LOCATION_NORTH",                                TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[79]*/    { "TARGET_LOCATION_SOUTH",                                TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[80]*/    { "TARGET_LOCATION_EAST",                                 TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[81]*/    { "TARGET_LOCATION_WEST",                                 TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[82]*/    { "TARGET_LOCATION_NE",                                   TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[83]*/    { "TARGET_LOCATION_NW",                                   TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[84]*/    { "TARGET_LOCATION_SE",                                   TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[85]*/    { "TARGET_LOCATION_SW",                                   TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[86]*/    { "TARGET_LOCATION_RANDOM_SIDE",                          TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[87]*/    { "TARGET_LOCATION_CURRENT_REFERENCE",                    TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[88]*/    { "TARGET_ENUM_UNITS_SCRIPT_AOE_AT_DYNOBJ_LOC",           TARGET_TYPE_UNIT,             TARGET_SCRIPT,     TARGET_ENUMERATOR_AOE    },
+    /*[89]*/    { "TARGET_LOCATION_TRAJECTORY",                           TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[90]*/    { "TARGET_UNIT_CASTER_COMPANION",                         TARGET_TYPE_UNIT,             TARGET_NEUTRAL,    TARGET_ENUMERATOR_SINGLE },
+    /*[91]*/    { "TARGET_LOCATION_RANDOM_CIRCUMFERENCE",                 TARGET_TYPE_LOCATION_DEST                                                 },
+    /*[92]*/    { "TARGET_UNIT_CASTER_SUMMONER",                          TARGET_TYPE_UNIT,             TARGET_NEUTRAL,    TARGET_ENUMERATOR_SINGLE },
+    /*[93]*/    { "TARGET_CORPSE_ENEMY_NEAR_CASTER",                      TARGET_TYPE_CORPSE,           TARGET_HARMFUL,    TARGET_ENUMERATOR_CHAIN  },
 };
 
 SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
@@ -139,8 +169,8 @@ SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
     /*[38]*/     { "SPELL_EFFECT_DISPEL",                       TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[39]*/     { "SPELL_EFFECT_LANGUAGE",                     TARGET_TYPE_NONE,           TARGET_NONE },
     /*[40]*/     { "SPELL_EFFECT_DUAL_WIELD",                   TARGET_TYPE_UNIT,           TARGET_NONE },
-    /*[41]*/     { "SPELL_EFFECT_SUMMON_WILD",                  TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[42]*/     { "SPELL_EFFECT_SUMMON_GUARDIAN",              TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[41]*/     { "SPELL_EFFECT_41",                           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[42]*/     { "SPELL_EFFECT_42",                           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
     /*[43]*/     { "SPELL_EFFECT_TELEPORT_UNITS_FACE_CASTER",   TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[44]*/     { "SPELL_EFFECT_SKILL_STEP",                   TARGET_TYPE_UNKNOWN,        TARGET_UNIT },
     /*[45]*/     { "SPELL_EFFECT_ADD_HONOR",                    TARGET_TYPE_UNIT,           TARGET_NONE },
@@ -171,8 +201,8 @@ SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
     /*[70]*/     { "SPELL_EFFECT_PULL",                         TARGET_TYPE_UNIT_DEST,      TARGET_NONE }, // implicit guesswork
     /*[71]*/     { "SPELL_EFFECT_PICKPOCKET",                   TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[72]*/     { "SPELL_EFFECT_ADD_FARSIGHT",                 TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[73]*/     { "SPELL_EFFECT_SUMMON_POSSESSED",             TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[74]*/     { "SPELL_EFFECT_SUMMON_TOTEM",                 TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[73]*/     { "SPELL_EFFECT_73",                           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[74]*/     { "SPELL_EFFECT_74",                           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
     /*[75]*/     { "SPELL_EFFECT_HEAL_MECHANICAL",              TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[76]*/     { "SPELL_EFFECT_SUMMON_OBJECT_WILD",           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
     /*[77]*/     { "SPELL_EFFECT_SCRIPT_EFFECT",                TARGET_TYPE_DYNAMIC,        TARGET_NONE },
@@ -185,17 +215,17 @@ SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
     /*[84]*/     { "SPELL_EFFECT_STUCK",                        TARGET_TYPE_NONE,           TARGET_NONE }, // confirmed none
     /*[85]*/     { "SPELL_EFFECT_SUMMON_PLAYER",                TARGET_TYPE_UNIT,           TARGET_UNIT }, // not meant to send anything - TODO: Fix
     /*[86]*/     { "SPELL_EFFECT_ACTIVATE_OBJECT",              TARGET_TYPE_GAMEOBJECT,     TARGET_NONE },
-    /*[87]*/     { "SPELL_EFFECT_SUMMON_TOTEM_SLOT1",           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[88]*/     { "SPELL_EFFECT_SUMMON_TOTEM_SLOT2",           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[89]*/     { "SPELL_EFFECT_SUMMON_TOTEM_SLOT3",           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
-    /*[90]*/     { "SPELL_EFFECT_SUMMON_TOTEM_SLOT4",           TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[87]*/     { "SPELL_EFFECT_87",                           TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[88]*/     { "SPELL_EFFECT_88",                           TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[89]*/     { "SPELL_EFFECT_89",                           TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[90]*/     { "SPELL_EFFECT_90",                           TARGET_TYPE_UNKNOWN,        TARGET_NONE },
     /*[91]*/     { "SPELL_EFFECT_THREAT_ALL",                   TARGET_TYPE_UNKNOWN,        TARGET_NONE },
     /*[92]*/     { "SPELL_EFFECT_ENCHANT_HELD_ITEM",            TARGET_TYPE_UNIT,           TARGET_NONE },
-    /*[93]*/     { "SPELL_EFFECT_SUMMON_PHANTASM",              TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[93]*/     { "SPELL_EFFECT_93",                           TARGET_TYPE_UNKNOWN,        TARGET_NONE },
     /*[94]*/     { "SPELL_EFFECT_SELF_RESURRECT",               TARGET_TYPE_NONE,           TARGET_NONE }, // confirmed none
     /*[95]*/     { "SPELL_EFFECT_SKINNING",                     TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[96]*/     { "SPELL_EFFECT_CHARGE",                       TARGET_TYPE_UNIT,           TARGET_NONE },
-    /*[97]*/     { "SPELL_EFFECT_SUMMON_CRITTER",               TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[97]*/     { "SPELL_EFFECT_97",                           TARGET_TYPE_UNIT_DEST,      TARGET_NONE },
     /*[98]*/     { "SPELL_EFFECT_KNOCK_BACK",                   TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[99]*/     { "SPELL_EFFECT_DISENCHANT",                   TARGET_TYPE_ITEM,           TARGET_NONE },
     /*[100]*/    { "SPELL_EFFECT_INEBRIATE",                    TARGET_TYPE_UNIT,           TARGET_NONE },
@@ -210,7 +240,7 @@ SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
     /*[109]*/    { "SPELL_EFFECT_SUMMON_DEAD_PET",              TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
     /*[110]*/    { "SPELL_EFFECT_DESTROY_ALL_TOTEMS",           TARGET_TYPE_NONE,           TARGET_NONE }, // confirmed none
     /*[111]*/    { "SPELL_EFFECT_DURABILITY_DAMAGE",            TARGET_TYPE_UNIT,           TARGET_NONE },
-    /*[112]*/    { "SPELL_EFFECT_SUMMON_DEMON",                 TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[112]*/    { "SPELL_EFFECT_112",                          TARGET_TYPE_UNKNOWN,        TARGET_NONE },
     /*[113]*/    { "SPELL_EFFECT_RESURRECT_NEW",                TARGET_TYPE_CORPSE,         TARGET_NONE },
     /*[114]*/    { "SPELL_EFFECT_ATTACK_ME",                    TARGET_TYPE_UNIT,           TARGET_NONE },
     /*[115]*/    { "SPELL_EFFECT_DURABILITY_DAMAGE_PCT",        TARGET_TYPE_UNIT,           TARGET_NONE },
@@ -228,6 +258,30 @@ SpellEffectInfo SpellEffectInfoTable[MAX_SPELL_EFFECTS] =
     /*[127]*/    { "SPELL_EFFECT_PROSPECTING",                  TARGET_TYPE_ITEM,           TARGET_NONE },
     /*[128]*/    { "SPELL_EFFECT_APPLY_AREA_AURA_FRIEND",       TARGET_TYPE_SPECIAL_UNIT,   TARGET_NONE },
     /*[129]*/    { "SPELL_EFFECT_APPLY_AREA_AURA_ENEMY",        TARGET_TYPE_SPECIAL_UNIT,   TARGET_NONE },
+    /*[130]*/    { "SPELL_EFFECT_REDIRECT_THREAT",              TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[131]*/    { "SPELL_EFFECT_PLAY_SOUND",                   TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[132]*/    { "SPELL_EFFECT_PLAY_MUSIC",                   TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[133]*/    { "SPELL_EFFECT_UNLEARN_SPECIALIZATION",       TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[134]*/    { "SPELL_EFFECT_KILL_CREDIT_GROUP",            TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[135]*/    { "SPELL_EFFECT_CALL_PET",                     TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[136]*/    { "SPELL_EFFECT_HEAL_PCT",                     TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[137]*/    { "SPELL_EFFECT_ENERGIZE_PCT",                 TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[138]*/    { "SPELL_EFFECT_LEAP_BACK",                    TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[139]*/    { "SPELL_EFFECT_CLEAR_QUEST",                  TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[140]*/    { "SPELL_EFFECT_FORCE_CAST",                   TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[141]*/    { "SPELL_EFFECT_FORCE_CAST_WITH_VALUE",        TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[142]*/    { "SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE",     TARGET_TYPE_DYNAMIC,        TARGET_NONE },
+    /*[143]*/    { "SPELL_EFFECT_APPLY_AREA_AURA_OWNER",        TARGET_TYPE_SPECIAL_UNIT,   TARGET_NONE },
+    /*[144]*/    { "SPELL_EFFECT_KNOCKBACK_FROM_POSITION",      TARGET_TYPE_UNIT_DEST,      TARGET_NONE },
+    /*[145]*/    { "SPELL_EFFECT_PULL_TOWARDS_DEST",            TARGET_TYPE_UNIT_DEST,      TARGET_NONE },
+    /*[146]*/    { "SPELL_EFFECT_146",                          TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[147]*/    { "SPELL_EFFECT_QUEST_FAIL",                   TARGET_TYPE_UNIT,           TARGET_NONE },
+    /*[148]*/    { "SPELL_EFFECT_148",                          TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[149]*/    { "SPELL_EFFECT_CHARGE_DEST",                  TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[150]*/    { "SPELL_EFFECT_150",                          TARGET_TYPE_UNKNOWN,        TARGET_NONE },
+    /*[151]*/    { "SPELL_EFFECT_TRIGGER_SPELL_2",              TARGET_TYPE_LOCATION_DEST,  TARGET_NONE },
+    /*[152]*/    { "SPELL_EFFECT_SUMMON_RAF_FRIEND",            TARGET_TYPE_NONE,           TARGET_NONE }, // TODO: Investigate when implementing RAF
+    /*[153]*/    { "SPELL_EFFECT_CREATE_PET",                   TARGET_TYPE_UNIT,           TARGET_NONE },
 };
 
 std::map<uint32, SpellTargetingData> SpellTargetMgr::spellTargetingData;
@@ -474,6 +528,16 @@ bool SpellTargetMgr::CanEffectBeFilledWithMask(uint32 spellId, uint32 effIdx, ui
 
 float SpellTargetMgr::GetJumpRadius(uint32 spellId)
 {
+    switch (spellId)
+    {
+        case 32445: // Holy Wrath - Maiden of Virtue
+            return 7.f;
+        case 40827: // Beams - Mother Shahraz
+        case 40859:
+        case 40860:
+        case 40861:
+            return 25.f;
+    }
     return CHAIN_SPELL_JUMP_RADIUS;
 }
 

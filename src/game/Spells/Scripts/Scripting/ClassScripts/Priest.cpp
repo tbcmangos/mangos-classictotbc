@@ -17,8 +17,58 @@
  */
 
 #include "Spells/Scripts/SpellScript.h"
+#include "Spells/SpellAuras.h"
+
+enum
+{
+    SPELL_PLAYER_CONSUME_MAGIC = 32676,
+};
+
+struct ConsumeMagicSpellScript : public SpellScript
+{
+    SpellCastResult OnCheckCast(Spell* spell, bool strict) const override
+    {
+        if (strict)
+        {
+            auto holderMap = spell->GetCaster()->GetSpellAuraHolderMap();
+            for (auto holderPair : holderMap)
+            {
+                if (holderPair.second->GetSpellProto())
+                {
+                    if (holderPair.second->GetSpellProto()->SpellFamilyName == SPELLFAMILY_PRIEST)
+                    {
+                        if (holderPair.second->IsPositive() && !holderPair.second->IsPassive())
+                        {
+                            spell->SetScriptValue(holderPair.second->GetId());
+                            return SPELL_CAST_OK;
+                        }
+                    }
+                }
+            }
+
+            return SPELL_FAILED_NOTHING_TO_DISPEL;
+        }
+        else
+            return SPELL_CAST_OK;
+    }
+
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
+    {
+        spell->GetCaster()->RemoveAurasDueToSpell(spell->GetScriptValue());
+    }
+};
+
+struct ShadowWordDeath : public SpellScript
+{
+    void OnHit(Spell* spell) const override
+    {
+        int32 swdDamage = spell->GetTotalTargetDamage();
+        spell->GetCaster()->CastCustomSpell(nullptr, 32409, &swdDamage, nullptr, nullptr, TRIGGERED_OLD_TRIGGERED);
+    }
+};
 
 void LoadPriestScripts()
 {
-
+    RegisterSpellScript<ConsumeMagicSpellScript>("spell_consume_magic");
+    RegisterSpellScript<ShadowWordDeath>("spell_shadow_word_death");
 }

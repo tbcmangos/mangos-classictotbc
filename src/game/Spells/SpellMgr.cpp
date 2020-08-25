@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Globals/ObjectMgr.h"
 #include "Spells/SpellAuraDefines.h"
 #include "ProgressBar.h"
@@ -88,6 +88,9 @@ int32 CalculateSpellDuration(SpellEntry const* spellInfo, Unit const* caster)
         {
             modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_DURATION, duration);
 
+            if (spellInfo->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECT_DURATION))
+                duration = int32(duration * caster->GetFloatValue(UNIT_MOD_CAST_SPEED));
+
             if (duration < 0)
                 duration = 0;
         }
@@ -101,21 +104,25 @@ uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster, Spell*
     if (spell)
     {
         // Workaround for custom cast time
-        /*switch (spellInfo->Id)
+        switch (spellInfo->Id)
         {
             case 3366: // Opening - seems to have a settable timer per usage
                 if (spell->m_CastItem)
                 {
                     switch (spell->m_CastItem->GetEntry())
                     {
+                        case 31088: // Tainted Core - instant opening
+                            return 0;
                         default:
                             break;
                     }
                 }
                 break;
+            case 46546: // Ritual of Summoning
+                return 0;
             default:
                 break;
-        }*/
+        }
 
         // some triggered spells have data only usable for client
         if (spell->IsTriggeredSpellWithRedundantCastTime())
@@ -154,17 +161,12 @@ uint32 GetSpellCastTime(SpellEntry const* spellInfo, WorldObject* caster, Spell*
             castTime = int32(castTime * spell->GetCaster()->m_modAttackSpeedPct[RANGED_ATTACK]);
     }
 
-    // [workaround] holy light need script effect, but 19968 spell for it have 2.5 cast time sec
-    // it should be instant instead
-    if (spellInfo->Id == 19968)
-        castTime = 0;
-
     return (castTime > 0) ? uint32(castTime) : 0;
 }
 
 uint32 GetSpellCastTimeForBonus(SpellEntry const* spellProto, DamageEffectType damagetype)
 {
-    uint32 CastingTime = !IsChanneledSpell(spellProto) ? GetSpellCastTime(spellProto, nullptr) : GetSpellDuration(spellProto);
+    uint32 CastingTime = (!IsChanneledSpell(spellProto)) || spellProto->HasAttribute(SPELL_ATTR_EX5_HASTE_AFFECT_DURATION) ? GetSpellCastTime(spellProto, nullptr) : GetSpellDuration(spellProto);
 
     if (CastingTime > 7000) CastingTime = 7000;
     if (CastingTime < 1500) CastingTime = 1500;
@@ -373,12 +375,19 @@ SpellSpecific GetSpellSpecific(uint32 spellId)
         case SPELLFAMILY_MAGE:
         {
             // family flags 18(Molten), 25(Frost/Ice), 28(Mage)
-            if (spellInfo->IsFitToFamilyMask(uint64(0x12000000)))
+            if (spellInfo->IsFitToFamilyMask(uint64(0x12040000)))
                 return SPELL_MAGE_ARMOR;
 
             // Pre-Wrath Arcane Power (no mask):
             if (spellInfo->Id == 12042)
                 return SPELL_BUFF_CASTER_POWER;
+
+            break;
+        }
+        case SPELLFAMILY_WARRIOR:
+        {
+            if (spellInfo->IsFitToFamilyMask(uint64(0x00008000010000)))
+                return SPELL_SHOUT_BUFF;
 
             break;
         }
@@ -388,9 +397,17 @@ SpellSpecific GetSpellSpecific(uint32 spellId)
             if (spellInfo->Dispel == DISPEL_CURSE)
                 return SPELL_CURSE;
 
+            // family flag 37 (except Demon Skin, which is under general)
+            if (spellInfo->IsFitToFamilyMask(uint64(0x0000002000000000)))
+                return SPELL_WARLOCK_ARMOR;
+
             // Drain Soul and Shadowburn
             if (IsSpellHaveAura(spellInfo, SPELL_AURA_CHANNEL_DEATH_ITEM))
                 return SPELL_SOUL_CAPTURE;
+
+            // Corruption and Seed of Corruption
+            if (spellInfo->IsFitToFamilyMask(uint64(0x1000000002)))
+                return SPELL_CORRUPTION;
 
             break;
         }
@@ -409,7 +426,7 @@ SpellSpecific GetSpellSpecific(uint32 spellId)
                 return SPELL_STING;
 
             // only hunter aspects have this (except Aspect of the Beast, which is under general)
-            if (spellInfo->activeIconID == 122 && spellInfo->Id != 75)
+            if (spellInfo->IsFitToFamilyMask(uint64(0x0044000000380000)))
                 return SPELL_ASPECT;
 
             break;
@@ -422,7 +439,7 @@ SpellSpecific GetSpellSpecific(uint32 spellId)
             if (spellInfo->IsFitToFamilyMask(uint64(0x0000000010000180)))
                 return SPELL_BLESSING;
 
-            if ((spellInfo->IsFitToFamilyMask(uint64(0x0000000020180400))) && spellInfo->baseLevel != 0)
+            if (spellInfo->IsFitToFamilyMask(uint64(0x00000820180400)) && spellInfo->HasAttribute(SPELL_ATTR_EX3_TRIGGERED_CAN_TRIGGER_SPECIAL)) // TODO: Remove this WTF condition
                 return SPELL_JUDGEMENT;
 
             if (IsSpellHaveEffect(spellInfo, SPELL_EFFECT_APPLY_AREA_AURA_PARTY))
@@ -1067,7 +1084,7 @@ bool SpellMgr::IsSpellProcEventCanTriggeredBy(SpellProcEventEntry const* spellPr
         return false;
 
     // Always trigger for this
-    if (EventProcFlag & (PROC_FLAG_KILLED | PROC_FLAG_KILL | PROC_FLAG_ON_TRAP_ACTIVATION))
+    if (EventProcFlag & (PROC_FLAG_KILLED | PROC_FLAG_KILL | PROC_FLAG_ON_TRAP_ACTIVATION | PROC_FLAG_DEATH))
         return true;
 
     if (procFlags & PROC_FLAG_ON_DO_PERIODIC && EventProcFlag & PROC_FLAG_ON_DO_PERIODIC)
@@ -1122,7 +1139,7 @@ bool SpellMgr::IsSpellProcEventCanTriggeredBy(SpellProcEventEntry const* spellPr
         else // For spells need check school/spell family/family mask
         {
             // Check (if set) for school
-            if (spellProcEvent->schoolMask && (spellProcEvent->schoolMask & GetSchoolMask(procSpell->School)) == 0)
+            if (spellProcEvent->schoolMask && (spellProcEvent->schoolMask & procSpell->SchoolMask) == 0)
                 return false;
 
             // Check (if set) for spellFamilyName
@@ -1411,6 +1428,7 @@ SpellEntry const* SpellMgr::SelectAuraRankForLevel(SpellEntry const* spellInfo, 
                 break;
 
             // if found appropriate level
+        // partial Playerbot mod: fix for core bug (commit 073cdd0e...)
             if (level + 10 >= nextSpellInfo->spellLevel)
                 return nextSpellInfo;
 
@@ -1534,6 +1552,10 @@ void SpellMgr::LoadSpellChains()
         for (SkillLineAbilityMap::const_iterator ab_itr = mSkillLineAbilityMapBySpellId.begin(); ab_itr != mSkillLineAbilityMapBySpellId.end(); ++ab_itr)
         {
             uint32 spell_id = ab_itr->first;
+
+            // skip GM/test/internal spells.begin Its not have ranks anyway
+            if (ab_itr->second->skillId == SKILL_INTERNAL)
+                continue;
 
             // some forward spells not exist and can be ignored (some outdated data)
             SpellEntry const* spell_entry = sSpellTemplate.LookupEntry<SpellEntry>(spell_id);
@@ -2478,6 +2500,27 @@ void SpellMgr::LoadSpellAreas()
 
 SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spellInfo, uint32 map_id, uint32 zone_id, uint32 area_id, Player const* player) const
 {
+    // normal case
+    if (spellInfo->AreaId > 0 && spellInfo->AreaId != zone_id && spellInfo->AreaId != area_id)
+        return SPELL_FAILED_REQUIRES_AREA;
+
+    // continent limitation (virtual continent), ignore for GM
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX4_CAST_ONLY_IN_OUTLAND) && !(player && player->isGameMaster()))
+    {
+        uint32 v_map = GetVirtualMapForMapAndZone(map_id, zone_id);
+        MapEntry const* mapEntry = sMapStore.LookupEntry(v_map);
+        if (!mapEntry || mapEntry->addon < 1 || !mapEntry->IsContinent())
+            return SPELL_FAILED_REQUIRES_AREA;
+    }
+
+    // raid instance limitation
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX6_NOT_IN_RAID_INSTANCE))
+    {
+        MapEntry const* mapEntry = sMapStore.LookupEntry(map_id);
+        if (!mapEntry || mapEntry->IsRaid())
+            return SPELL_FAILED_REQUIRES_AREA;
+    }
+
     // DB base check (if non empty then must fit at least single for allow)
     SpellAreaMapBounds saBounds = GetSpellAreaMapBounds(spellInfo->Id);
     if (saBounds.first != saBounds.second)
@@ -2491,6 +2534,14 @@ SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spell
     }
 
     // bg spell checks
+
+    // do not allow spells to be cast in arenas
+    // - with SPELL_ATTR_EX4_NOT_USABLE_IN_ARENA flag
+    // - with greater than 15 min CD
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX4_NOT_USABLE_IN_ARENA) ||
+            (GetSpellRecoveryTime(spellInfo) > 15 * MINUTE * IN_MILLISECONDS && !spellInfo->HasAttribute(SPELL_ATTR_EX4_USABLE_IN_ARENA)))
+        if (player && player->InArena())
+            return SPELL_FAILED_NOT_IN_ARENA;
 
     // Spell casted only on battleground
     if (spellInfo->HasAttribute(SPELL_ATTR_EX3_BATTLEGROUND))
@@ -2512,18 +2563,48 @@ SpellCastResult SpellMgr::GetSpellAllowedInLocationError(SpellEntry const* spell
         case 23333:                                         // Warsong Flag
         case 23335:                                         // Silverwing Flag
             return map_id == 489 && player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_REQUIRES_AREA;
+        case 34976:                                         // Netherstorm Flag
+            return map_id == 566 && player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_REQUIRES_AREA;
         case 2584:                                          // Waiting to Resurrect
+        case 42792:                                         // Recently Dropped Flag
+        case 43681:                                         // Inactive
         {
             return player && player->InBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
         }
         case 22011:                                         // Spirit Heal Channel
         case 22012:                                         // Spirit Heal
         case 24171:                                         // Resurrection Impact Visual
+        case 44535:                                         // Spirit Heal (mana)
         {
             MapEntry const* mapEntry = sMapStore.LookupEntry(map_id);
             if (!mapEntry)
                 return SPELL_FAILED_REQUIRES_AREA;
             return mapEntry->IsBattleGround() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
+        }
+        case 44521:                                         // Preparation
+        {
+            if (!player)
+                return SPELL_FAILED_REQUIRES_AREA;
+
+            BattleGround* bg = player->GetBattleGround();
+            return bg && bg->GetStatus() == STATUS_WAIT_JOIN ? SPELL_CAST_OK : SPELL_FAILED_ONLY_BATTLEGROUNDS;
+        }
+        case 32724:                                         // Gold Team (Alliance)
+        case 32725:                                         // Green Team (Alliance)
+        case 35774:                                         // Gold Team (Horde)
+        case 35775:                                         // Green Team (Horde)
+        {
+            return player && player->InArena() ? SPELL_CAST_OK : SPELL_FAILED_ONLY_IN_ARENA;
+        }
+        case 32727:                                         // Arena Preparation
+        {
+            if (!player)
+                return SPELL_FAILED_REQUIRES_AREA;
+            if (!player->InArena())
+                return SPELL_FAILED_REQUIRES_AREA;
+
+            BattleGround* bg = player->GetBattleGround();
+            return bg && bg->GetStatus() == STATUS_WAIT_JOIN ? SPELL_CAST_OK : SPELL_FAILED_ONLY_IN_ARENA;
         }
     }
 
@@ -2834,6 +2915,11 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellEntry const* spellproto
     // Explicit Diminishing Groups
     switch (spellproto->SpellFamilyName)
     {
+        case SPELLFAMILY_GENERIC:
+            // some generic arena related spells have by some strange reason MECHANIC_TURN
+            if (spellproto->Mechanic == MECHANIC_TURN)
+                return DIMINISHING_NONE;
+            break;
         case SPELLFAMILY_ROGUE:
         {
             // Kidney Shot
@@ -2841,7 +2927,7 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellEntry const* spellproto
                 return DIMINISHING_KIDNEYSHOT;
             // Blind
             else if (spellproto->IsFitToFamilyMask(uint64(0x00001000000)))
-                return DIMINISHING_BLIND;
+                return DIMINISHING_BLIND_CYCLONE;
             break;
         }
         case SPELLFAMILY_HUNTER:
@@ -2853,12 +2939,19 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellEntry const* spellproto
         }
         case SPELLFAMILY_WARLOCK:
         {
-            // Fear
-            if (spellproto->IsFitToFamilyMask(uint64(0x0000000080000000)) && spellproto->Mechanic == MECHANIC_FEAR)
-                return DIMINISHING_WARLOCK_FEAR;
+            // Seduction
+            if (spellproto->IsFitToFamilyMask(uint64(0x00040000000)))
+                return DIMINISHING_FEAR;
             // Curses/etc
-            if (spellproto->IsFitToFamilyMask(uint64(0x0000000080000000)))
+            if (spellproto->IsFitToFamilyMask(uint64(0x00080000000)))
                 return DIMINISHING_LIMITONLY;
+            break;
+        }
+        case SPELLFAMILY_DRUID:
+        {
+            // Cyclone
+            if (spellproto->IsFitToFamilyMask(uint64(0x02000000000)))
+                return DIMINISHING_BLIND_CYCLONE;
             break;
         }
         case SPELLFAMILY_WARRIOR:
@@ -2881,8 +2974,8 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellEntry const* spellproto
         return triggered ? DIMINISHING_TRIGGER_STUN : DIMINISHING_CONTROL_STUN;
     if (mechanic & (1 << (MECHANIC_SLEEP - 1)))
         return DIMINISHING_SLEEP;
-    if (mechanic & (1 << (MECHANIC_POLYMORPH - 1)))
-        return DIMINISHING_POLYMORPH;
+    if (mechanic & ((1 << (MECHANIC_KNOCKOUT - 1)) | (1 << (MECHANIC_SAPPED - 1)) | (1 << (MECHANIC_POLYMORPH - 1))))
+        return DIMINISHING_POLYMORPH_KNOCKOUT;
     if (mechanic & (1 << (MECHANIC_ROOT - 1)))
         return triggered ? DIMINISHING_TRIGGER_ROOT : DIMINISHING_CONTROL_ROOT;
     if (mechanic & (1 << (MECHANIC_FEAR - 1)))
@@ -2895,8 +2988,6 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellEntry const* spellproto
         return DIMINISHING_DISARM;
     if (mechanic & (1 << (MECHANIC_FREEZE - 1)))
         return DIMINISHING_FREEZE;
-    if (mechanic & ((1 << (MECHANIC_KNOCKOUT - 1)) | (1 << (MECHANIC_SAPPED - 1))))
-        return DIMINISHING_KNOCKOUT;
     if (mechanic & (1 << (MECHANIC_BANISH - 1)))
         return DIMINISHING_BANISH;
     if (mechanic & (1 << (MECHANIC_HORROR - 1)))
@@ -2916,12 +3007,10 @@ bool IsDiminishingReturnsGroupDurationLimited(DiminishingGroup group)
         case DIMINISHING_CONTROL_ROOT:
         case DIMINISHING_TRIGGER_ROOT:
         case DIMINISHING_FEAR:
-        case DIMINISHING_WARLOCK_FEAR:
         case DIMINISHING_CHARM:
-        case DIMINISHING_POLYMORPH:
+        case DIMINISHING_POLYMORPH_KNOCKOUT:
         case DIMINISHING_FREEZE:
-        case DIMINISHING_KNOCKOUT:
-        case DIMINISHING_BLIND:
+        case DIMINISHING_BLIND_CYCLONE:
         case DIMINISHING_BANISH:
         case DIMINISHING_LIMITONLY:
             return true;
@@ -2945,7 +3034,7 @@ DiminishingReturnsType GetDiminishingReturnsGroupType(DiminishingGroup group)
 {
     switch (group)
     {
-        case DIMINISHING_BLIND:
+        case DIMINISHING_BLIND_CYCLONE:
         case DIMINISHING_CONTROL_STUN:
         case DIMINISHING_TRIGGER_STUN:
         case DIMINISHING_KIDNEYSHOT:
@@ -2955,14 +3044,12 @@ DiminishingReturnsType GetDiminishingReturnsGroupType(DiminishingGroup group)
         case DIMINISHING_CONTROL_ROOT:
         case DIMINISHING_TRIGGER_ROOT:
         case DIMINISHING_FEAR:
-        case DIMINISHING_POLYMORPH:
+        case DIMINISHING_POLYMORPH_KNOCKOUT:
         case DIMINISHING_SILENCE:
         case DIMINISHING_DISARM:
         case DIMINISHING_DEATHCOIL:
         case DIMINISHING_FREEZE:
         case DIMINISHING_BANISH:
-        case DIMINISHING_WARLOCK_FEAR:
-        case DIMINISHING_KNOCKOUT:
             return DRTYPE_PLAYER;
         default:
             break;
@@ -2976,6 +3063,7 @@ bool IsCreatureDRSpell(SpellEntry const* spellInfo)
     switch (spellInfo->Id)
     {
         case 36924: // Harbinger Skyriss - Mind Rend
+        case 31408: // Lesser Doomguard - War Stomp
         case 31480: return true; // Kazrogal War Stomp - confirmed via video
         default: return false;
     }
@@ -3112,8 +3200,7 @@ void SpellMgr::LoadSpellAffects()
 
         if (first_id != entry)
         {
-            //sLog.outErrorDb("Spell %u listed in `spell_affect` is not first rank (%u) in chain", entry, first_id);
-            sLog.outErrorDb("%u,", entry);
+            sLog.outErrorDb("Spell %u listed in `spell_affect` is not first rank (%u) in chain", entry, first_id);
             // prevent loading since it won't have an effect anyway
             continue;
         }
@@ -3123,9 +3210,10 @@ void SpellMgr::LoadSpellAffects()
                     spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_FLAT_MODIFIER &&
                     spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_PCT_MODIFIER  &&
                     spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_TARGET_TRIGGER &&
+                    spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_IGNORE_COMBAT_RESULT &&
                     spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_OVERRIDE_CLASS_SCRIPTS))
         {
-            sLog.outErrorDb("Spell %u listed in `spell_affect` have not SPELL_AURA_ADD_FLAT_MODIFIER (%u) or SPELL_AURA_ADD_PCT_MODIFIER (%u) or SPELL_AURA_ADD_TARGET_TRIGGER (%u) or SPELL_AURA_OVERRIDE_CLASS_SCRIPTS (%u) for effect index (%u)", entry, SPELL_AURA_ADD_FLAT_MODIFIER, SPELL_AURA_ADD_PCT_MODIFIER, SPELL_AURA_ADD_TARGET_TRIGGER, SPELL_AURA_OVERRIDE_CLASS_SCRIPTS, effectId);
+            sLog.outErrorDb("Spell %u listed in `spell_affect` have not SPELL_AURA_ADD_FLAT_MODIFIER (%u) or SPELL_AURA_ADD_PCT_MODIFIER (%u) or SPELL_AURA_ADD_TARGET_TRIGGER (%u) or SPELL_AURA_IGNORE_COMBAT_RESULT (%u) or SPELL_AURA_OVERRIDE_CLASS_SCRIPTS (%u) for effect index (%u)", entry, SPELL_AURA_ADD_FLAT_MODIFIER, SPELL_AURA_ADD_PCT_MODIFIER, SPELL_AURA_ADD_TARGET_TRIGGER, SPELL_AURA_IGNORE_COMBAT_RESULT, SPELL_AURA_OVERRIDE_CLASS_SCRIPTS, effectId);
             continue;
         }
 
@@ -3166,7 +3254,8 @@ void SpellMgr::LoadSpellAffects()
             if (spellInfo->Effect[effectId] != SPELL_EFFECT_APPLY_AURA || (
                         spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_FLAT_MODIFIER &&
                         spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_PCT_MODIFIER  &&
-                        spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_TARGET_TRIGGER))
+                        spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_ADD_TARGET_TRIGGER &&
+                        spellInfo->EffectApplyAuraName[effectId] != SPELL_AURA_IGNORE_COMBAT_RESULT))
                 continue;
 
             if (spellInfo->EffectItemType[effectId] != 0)
@@ -3178,49 +3267,4 @@ void SpellMgr::LoadSpellAffects()
             sLog.outErrorDb("Spell %u (%s) misses spell_affect for effect %u", id, spellInfo->SpellName[sWorld.GetDefaultDbcLocale()], effectId);
         }
     }
-}
-
-void SpellMgr::LoadFacingCasterFlags()
-{
-    mSpellFacingFlagMap.clear();
-    uint32 count = 0;
-
-    //                                                0              1
-    QueryResult* result = WorldDatabase.Query("SELECT entry, facingcasterflag FROM spell_facing");
-    if (!result)
-    {
-        BarGoLink bar(1);
-        bar.step();
-        sLog.outString();
-        sLog.outString(">> Loaded %u facing caster flags", count);
-        return;
-    }
-
-    BarGoLink bar(result->GetRowCount());
-
-    do
-    {
-        Field* fields = result->Fetch();
-
-        bar.step();
-
-        uint32 entry              = fields[0].GetUInt32();
-        uint32 FacingCasterFlags  = fields[1].GetUInt32();
-
-        SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(entry);
-        if (!spellInfo)
-        {
-            sLog.outErrorDb("Spell %u listed in `spell_facing` does not exist", entry);
-            continue;
-        }
-        mSpellFacingFlagMap[entry]    = FacingCasterFlags;
-
-        ++count;
-    }
-    while (result->NextRow());
-
-    delete result;
-
-    sLog.outString();
-    sLog.outString(">> Loaded %u facing caster flags", count);
 }

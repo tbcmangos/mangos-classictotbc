@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #ifndef MANGOS_SPELLAURAS_H
 #define MANGOS_SPELLAURAS_H
 
@@ -87,7 +86,8 @@ enum SpellAuraHolderState
 {
     SPELLAURAHOLDER_STATE_CREATED       = 0,                // just created, initialization steps
     SPELLAURAHOLDER_STATE_READY         = 1,                // all initialization steps are done
-    SPELLAURAHOLDER_STATE_REMOVING      = 2                 // removing steps
+    SPELLAURAHOLDER_STATE_REMOVING      = 2,                // removing steps
+    SPELLAURAHOLDER_STATE_DB_LOAD       = 3                 // during db load some events must not be executed
 };
 
 class SpellAuraHolder
@@ -183,6 +183,7 @@ class SpellAuraHolder
         bool HasMechanicMask(uint32 mechanicMask) const;
 
         void UpdateAuraDuration();
+        void SendAuraDurationForCaster(Player* caster);
 
         void SetAura(uint32 slot, bool remove) { m_target->SetUInt32Value(UNIT_FIELD_AURA + slot, remove ? 0 : GetId()); }
         void SetAuraFlag(uint32 slot, bool add);
@@ -197,6 +198,7 @@ class SpellAuraHolder
         void OnDispel(Unit* dispeller, uint32 dispellingSpellId, uint32 originalStacks);
     private:
         void UpdateAuraApplication();                       // called at charges or stack changes
+        void ClearExtraAuraInfo(Unit* caster);
         void UpdateHeartbeatResist(uint32 diff);
 
         SpellEntry const* m_spellProto;
@@ -272,11 +274,14 @@ class Aura
         void HandleModPossess(bool apply, bool Real);
         void HandlePeriodicDamage(bool apply, bool Real);
         void HandleAuraDummy(bool apply, bool Real);
+        void HandleAuraPeriodicDummy(bool apply, bool Real);
         void HandleModConfuse(bool apply, bool Real);
         void HandleModCharm(bool apply, bool Real);
         void HandleModFear(bool apply, bool Real);
         void HandlePeriodicHeal(bool apply, bool Real);
         void HandleModAttackSpeed(bool apply, bool Real);
+        void HandleModMeleeRangedSpeedPct(bool apply, bool Real);
+        void HandleModCombatSpeedPct(bool apply, bool Real);
         void HandleModThreat(bool apply, bool Real);
         void HandleModTaunt(bool Apply, bool Real);
         void HandleFeignDeath(bool apply, bool Real);
@@ -314,6 +319,7 @@ class Aura
         void HandleDetectAmore(bool apply, bool Real);
         void HandleAuraModIncreaseSpeed(bool Apply, bool Real);
         void HandleAuraModIncreaseMountedSpeed(bool apply, bool Real);
+        void HandleAuraModIncreaseFlightSpeed(bool apply, bool Real);
         void HandleAuraModDecreaseSpeed(bool apply, bool Real);
         void HandleAuraModUseNormalSpeed(bool Apply, bool Real);
         void HandleAuraModIncreaseHealth(bool apply, bool Real);
@@ -346,6 +352,7 @@ class Aura
         void HandleModRegen(bool apply, bool Real);
         void HandleModPowerRegen(bool apply, bool Real);
         void HandleModPowerRegenPCT(bool Apply, bool Real);
+        void HandleModHealingPCT(bool apply, bool real);
         void HandleChannelDeathItem(bool apply, bool Real);
         void HandlePeriodicDamagePCT(bool apply, bool Real);
         void HandleAuraModAttackPower(bool apply, bool Real);
@@ -361,7 +368,6 @@ class Aura
         void HandleAuraModSkill(bool apply, bool Real);
         void HandleModDamagePercentDone(bool apply, bool Real);
         void HandleModPercentStat(bool apply, bool Real);
-        void HandleAurasVisible(bool apply, bool Real);
         void HandleModResistancePercent(bool apply, bool Real);
         void HandleAuraModBaseResistancePercent(bool apply, bool Real);
         void HandleAuraTrackStealthed(bool apply, bool Real);
@@ -374,22 +380,38 @@ class Aura
         void HandleModUnattackable(bool Apply, bool Real);
         void HandleAuraModPacify(bool apply, bool Real);
         void HandleAuraGhost(bool apply, bool Real);
+        void HandleAuraAllowFlight(bool apply, bool Real);
+        void HandleModRating(bool apply, bool Real);
+        void HandleModTargetResistance(bool apply, bool Real);
         void HandleAuraModAttackPowerPercent(bool apply, bool Real);
         void HandleAuraModRangedAttackPowerPercent(bool apply, bool Real);
+        void HandleAuraModRangedAttackPowerOfStatPercent(bool apply, bool Real);
         void HandleSpiritOfRedemption(bool apply, bool Real);
         void HandleAoECharm(bool apply, bool Real);
+        void HandleModManaRegen(bool apply, bool Real);
+        void HandleComprehendLanguage(bool apply, bool Real);
         void HandleShieldBlockValue(bool apply, bool Real);
         void HandleModSpellCritChanceShool(bool apply, bool Real);
         void HandleAuraRetainComboPoints(bool apply, bool Real);
         void HandleModSpellDamagePercentFromStat(bool apply, bool Real);
         void HandleModSpellHealingPercentFromStat(bool apply, bool Real);
+        void HandleAuraModDispelResist(bool apply, bool Real);
+        void HandleModSpellDamagePercentFromAttackPower(bool apply, bool Real);
+        void HandleModSpellHealingPercentFromAttackPower(bool apply, bool Real);
         void HandleAuraModPacifyAndSilence(bool apply, bool Real);
+        void HandleAuraModIncreaseMaxHealth(bool apply, bool Real);
+        void HandleAuraModExpertise(bool apply, bool Real);
+        void HandleForceMoveForward(bool apply, bool Real);
         void HandleAuraModResistenceOfStatPercent(bool apply, bool Real);
         void HandleAuraPowerBurn(bool apply, bool Real);
         void HandleSchoolAbsorb(bool apply, bool Real);
         void HandlePreventFleeing(bool apply, bool Real);
         void HandleManaShield(bool apply, bool Real);
-        void HandleInterruptRegen(bool apply, bool Real);
+        void HandleArenaPreparation(bool apply, bool Real);
+        void HandleAuraMirrorImage(bool apply, bool Real);
+        void HandleFactionOverride(bool apply, bool Real);
+        void HandlePrayerOfMending(bool apply, bool Real);
+        void HandleAuraDetaunt(bool Apply, bool Real);
         void HandleOverrideClassScript(bool apply, bool real);
 
         virtual ~Aura();
@@ -398,6 +420,7 @@ class Aura
         Modifier*       GetModifier()       { return &m_modifier; }
         Modifier const* GetModifier() const { return &m_modifier; }
         int32 GetMiscValue() const { return m_spellAuraHolder->GetSpellProto()->EffectMiscValue[m_effIndex]; }
+        int32 GetMiscBValue() const { return m_spellAuraHolder->GetSpellProto()->EffectMiscValueB[m_effIndex]; }
 
         SpellEntry const* GetSpellProto() const { return GetHolder()->GetSpellProto(); }
         uint32 GetId() const { return GetHolder()->GetSpellProto()->Id; }
@@ -451,6 +474,7 @@ class Aura
         void HandleShapeshiftBoosts(bool apply);
 
         void TriggerSpell();
+        void TriggerSpellWithValue();
 
         // more limited that used in future versions (spell_affect table based only), so need be careful with backporting uses
         bool isAffectedOnSpell(SpellEntry const* spell) const;
@@ -522,7 +546,7 @@ class Aura
         // Scripting system
         uint64 m_scriptValue; // persistent value for spell script state
     private:
-        void ReapplyAffectedPassiveAuras(Unit* target);
+        void ReapplyAffectedPassiveAuras(Unit* target, bool owner_mode);
 };
 
 class AreaAura : public Aura
@@ -558,6 +582,17 @@ class SingleEnemyTargetAura : public Aura
     protected:
         SingleEnemyTargetAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32 const* currentDamage, int32 const* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster  = nullptr, Item* castItem = nullptr);
         ObjectGuid m_castersTargetGuid;
+};
+
+// Used for GO Area Auras
+class GameObjectAura : public Aura
+{
+    public:
+        GameObjectAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32 const* currentDamage, int32 const* currentBasePoints, SpellAuraHolder* holder, Unit* target, GameObject* caster);
+        ~GameObjectAura();
+
+    protected:
+        void Update(uint32 diff) override;
 };
 
 Aura* CreateAura(SpellEntry const* spellproto, SpellEffectIndex eff, int32 const* currentDamage, int32 const* currentBasePoints, SpellAuraHolder* holder, Unit* target, Unit* caster = nullptr, Item* castItem = nullptr);

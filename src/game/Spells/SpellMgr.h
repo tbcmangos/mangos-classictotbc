@@ -73,6 +73,11 @@ enum SpellSpecific
     SPELL_WARLOCK_ARMOR,
     SPELL_ELEMENTAL_SHIELD,
     SPELL_BUFF_CASTER_POWER,
+    // TBC+ specifics:
+    SPELL_BATTLE_ELIXIR,
+    SPELL_GUARDIAN_ELIXIR,
+    SPELL_SHOUT_BUFF,
+    SPELL_CORRUPTION,
 };
 
 SpellSpecific GetSpellSpecific(uint32 spellId);
@@ -108,6 +113,9 @@ inline bool IsAuraApplyEffect(SpellEntry const* spellInfo, SpellEffectIndex effe
         case SPELL_EFFECT_PERSISTENT_AREA_AURA:
         case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
         case SPELL_EFFECT_APPLY_AREA_AURA_PET:
+        case SPELL_EFFECT_APPLY_AREA_AURA_FRIEND:
+        case SPELL_EFFECT_APPLY_AREA_AURA_ENEMY:
+        case SPELL_EFFECT_APPLY_AREA_AURA_OWNER:
             return true;
     }
     return false;
@@ -154,6 +162,7 @@ inline bool IsEffectHandledOnDelayedSpellLaunch(SpellEntry const* spellInfo, Spe
         case SPELL_EFFECT_WEAPON_DAMAGE:
         case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
         case SPELL_EFFECT_CHARGE:
+        case SPELL_EFFECT_CHARGE_DEST:
             return true;
         default:
             return false;
@@ -216,14 +225,9 @@ inline bool IsAllowingDeadTarget(SpellEntry const* spellInfo)
 inline bool IsSealSpell(SpellEntry const* spellInfo)
 {
     // Collection of all the seal family flags. No other paladin spell has any of those.
-    return spellInfo->IsFitToFamily(SPELLFAMILY_PALADIN, uint64(0x000000000A000200));
-}
-
-inline bool IsSpellMagePolymorph(uint32 spellid)
-{
-    // Only mage polymorph bears hidden scripted regeneration
-    const SpellEntry* entry = sSpellTemplate.LookupEntry<SpellEntry>(spellid);
-    return (entry && entry->SpellFamilyName == SPELLFAMILY_MAGE && (entry->SpellFamilyFlags & uint64(0x1000000)) && IsSpellHaveAura(entry, SPELL_AURA_MOD_CONFUSE));
+    return spellInfo->IsFitToFamily(SPELLFAMILY_PALADIN, uint64(0x000004000A000200)) &&
+           // avoid counting target triggered effect as seal for avoid remove it or seal by it.
+           spellInfo->EffectImplicitTargetA[0] == TARGET_UNIT_CASTER;
 }
 
 inline bool IsSpellEffectTriggerSpell(const SpellEntry* entry, SpellEffectIndex effIndex)
@@ -235,6 +239,8 @@ inline bool IsSpellEffectTriggerSpell(const SpellEntry* entry, SpellEffectIndex 
     {
         case SPELL_EFFECT_TRIGGER_MISSILE:
         case SPELL_EFFECT_TRIGGER_SPELL:
+        case SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE:
+        case SPELL_EFFECT_TRIGGER_SPELL_2:
             return true;
     }
     return false;
@@ -250,6 +256,8 @@ inline bool IsSpellEffectTriggerSpellByAura(const SpellEntry* entry, SpellEffect
         case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
         case SPELL_AURA_PROC_TRIGGER_SPELL:
         case SPELL_AURA_PROC_TRIGGER_DAMAGE:
+        case SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE:
+        case SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE:
             return true;
     }
     return false;
@@ -327,9 +335,20 @@ inline bool IsPossessCharmType(uint32 spellId)
 {
     switch (spellId)
     {
-        case 999999: // compilation warning suppression
+        case 30019: // Control Piece - Chess event
+        case 39219: // Death's Door Fel Cannon
+            return true;
         default: return false;
     }
+}
+
+inline bool IsSpellRemoveAllMovementAndControlLossEffects(SpellEntry const* spellProto)
+{
+    return spellProto->EffectApplyAuraName[EFFECT_INDEX_0] == SPELL_AURA_MECHANIC_IMMUNITY &&
+           spellProto->EffectMiscValue[EFFECT_INDEX_0] == 1 &&
+           spellProto->EffectApplyAuraName[EFFECT_INDEX_1] == 0 &&
+           spellProto->EffectApplyAuraName[EFFECT_INDEX_2] == 0 &&
+           spellProto->HasAttribute(SPELL_ATTR_EX_DISPEL_AURAS_ON_IMMUNITY);
 }
 
 inline bool IsDeathOnlySpell(SpellEntry const* spellInfo)
@@ -361,9 +380,8 @@ inline bool IsSpellSetRun(SpellEntry const* spellInfo)
 
 inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
 {
-    //TODO: search for potential correct case for Classic
-    /*if (IsSpellHaveAura(spellInfo, SPELL_AURA_FLY))
-        return false; */
+    if (IsSpellHaveAura(spellInfo, SPELL_AURA_FLY))
+        return false;
 
     switch (spellInfo->Id)
     {
@@ -390,6 +408,7 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 8601:          // Slowing Poison
         case 8876:          // Thrash
         case 9205:          // Hate to Zero (Hate to Zero)
+        case 9347:          // Mortal Strike
         case 9460:          // Corrosive Ooze
         case 9941:          // Spell Reflection
         case 10022:         // Deadly Poison
@@ -448,10 +467,75 @@ inline bool IsSpellRemovedOnEvade(SpellEntry const* spellInfo)
         case 26341:         // Saurfang's Rage
         case 27987:         // Unholy Aura
         case 28126:         // Spirit Particles (purple)
+        case 29406:         // Shadowform
         case 29526:         // Hate to Zero (Hate to Zero)
+        case 31332:         // Dire Wolf Visual
+        case 31690:         // Putrid Mushroom
+        case 31792:         // Bear Form (Shapeshift)
+        case 32007:         // Mo'arg Engineer Transform Visual
+        case 32900:         // Bone Shards Proc
+        case 32942:         // Phasing Invisibility
+        case 33460:         // Inhibit Magic
+        case 33900:         // Shroud of Death
+        case 33908:         // Burning Spikes
+        case 34343:         // Thorns
+        case 35194:         // Shadowform
+        case 35319:         // Electric Skin
+        case 35408:         // Fear Proc
+        case 35596:         // Power of the Legion
+        case 35841:         // Draenei Spirit Visual
+        case 35850:         // Draenei Spirit Visual 2
+        case 36006:         // Fel Fire Aura
+        case 36118:         // Phasing Invisibility
+        case 36784:         // Entropic Aura
+        case 36788:         // Diminish Soul
+        case 37119:         // Spirit Particles (Spawn)
+        case 37266:         // Disease Cloud
+        case 37411:         // Skettis Corrupted Ghosts
+        case 37497:         // Shadowmoon Ghost Invisibility (Ghostrider of Karabor in SMV) 
+        case 37509:         // Ghostly Facade
+        case 37816:         // Shadowform
+        case 37863:         // Disease Cloud
+        case 38844:         // Unholy Aura
+        case 38847:         // Diminish Soul
+        case 39102:         // Glowy (Black)
+        case 39311:         // Scrapped Fel Reaver transform aura that is never removed even on evade
+        case 39918:         // Soulgrinder Ritual Visual ( in progress)
+        case 39920:         // Soulgrinder Ritual Visual ( beam)
+        case 40453:         // Aura of Fear
+        case 40816:         // Saber Lash - Mother Shahraz
+        case 41634:         // Invisibility and Stealth Detection
+        case 42459:         // Dual Wield (Passive)
+        case 44537:         // Fel Lightning
+        case 44604:         // Enchantment of Spell Haste
+        case 44855:         // Out of Phase
+        case 45033:         // Abyssal Transformation
+        case 45822:         // Iceblood Warmaster
+        case 45823:         // Tower Point Warmaster
+        case 45824:         // West Frostwolf Warmaster
+        case 45826:         // East Frostwolf Warmaster
+        case 45828:         // Dun Baldar North Marshal
+        case 45829:         // Dun Baldar South Marshal
+        case 45830:         // Stonehearth Marshal
+        case 45831:         // Icewing Marshal
+        case 46048:         // Fel Lightning
             return false;
         default:
             return true;
+    }
+}
+
+inline bool IsChanneledDelayedSpell(SpellEntry const* spellInfo)
+{
+    if (!spellInfo->HasAttribute(SPELL_ATTR_EX_CHANNELED_1) && !spellInfo->HasAttribute(SPELL_ATTR_EX_CHANNELED_2))
+        return false;
+
+    switch (spellInfo->Id)
+    {
+        case 39238: // Fumping
+        case 39246:
+            return true;
+        default: return false;
     }
 }
 
@@ -512,6 +596,7 @@ inline bool IsSpellEffectDummy(SpellEntry const& spellInfo, SpellEffectIndex i)
         switch (spellInfo.EffectApplyAuraName[i])
         {
             case SPELL_AURA_DUMMY:
+            case SPELL_AURA_PERIODIC_DUMMY:
                 return true;
         }
     }
@@ -610,6 +695,8 @@ inline bool IsCasterSourceTarget(uint32 target)
         case TARGET_LOCATION_CASTER_BACK_LEFT:
         case TARGET_LOCATION_CASTER_FRONT_LEFT:
         case TARGET_ENUM_GAMEOBJECTS_SCRIPT_AOE_AT_DEST_LOC:
+        case TARGET_LOCATION_CURRENT_REFERENCE:
+        case TARGET_UNIT_CASTER_COMPANION:
             return true;
         default:
             break;
@@ -664,6 +751,15 @@ inline bool IsPointEffectTarget(SpellTarget target)
         case TARGET_LOCATION_SCRIPT_NEAR_CASTER:
         case TARGET_LOCATION_CASTER_TARGET_POSITION:
         case TARGET_LOCATION_UNIT_POSITION:
+        case TARGET_LOCATION_DYNOBJ_POSITION:
+        case TARGET_LOCATION_NORTH:
+        case TARGET_LOCATION_SOUTH:
+        case TARGET_LOCATION_EAST:
+        case TARGET_LOCATION_WEST:
+        case TARGET_LOCATION_NE:
+        case TARGET_LOCATION_NW:
+        case TARGET_LOCATION_SE:
+        case TARGET_LOCATION_SW:
             return true;
         default:
             break;
@@ -730,7 +826,10 @@ inline bool IsAreaOfEffectSpell(SpellEntry const* spellInfo)
 inline bool IsAreaAuraEffect(uint32 effect)
 {
     if (effect == SPELL_EFFECT_APPLY_AREA_AURA_PARTY    ||
-            effect == SPELL_EFFECT_APPLY_AREA_AURA_PET)
+            effect == SPELL_EFFECT_APPLY_AREA_AURA_FRIEND   ||
+            effect == SPELL_EFFECT_APPLY_AREA_AURA_ENEMY    ||
+            effect == SPELL_EFFECT_APPLY_AREA_AURA_PET      ||
+            effect == SPELL_EFFECT_APPLY_AREA_AURA_OWNER)
         return true;
     return false;
 }
@@ -766,6 +865,7 @@ inline bool IsOnlySelfTargeting(SpellEntry const* spellInfo)
         switch (spellInfo->EffectImplicitTargetA[i])
         {
             case TARGET_UNIT_CASTER:
+            case TARGET_LOCATION_CURRENT_REFERENCE:
                 break;
             default:
                 return false;
@@ -773,6 +873,7 @@ inline bool IsOnlySelfTargeting(SpellEntry const* spellInfo)
         switch (spellInfo->EffectImplicitTargetB[i])
         {
             case TARGET_UNIT_CASTER:
+            case TARGET_LOCATION_CURRENT_REFERENCE:
             case TARGET_NONE:
                 break;
             default:
@@ -915,11 +1016,51 @@ inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effI
     if (!spellproto)
         return false;
 
+    switch (spellproto->Id) // Spells whose effects are always positive
+    {
+        case 24742: // Magic Wings
+        case 29880: // Mana Shield - Arcane Anomaly 16488
+        case 42867:
+        case 34786: // Temporal Analysis - factions and unitflags of target/caster verified, should not incur combat
+        case 39384: // Fury Of Medivh visual - Burning Flames - Fury of medivh is friendly to all, and it hits all chess pieces, basically friendly fire damage
+        case 37277: // Summon Infernal - neutral spell with TARGET_UNIT which evaluates as hostile due to neutral factions, with delay and gets removed by !IsPositiveSpell check
+        case 42399: // Neutral spell with TARGET_UNIT, caster faction 14, target faction 14, evaluates as negative spell
+        case 39995: // Four Dragons: Dummy to Dragon - Dummy effect need to trigger even if target is immune
+                    // because of POS/NEG decision, should in fact be NEUTRAL decision TODO: Increase check fidelity
+        case 33637: // Infernal spells - Neutral targets - in sniff never put into combat - Maybe neutral spells do not put into combat?
+        case 33241:
+        case 35424: // Soul Shadows - used by Shade of Mal'druk on Mal'druk the Soulrender
+        case 42628: // Zul'Aman - Fire Bomb - Neutral spell
+        case 44406: // Energy Infusion - supposed to be buff despite negative targeting
+            return true;
+        case 43101: // Headless Horseman Climax - Command, Head Requests Body - must be negative so that SPELL_ATTR_UNAFFECTED_BY_INVULNERABILITY isn't ignored, Headless Horseman script target is immune
+        case 34190: // Arcane Orb - should be negative
+                    /*34172 is cast onto friendly target, and fails bcs its delayed and we remove negative delayed on friendlies due to Duel code, if we change target pos code
+                    bcs 34190 will be evaled as neg, 34172 will be evaled as neg, and hence be removed cos its negative delayed on a friendly*/
+        case 35941: // Gravity Lapse - Neutral spell with TARGET_ONLY_PLAYER attribute, should hit all players in the room
+        case 39495: // Remove Tainted Cores
+        case 39497: // Remove Enchanted Weapons - both should hit all players in zone with the given items, uses a neutral target type
+        case 34700: // Allergic Reaction - Neutral target type - needs to be a debuff
+        case 36717: // Neutral spells with SPELL_ATTR_EX3_TARGET_ONLY_PLAYER as a filter
+        case 38829:
+        case 40055: // Introspection - Apexis Relic
+        case 40165:
+        case 40166:
+        case 40167:
+        case 36812: // Soaring
+        case 37910: // overriding because immunity is preventing the spellcast - maybe neutral spells should be judged like negatives?
+        case 37940:
+        case 37962:
+        case 37968:
+            return false;
+    }
+
     switch (spellproto->Effect[effIndex])
     {
         case SPELL_EFFECT_SEND_TAXI:                // Some NPCs that send taxis are neutral, so target mode fails
         case SPELL_EFFECT_QUEST_COMPLETE:           // TODO: Spells with these effects should be casted by a proper caster to meet target mode.
-        case SPELL_EFFECT_TELEPORT_UNITS:           // Until then switch makes them all positive
+        case SPELL_EFFECT_KILL_CREDIT_GROUP:        // Until then switch makes them all positive
+        case SPELL_EFFECT_TELEPORT_UNITS:
         case SPELL_EFFECT_CREATE_ITEM:
         case SPELL_EFFECT_SUMMON_CHANGE_ITEM:
             return true;
@@ -937,6 +1078,25 @@ inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effI
                     break;
             }
             break;
+        case SPELL_EFFECT_SCRIPT_EFFECT:
+            // some explicitly required script effect sets
+            switch (spellproto->Id)
+            {
+                case 42436:                                 // Drink!
+                    return true;
+                default:
+                    break;
+            }
+            break;
+        case SPELL_EFFECT_SCHOOL_DAMAGE:
+        {
+            //switch (spellproto->Id)
+            //{
+            //    default:
+            //        break;
+            //}
+            break;
+        }
         // Aura exceptions:
         case SPELL_EFFECT_APPLY_AURA:
         case SPELL_EFFECT_APPLY_AREA_AURA_FRIEND:
@@ -949,11 +1109,49 @@ inline bool IsPositiveEffect(const SpellEntry* spellproto, SpellEffectIndex effI
                     switch (spellproto->Id)
                     {
                         case 13139:                         // net-o-matic special effect
+                        case 44877:                         // Living Flare Master
                             return false;
+                        case 39834:                         // Vimgol population tester
+                        case 39851:                         // Vimgol population tester
+                        case 39852:                         // Vimgol population tester
+                        case 39853:                         // Vimgol population tester
+                        case 39854:                         // Vimgol population tester
+                        case 39921:                         // Vimgol Pentagram Beam
+                            return true;
                         default:
                             break;
                     }
                     break;
+                }
+                case SPELL_AURA_MOD_MELEE_HASTE:
+                {
+                    switch (spellproto->Id)
+                    {
+                        case 38449:                         // Blessing of the Tides
+                            return true;
+                        default:
+                            break;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+            break;
+        }
+        case SPELL_EFFECT_PERSISTENT_AREA_AURA:
+        {
+            switch (spellproto->EffectApplyAuraName[effIndex])
+            {
+                case SPELL_AURA_PERIODIC_DAMAGE: // possible TODO: make all return false
+                {
+                    switch (spellproto->Id)
+                    {
+                        case 37465: // chess rain of fire and poison cloud spells
+                        case 37469:
+                        case 37775:
+                            return false;
+                    }
                 }
                 default:
                     break;
@@ -1067,6 +1265,16 @@ inline void GetChainJumpRange(SpellEntry const* spellInfo, SpellEffectIndex effI
         case 27021:
             maxSearchRangeTarget = 8.f;
             break;
+        case 32445: // Holy Wrath - Maiden of Virtue
+            maxSearchRangeTarget = 100.f;
+            break;
+        case 40827: // Beams - Mother Shahraz
+        case 40859:
+        case 40860:
+        case 40861:
+            minSearchRangeCaster = 0.f;
+            maxSearchRangeTarget = 150.f;
+            break;
         default:   // default jump radius
             break;
     }
@@ -1078,6 +1286,19 @@ inline bool IsGOCastSpell(SpellEntry const* spellInfo)
     switch (spellInfo->Id)
     {
         case 30979:  // Flames
+            return true;
+        default:
+            return false;
+    }
+}
+
+inline bool IsSpellCanTargetUnattackable(SpellEntry const* spellInfo) // TODO: Remove through targeting research
+{
+    switch (spellInfo->Id) // spells that target minipets, which are inherently non attackable
+    {
+        case 33346:
+        case 33827:
+        case 44877:
             return true;
         default:
             return false;
@@ -1127,20 +1348,63 @@ inline uint32 GetAffectedTargets(SpellEntry const* spellInfo, WorldObject* caste
                 case 28417:                                 // Summon Type C Trigger (Naxxramas, Kel'Thuzad)
                 case 28455:                                 // Summon Type D Trigger (Naxxramas, Kel'Thuzad)
                 case 28560:                                 // Summon Blizzard (Naxx, Sapphiron)
+                case 30541:                                 // Blaze (Magtheridon)
+                case 30769:                                 // Pick Red Riding Hood (Karazhan, Big Bad Wolf)
+                case 30835:                                 // Infernal Relay (Karazhan, Prince Malchezaar)
+                case 31347:                                 // Doom (Hyjal Summit, Azgalor)
+                case 32312:                                 // Move 1 (Karazhan, Chess Event)
+                case 33711:                                 // Murmur's Touch (Shadow Labyrinth, Murmur)
+                case 37388:                                 // Move 2 (Karazhan, Chess Event)
+                case 38794:                                 // Murmur's Touch (h) (Shadow Labyrinth, Murmur)
+                case 39338:                                 // Karazhan - Chess, Medivh CHEAT: Hand of Medivh, Target Horde
+                case 39342:                                 // Karazhan - Chess, Medivh CHEAT: Hand of Medivh, Target Alliance
+                case 40834:                                 // Agonizing Flames (BT, Illidan Stormrage)
+                case 41537:                                 // Summon Enslaved Soul (BT, Reliquary of Souls)
+                case 44869:                                 // Spectral Blast (SWP, Kalecgos)
+                case 45391:                                 // Summon Demonic Vapor (SWP, Felmyst)
+                case 45785:                                 // Sinister Reflection Clone (SWP, Kil'jaeden)
+                case 45892:                                 // Sinister Reflection (SWP, Kil'jaeden)
+                case 45976:                                 // Open Portal (SWP, M'uru)
+                case 46372:                                 // Ice Spear Target Picker (Slave Pens, Ahune)
                     return 1;
                 case 10258:                                 // Awaken Vault Warder (Uldaman)
                 case 28542:                                 // Life Drain (Naxx, Sapphiron)
                     return 2;
+                case 30004:                                 // Flame Wreath (Karazhan, Shade of Aran)
+                case 31298:                                 // Sleep (Hyjal Summit, Anetheron)
+                case 39341:                                 // Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Horde
+                case 39344:                                 // Karazhan - Chess, Medivh CHEAT: Fury of Medivh, Target Alliance
+                case 39992:                                 // Needle Spine Targeting (BT, Warlord Najentus)
+                case 40869:                                 // Fatal Attraction (BT, Mother Shahraz)
+                case 41303:                                 // Soul Drain (BT, Reliquary of Souls)
+                case 41376:                                 // Spite (BT, Reliquary of Souls)
+                    return 3;
+                case 37676:                                 // Insidious Whisper (SSC, Leotheras the Blind)
+                case 38028:                                 // Watery Grave (SSC, Morogrim Tidewalker)
+                case 46650:                                 // Open Brutallus Back Door (SWP, Felmyst)
+                    return 4;
                 case 29232:                                 // Fungal Bloom (Loatheb)
+                case 30843:                                 // Enfeeble (Karazhan, Prince Malchezaar)
+                case 40243:                                 // Crushing Shadows (BT, Teron Gorefiend)
+                case 42005:                                 // Bloodboil (BT, Gurtogg Bloodboil)
+                case 45641:                                 // Fire Bloom (SWP, Kil'jaeden)
                     return 5;
                 case 25676:                                 // Drain Mana (correct number has to be researched)
                 case 25754:
                     return 6;
                 case 28796:                                 // Poison Bolt Volley (Naxx, Faerlina)
+                case 29213:                                 // Curse of the Plaguebringer (Naxx, Noth the Plaguebringer)
                     return 10;
                 case 26457:                                 // Drain Mana (correct number has to be researched)
                 case 26559:
                     return 12;
+                case 46771:                                 // Flame Sear (SWP, Grand Warlock Alythess)
+                    return urand(3, 5);
+                case 42471:                                 // Hatch Eggs
+                    if (UnitAI* ai = static_cast<Unit*>(caster)->AI())
+                        return ai->GetScriptData();
+                    else
+                        return 1; // for testing purposes
                 default: break;
             }
             break;
@@ -1150,6 +1414,7 @@ inline uint32 GetAffectedTargets(SpellEntry const* spellInfo, WorldObject* caste
             switch (spellInfo->Id)
             {
                 case 23603:                                 // Wild Polymorph (BWL, Nefarian)
+                case 38194:                                 // Blink
                     return 1;
                 default:
                     break;
@@ -1176,9 +1441,7 @@ inline bool IsNeedCastSpellAtFormApply(SpellEntry const* spellInfo, ShapeshiftFo
         return false;
 
     // passive spells with SPELL_ATTR_EX2_NOT_NEED_SHAPESHIFT are already active without shapeshift, do no recast!
-    // Feline Swiftness Passive 2a not have 0x1 mask in Stance field in spell data as expected
-    return (((spellInfo->Stances & (1 << (form - 1)) || (spellInfo->Id == 24864 && form == FORM_CAT))) &&
-            !spellInfo->HasAttribute(SPELL_ATTR_EX2_NOT_NEED_SHAPESHIFT));
+    return (spellInfo->Stances & (1 << (form - 1)) && !spellInfo->HasAttribute(SPELL_ATTR_EX2_NOT_NEED_SHAPESHIFT));
 }
 
 inline bool IsNeedCastSpellAtOutdoor(SpellEntry const* spellInfo)
@@ -1198,8 +1461,13 @@ inline bool IsIgnoreLosSpell(SpellEntry const* spellInfo)
 {
     switch (spellInfo->Id)
     {
+        case 36795:                                 // Cannon Channel
+        case 31628:                                 // Green Beam
+        case 31630:                                 // Green Beam
+        case 31631:                                 // Green Beam
         case 24742:                                 // Magic Wings
-        // case 42867:                              // both need LOS, likely TARGET_UNIT_CASTER should use LOS ignore from normal radius, not per-effect radius WIP
+        case 40639:                                 // Arcane Beam - Channel target inside gameobject
+        case 42867:                                 // both need LOS, likely TARGET_UNIT should use LOS ignore from normal radius, not per-effect radius WIP
             return true;
         default:
             break;
@@ -1225,6 +1493,18 @@ inline bool IsIgnoreLosSpellCast(SpellEntry const* spellInfo)
     return spellInfo->rangeIndex == 13 || IsIgnoreLosSpell(spellInfo);
 }
 
+// applied when item is received/looted/equipped
+inline bool IsItemAura(SpellEntry const* spellInfo)
+{
+    switch (spellInfo->Id)
+    {
+        case 38132:
+            return true;
+        default:
+            return false;
+    }
+}
+
 inline bool NeedsComboPoints(SpellEntry const* spellInfo)
 {
     return spellInfo->HasAttribute(SPELL_ATTR_EX_REQ_TARGET_COMBO_POINTS) || spellInfo->HasAttribute(SPELL_ATTR_EX_REQ_COMBO_POINTS);
@@ -1232,7 +1512,7 @@ inline bool NeedsComboPoints(SpellEntry const* spellInfo)
 
 inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo)
 {
-    return GetSchoolMask(spellInfo->School);
+    return SpellSchoolMask(spellInfo->SchoolMask);
 }
 
 inline uint32 GetSpellMechanicMask(SpellEntry const* spellInfo, uint32 effectMask)
@@ -1312,11 +1592,17 @@ inline bool IsPartyOrRaidTarget(uint32 target)
     }
 }
 
-inline bool IsGroupBuff(SpellEntry const* spellInfo)
+inline bool IsGroupRestrictedBuff(SpellEntry const* spellInfo)
 {
-    for (unsigned int i : spellInfo->EffectImplicitTargetA)
+    switch (spellInfo->Id)
     {
-        if (IsPartyOrRaidTarget(i))
+        // Soulstone Ressurection - Patch 2.1.0
+        case 20707:
+        case 20762:
+        case 20763:
+        case 20764:
+        case 20765:
+        case 27239:
             return true;
     }
 
@@ -1335,8 +1621,10 @@ inline bool IsSpellSpecificUniquePerCaster(SpellSpecific specific)
         case SPELL_STING:
         case SPELL_CURSE:
         case SPELL_ASPECT:
+        case SPELL_SHOUT_BUFF:
         case SPELL_JUDGEMENT:
         case SPELL_SOUL_CAPTURE:
+        case SPELL_CORRUPTION:
             return true;
         default:
             break;
@@ -1358,6 +1646,8 @@ inline bool IsSpellSpecificUniquePerTarget(SpellSpecific specific)
         case SPELL_ELEMENTAL_SHIELD:
         case SPELL_BUFF_CASTER_POWER:
         case SPELL_WELL_FED:
+        case SPELL_BATTLE_ELIXIR:
+        case SPELL_GUARDIAN_ELIXIR:
         case SPELL_FLASK_ELIXIR:
         case SPELL_FOOD:
         case SPELL_DRINK:
@@ -1377,6 +1667,16 @@ inline bool IsSpellSpecificIdentical(SpellSpecific specific, SpellSpecific speci
     // Compare combined specifics
     switch (int32(specific))
     {
+        case SPELL_BATTLE_ELIXIR:
+            return specific2 == SPELL_BATTLE_ELIXIR ||
+                   specific2 == SPELL_FLASK_ELIXIR;
+        case SPELL_GUARDIAN_ELIXIR:
+            return specific2 == SPELL_GUARDIAN_ELIXIR ||
+                   specific2 == SPELL_FLASK_ELIXIR;
+        case SPELL_FLASK_ELIXIR:
+            return specific2 == SPELL_BATTLE_ELIXIR ||
+                   specific2 == SPELL_GUARDIAN_ELIXIR ||
+                   specific2 == SPELL_FLASK_ELIXIR;
         case SPELL_FOOD:
             return specific2 == SPELL_FOOD ||
                    specific2 == SPELL_FOOD_AND_DRINK;
@@ -1447,6 +1747,7 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
     {
         // Dummy/Triggers
         case SPELL_AURA_DUMMY:
+        case SPELL_AURA_PERIODIC_DUMMY:
         case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
         {
             if (!related)
@@ -1456,14 +1757,20 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
                 case SPELLFAMILY_GENERIC:
                     if (entry->SpellIconID == 92 && entry->SpellVisual == 99 && icon && visual)
                         return false; // Soulstone Resurrection
+                    if (entry->Id == 31944) // Archimonde - Doomfire
+                        return false;
                     break;
                 case SPELLFAMILY_SHAMAN:
                     if (entry->IsFitToFamilyMask(uint64(0x200)) && multirank)
                         return true; // Shaman Reincarnation (Passive) and Twisting Nether
                     break;
                 case SPELLFAMILY_DRUID:
+                    if (entry->IsFitToFamilyMask(uint64(0x44000000000)) && entry2->IsFitToFamilyMask(uint64(0x44000000000)))
+                        return false; // Mangle (Cat) & Mangle (Bear)
                     if (entry->IsFitToFamilyMask(uint64(0x80)) && multirank)
                         return true; // Tranquility
+                    if (entry->IsFitToFamilyMask(uint64(0x01000000000)))
+                        return true; // Lifebloom
                     break;
             }
             break;
@@ -1480,6 +1787,7 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
             return true;
             break;
         // HoT
+        case SPELL_AURA_PERIODIC_HEAL:
         case SPELL_AURA_OBS_MOD_HEALTH:
         case SPELL_AURA_OBS_MOD_MANA:
             return true;
@@ -1609,6 +1917,7 @@ inline bool IsStackableAuraEffect(SpellEntry const* entry, SpellEntry const* ent
         // TODO: Make these exclusive rather than unstackable physically and move to nonmui:
         case SPELL_AURA_MOD_CASTING_SPEED_NOT_STACK: // Heroism, Bloodlust, Icy Veins, Power Infusion
         case SPELL_AURA_MOD_MOUNTED_SPEED_NOT_STACK: // Mounted Speed effects
+        case SPELL_AURA_HASTE_SPELLS: // Post 2.0 Mind-numbing Poison and Curse of Tongues
             return false; // Never stacking auras
             break;
     }
@@ -1772,7 +2081,9 @@ enum ProcFlags
     PROC_FLAG_ON_TRAP_ACTIVATION            = 0x00200000,   // 21 On trap activation
 
     PROC_FLAG_TAKEN_OFFHAND_HIT             = 0x00400000,   // 22 Taken off-hand melee attacks(not used)
-    PROC_FLAG_SUCCESSFUL_OFFHAND_HIT        = 0x00800000    // 23 Successful off-hand melee attacks
+    PROC_FLAG_SUCCESSFUL_OFFHAND_HIT        = 0x00800000,   // 23 Successful off-hand melee attacks
+
+    PROC_FLAG_DEATH                         = 0x01000000,   // 24 On death by any means
 };
 
 #define MELEE_BASED_TRIGGER_MASK (PROC_FLAG_SUCCESSFUL_MELEE_HIT        | \
@@ -1841,7 +2152,11 @@ struct SpellBonusEntry
 typedef std::unordered_map<uint32, SpellProcEventEntry> SpellProcEventMap;
 typedef std::unordered_map<uint32, SpellBonusEntry>     SpellBonusMap;
 
-#define ELIXIR_FLASK_MASK     0x03                          // 2 bit mask for batter compatibility with more recent client version, flaks must have both bits set
+#define ELIXIR_BATTLE_MASK    0x01
+#define ELIXIR_GUARDIAN_MASK  0x02
+#define ELIXIR_FLASK_MASK     (ELIXIR_BATTLE_MASK|ELIXIR_GUARDIAN_MASK)
+#define ELIXIR_UNSTABLE_MASK  0x04
+#define ELIXIR_SHATTRATH_MASK 0x08
 #define ELIXIR_WELL_FED       0x10                          // Some foods have SPELLFAMILY_POTION
 
 struct SpellThreatEntry
@@ -2020,8 +2335,6 @@ inline bool IsProfessionOrRidingSkill(uint32 skill)
     return  IsProfessionSkill(skill) || skill == SKILL_RIDING;
 }
 
-typedef std::map<uint32, uint32> SpellFacingFlagMap;
-
 class SpellMgr
 {
         friend struct DoSpellBonuses;
@@ -2060,11 +2373,13 @@ class SpellMgr
         SpellSpecific GetSpellElixirSpecific(uint32 spellid) const
         {
             uint32 mask = GetSpellElixirMask(spellid);
-
-            // flasks must have all bits set from ELIXIR_FLASK_MASK
             if ((mask & ELIXIR_FLASK_MASK) == ELIXIR_FLASK_MASK)
                 return SPELL_FLASK_ELIXIR;
-            else if (mask & ELIXIR_WELL_FED)
+            if (mask & ELIXIR_BATTLE_MASK)
+                return SPELL_BATTLE_ELIXIR;
+            if (mask & ELIXIR_GUARDIAN_MASK)
+                return SPELL_GUARDIAN_ELIXIR;
+            if (mask & ELIXIR_WELL_FED)
                 return SPELL_WELL_FED;
             return SPELL_NORMAL;
         }
@@ -2124,6 +2439,21 @@ class SpellMgr
                 case 18193: // Marsh Lichen
                 case 22730: // Runn Tum Tuber Surprise
                 case 25661: // Dirge's Kickin' Chimaerok Chops
+                case 46687: // Juicy Bear Burger
+                // Alcohol: instant application, no attribute
+                case 5020:  // Stormstout
+                case 5021:  // Trogg Ale
+                case 5257:  // Thunderbrew Lager
+                case 5909:  // Watered-down Beer
+                case 6114:  // Raptor Punch
+                case 8553:  // Barleybrew Scalder
+                case 20875: // Rumsey Rum
+                case 22789: // Gordok Green Grog
+                case 22790: // Kreeg's Stout Beatdown
+                case 25037: // Rumsey Rum Light
+                case 25722: // Rumsey Rum Dark
+                case 25804: // Rumsey Rum Black Label
+                case 37058: // Halaani Whiskey
                     return SPELL_WELL_FED;
             }
             return SPELL_NORMAL;
@@ -2142,6 +2472,7 @@ class SpellMgr
                 case TARGET_ENUM_UNITS_ENEMY_AOE_AT_DYNOBJ_LOC:
                 case TARGET_LOCATION_CASTER_TARGET_POSITION:
                 case TARGET_ENUM_UNITS_ENEMY_IN_CONE_54:
+                case TARGET_CORPSE_ENEMY_NEAR_CASTER:
                     return true;
                 default:
                     return false;
@@ -2288,14 +2619,6 @@ class SpellMgr
             return nullptr;
         }
 
-        uint32 GetSpellFacingFlag(uint32 spellId) const
-        {
-            SpellFacingFlagMap::const_iterator itr =  mSpellFacingFlagMap.find(spellId);
-            if (itr != mSpellFacingFlagMap.end())
-                return itr->second;
-            return 0x0;
-        }
-
         // Spell target coordinates
         SpellTargetPosition const* GetSpellTargetPosition(uint32 spell_id) const
         {
@@ -2401,30 +2724,13 @@ class SpellMgr
 
         inline bool IsSingleTargetSpell(SpellEntry const* entry) const
         {
-            // Pre-TBC: SPELL_ATTR_EX5_SINGLE_TARGET_SPELL substitute code
-            // Not AoE
-            if (IsAreaOfEffectSpell(entry))
-                return false;
+            if (entry->HasAttribute(SPELL_ATTR_EX5_SINGLE_TARGET_SPELL))
+                return true;
 
-            // Mechanics
-            switch (entry->Mechanic)
-            {
-                case MECHANIC_FEAR:         // Includes: Warlock's Fear, Scare Beast
-                case MECHANIC_TURN:         // Turn Undead
-                    // Always single-target in classic
-                    return true;
-                case MECHANIC_ROOT:
-                case MECHANIC_SLEEP:        // Includes: Hibernate, Wyvern Sting
-                case MECHANIC_KNOCKOUT:     // Includes: Sap, Gouge
-                case MECHANIC_POLYMORPH:
-                case MECHANIC_BANISH:
-                case MECHANIC_SHACKLE:
-                    // Only spells used by players seem to be subjects to single target mechanics in classic
-                    return (entry->SpellFamilyName && entry->SpellFamilyFlags.Flags);
-            }
-
-            // Hunter's Mark mechanics
-            if (entry->SpellFamilyName == SPELLFAMILY_HUNTER && IsSpellHaveAura(entry, SPELL_AURA_MOD_STALKED))
+            // single target triggered spell.
+            // Not real client side single target spell, but it' not triggered until prev. aura expired.
+            // This is allow store it in single target spells list for caster for spell proc checking
+            if (entry->Id == 38324)                             // Regeneration (triggered by 38299 (HoTs on Heals))
                 return true;
 
             return false;
@@ -2610,7 +2916,6 @@ class SpellMgr
         void LoadSkillRaceClassInfoMap();
         void LoadSpellPetAuras();
         void LoadSpellAreas();
-        void LoadFacingCasterFlags();
 
     private:
         SpellChainMap      mSpellChains;
@@ -2631,7 +2936,6 @@ class SpellMgr
         SpellAreaMap         mSpellAreaMap;
         SpellAreaForAuraMap  mSpellAreaForAuraMap;
         SpellAreaForAreaMap  mSpellAreaForAreaMap;
-        SpellFacingFlagMap  mSpellFacingFlagMap;
 };
 
 #define sSpellMgr SpellMgr::Instance()

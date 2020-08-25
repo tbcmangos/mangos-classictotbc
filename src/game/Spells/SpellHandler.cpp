@@ -21,11 +21,11 @@
 #include "WorldPacket.h"
 #include "Server/WorldSession.h"
 #include "Globals/ObjectMgr.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Log.h"
 #include "Server/Opcodes.h"
 #include "Spells/Spell.h"
-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+#include "DBScripts/ScriptMgr.h"
 #include "Entities/Totem.h"
 #include "Spells/SpellAuras.h"
 #include "Loot/LootMgr.h"
@@ -34,8 +34,10 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
 {
     uint8 bagIndex, slot;
     uint8 spell_index;                                      // item spell index which should be used
+    uint8 cast_count;                                       // next cast if exists (single or not)
+    ObjectGuid itemGuid;
 
-    recvPacket >> bagIndex >> slot >> spell_index;
+    recvPacket >> bagIndex >> slot >> spell_index >> cast_count >> itemGuid;
 
     // TODO: add targets.read() check
     Player* pUser = _player;
@@ -49,6 +51,13 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
 
     Item* pItem = pUser->GetItemByPos(bagIndex, slot);
     if (!pItem)
+    {
+        recvPacket.rpos(recvPacket.wpos());                 // prevent spam at not read packet tail
+        pUser->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, nullptr, nullptr);
+        return;
+    }
+
+    if (pItem->GetObjectGuid() != itemGuid)
     {
         recvPacket.rpos(recvPacket.wpos());                 // prevent spam at not read packet tail
         pUser->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, nullptr, nullptr);
@@ -86,6 +95,16 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     {
         recvPacket.rpos(recvPacket.wpos());                 // prevent spam at not read packet tail
         pUser->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, pItem, nullptr);
+        return;
+    }
+
+    // only allow conjured consumable, bandage, poisons (all should have the 2^21 item flag set in DB)
+    if (proto->Class == ITEM_CLASS_CONSUMABLE &&
+            !(proto->Flags & ITEM_FLAG_IGNORE_DEFAULT_ARENA_RESTRICTIONS) &&
+            pUser->InArena())
+    {
+        recvPacket.rpos(recvPacket.wpos());                 // prevent spam at not read packet tail
+        pUser->SendEquipError(EQUIP_ERR_NOT_DURING_ARENA_MATCH, pItem, nullptr);
         return;
     }
 
@@ -130,7 +149,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
         uint32 spellid = 0;
         for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
         {
-            if (proto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE || proto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_NO_DELAY_USE)
+            if (proto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
             {
                 spellid = proto->Spells[i].SpellId;
                 break;
@@ -139,7 +158,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
 
         // send spell error
         if (SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellid))
-            Spell::SendCastResult(_player, spellInfo, SPELL_FAILED_BAD_TARGETS);
+            Spell::SendCastResult(_player, spellInfo, cast_count, SPELL_FAILED_BAD_TARGETS);
         return;
     }
 
@@ -147,7 +166,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     if (!sScriptDevAIMgr.OnItemUse(pUser, pItem, targets))
     {
         // no script or script not process request by self
-        pUser->CastItemUseSpell(pItem, targets, spell_index);
+        pUser->CastItemUseSpell(pItem, targets, cast_count, spell_index);
     }
 }
 
@@ -261,7 +280,7 @@ void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recv_data)
     if (!obj)
         return;
 
-    if (!obj->IsWithinDistInMap(_player, obj->GetInteractionDistance()))
+    if (!obj->IsAtInteractDistance(_player))
         return;
 
     // Additional check preventing exploits (ie loot despawned chests)
@@ -292,36 +311,12 @@ void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recv_data)
     obj->Use(_player);
 }
 
-void WorldSession::HandleMeetingStoneJoinOpcode(WorldPacket& recv_data)
-{
-    ObjectGuid guid;
-
-    recv_data >> guid;
-
-    DEBUG_LOG("WORLD: Recvd CMSG_MEETINGSTONE_JOIN Message guid: %s", guid.GetString().c_str());
-
-    // ignore for remote control state
-    if (!_player->IsSelfMover())
-        return;
-
-    GameObject* obj = GetPlayer()->GetMap()->GetGameObject(guid);
-    if (!obj)
-        return;
-
-    // Never expect this opcode for some type GO's
-    if (obj->GetGoType() != GAMEOBJECT_TYPE_MEETINGSTONE)
-    {
-        sLog.outError("HandleMeetingStoneJoinOpcode: CMSG_MEETINGSTONE_JOIN for not allowed GameObject type %u (Entry %u), didn't expect this to happen.", obj->GetGoType(), obj->GetEntry());
-        return;
-    }
-
-    obj->Use(_player);
-}
-
 void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 {
     uint32 spellId;
+    uint8  cast_count;
     recvPacket >> spellId;
+    recvPacket >> cast_count;
 
     // ignore for remote control state (for player case)
     Unit* mover = _player->GetMover();
@@ -331,8 +326,8 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    DEBUG_LOG("WORLD: CMSG_CAST_SPELL, spellId - %u, data length = " SIZEFMTD,
-              spellId, recvPacket.size());
+    DEBUG_LOG("WORLD: CMSG_CAST_SPELL, spellId - %u, cast_count: %u data length = " SIZEFMTD,
+              spellId, cast_count, recvPacket.size());
 
     SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spellId);
     if (!spellInfo)
@@ -385,6 +380,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         targets.setUnitTarget(mover->GetTarget());
 
     Spell* spell = new Spell(mover, spellInfo, TRIGGERED_NONE);
+    spell->m_cast_count = cast_count;                       // set count of casts
     spell->SpellStart(&targets);
 }
 
@@ -397,6 +393,10 @@ void WorldSession::HandleCancelCastOpcode(WorldPacket& recvPacket)
     // ignore for remote control state (for player case)
     Unit* mover = _player->GetMover();
     if (mover != _player && mover->GetTypeId() == TYPEID_PLAYER)
+        return;
+
+    // FIXME: hack, ignore unexpected client cancel Deadly Throw cast
+    if (spellId == 26679)
         return;
 
     if (_player->IsNonMeleeSpellCasted(false))
@@ -563,4 +563,93 @@ void WorldSession::HandleSelfResOpcode(WorldPacket& /*recv_data*/)
 
         _player->SetUInt32Value(PLAYER_SELF_RES_SPELL, 0);
     }
+}
+
+void WorldSession::HandleGetMirrorimageData(WorldPacket& recv_data)
+{
+    DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "WORLD: CMSG_GET_MIRRORIMAGE_DATA");
+
+    ObjectGuid guid;
+    recv_data >> guid;
+
+    Creature* pCreature = _player->GetMap()->GetAnyTypeCreature(guid);
+
+    if (!pCreature)
+        return;
+
+    Unit::AuraList const& images = pCreature->GetAurasByType(SPELL_AURA_MIRROR_IMAGE);
+
+    if (images.empty())
+        return;
+
+    Unit* pCaster = images.front()->GetCaster();
+
+
+    // FIXME: need proper packet structure for 2.x, currently no items and no proper hair colors show.
+
+    WorldPacket data(SMSG_MIRRORIMAGE_DATA, 68);
+
+    data << guid;
+    data << (uint32)pCreature->GetDisplayId();
+
+    data << (uint8)pCreature->getRace();
+    data << (uint8)pCreature->getGender();
+    // data << (uint8)pCreature->getClass();                // added in 3.x
+
+    if (pCaster && pCaster->GetTypeId() == TYPEID_PLAYER)
+    {
+        Player* pPlayer = (Player*)pCaster;
+
+        // skin, face, hair, haircolor
+        data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 0);
+        data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 1);
+        data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 2);
+        data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES, 3);
+
+        // facial hair
+        data << (uint8)pPlayer->GetByteValue(PLAYER_BYTES_2, 0);
+
+        // guild id
+        data << (uint32)pPlayer->GetGuildId();
+
+        if (pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_HELM))
+            data << (uint32)0;
+        else
+            data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HEAD);
+
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_SHOULDERS);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BODY);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_CHEST);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WAIST);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_LEGS);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_FEET);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_WRISTS);
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_HANDS);
+
+        if (pPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_CLOAK))
+            data << (uint32)0;
+        else
+            data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_BACK);
+
+        data << (uint32)pPlayer->GetItemDisplayIdInSlot(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_TABARD);
+    }
+    else
+    {
+        // pCaster may have been nullptr (usually not expected, but may happen at disconnect, etc)
+        // OR
+        // pCaster is not player, data is taken from CreatureDisplayInfoExtraEntry by model already
+        data << (uint8)0;
+        data << (uint8)0;
+        data << (uint8)0;
+        data << (uint8)0;
+
+        data << (uint8)0;
+
+        data << (uint32)0;
+
+        for (int i = 0; i < 11; ++i)
+            data << (uint32)0;
+    }
+
+    SendPacket(data);
 }
