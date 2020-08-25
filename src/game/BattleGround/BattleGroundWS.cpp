@@ -321,6 +321,7 @@ void BattleGroundWS::EventPlayerDroppedFlag(Player* player)
             player->CastSpell(player, wsSpellTypes[otherTeamIdx][BG_WS_FLAG_ACTION_DROPPED], TRIGGERED_OLD_TRIGGERED);
         }
 
+        player->CastSpell(player, SPELL_RECENTLY_DROPPED_FLAG, TRIGGERED_OLD_TRIGGERED);
         UpdateFlagState(team, 1);
 
         SendMessageToAll(wsMessageIds[otherTeamIdx][BG_WS_FLAG_ACTION_DROPPED],
@@ -469,18 +470,6 @@ bool BattleGroundWS::HandleAreaTrigger(Player* player, uint32 trigger)
                 if (GetFlagCarrierGuid(TEAM_INDEX_ALLIANCE) == player->GetObjectGuid())
                     EventPlayerCapturedFlag(player);
             break;
-        case 3669: // horde portal
-            if (player->GetTeam() != HORDE)
-                player->GetSession()->SendNotification(LANG_BATTLEGROUND_ONLY_HORDE_USE);
-            else
-                player->LeaveBattleground();
-            break;
-        case 3671: // alliance portal
-            if (player->GetTeam() != ALLIANCE)
-                player->GetSession()->SendNotification(LANG_BATTLEGROUND_ONLY_ALLIANCE_USE);
-            else
-                player->LeaveBattleground();
-            break;
         default:
             return false;
     }
@@ -517,6 +506,10 @@ void BattleGroundWS::EndBattleGround(Team winner)
 {
     // win reward
     RewardHonorToTeam(GetBonusHonorFromKill(m_HonorWinKills), winner);
+
+    // complete map_end rewards (even if no team wins)
+    RewardHonorToTeam(GetBonusHonorFromKill(m_HonorEndKills), ALLIANCE);
+    RewardHonorToTeam(GetBonusHonorFromKill(m_HonorEndKills), HORDE);
 
     BattleGround::EndBattleGround(winner);
 }

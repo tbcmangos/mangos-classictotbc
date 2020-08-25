@@ -116,7 +116,7 @@ void BattleGroundAB::Update(uint32 diff)
                 }
                 if (m_honorScoreTicks[team] >= m_honorTicks)
                 {
-                    RewardHonorToTeam(BG_AB_PerTickHonor[GetBracketId()], (team == TEAM_INDEX_ALLIANCE) ? ALLIANCE : HORDE);
+                    RewardHonorToTeam(GetBonusHonorFromKill(1), (team == TEAM_INDEX_ALLIANCE) ? ALLIANCE : HORDE);
                     m_honorScoreTicks[team] -= m_honorTicks;
                 }
                 if (!m_IsInformedNearVictory && m_TeamScores[team] > BG_AB_WARNING_NEAR_VICTORY_SCORE)
@@ -436,9 +436,12 @@ void BattleGroundAB::EndBattleGround(Team winner)
 {
     // win reward
     if (winner == ALLIANCE)
-        RewardHonorToTeam(BG_AB_WinMatchHonor[GetBracketId()], ALLIANCE);
+        RewardHonorToTeam(GetBonusHonorFromKill(1), ALLIANCE);
     if (winner == HORDE)
-        RewardHonorToTeam(BG_AB_WinMatchHonor[GetBracketId()], HORDE);
+        RewardHonorToTeam(GetBonusHonorFromKill(1), HORDE);
+    // complete map_end rewards (even if no team wins)
+    RewardHonorToTeam(GetBonusHonorFromKill(1), HORDE);
+    RewardHonorToTeam(GetBonusHonorFromKill(1), ALLIANCE);
 
     BattleGround::EndBattleGround(winner);
 }
