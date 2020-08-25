@@ -29,7 +29,6 @@ using G3D::Vector3;
 
 namespace VMAP
 {
-
     //=========================================================
 
     VMapManager2::VMapManager2()

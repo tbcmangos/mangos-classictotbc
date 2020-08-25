@@ -21,7 +21,7 @@
 #include "VMapDefinitions.h"
 #include "WorldModel.h"
 
-#include "Entities//GameObject.h"
+#include "Entities/GameObject.h"
 #include "World/World.h"
 #include "GameObjectModel.h"
 #include "Server/DBCStores.h"
