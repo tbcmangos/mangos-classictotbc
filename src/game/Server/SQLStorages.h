@@ -26,6 +26,7 @@ extern SQLStorage sCreatureDataAddonStorage;
 extern SQLStorage sCreatureInfoAddonStorage;
 extern SQLStorage sCreatureModelStorage;
 extern SQLStorage sEquipmentStorage;
+extern SQLStorage sEquipmentStorageRaw;
 extern SQLStorage sPageTextStore;
 extern SQLStorage sItemStorage;
 extern SQLStorage sInstanceTemplate;
@@ -34,6 +35,7 @@ extern SQLStorage sConditionStorage;
 extern SQLStorage sSpellTemplate;
 extern SQLStorage sSpellCones;
 extern SQLStorage sDungeonEncounterStore;
+extern SQLStorage sFactionStore;
 extern SQLStorage sCreatureConditionalSpawnStore;
 extern SQLStorage sWorldSafeLocsStore;
 

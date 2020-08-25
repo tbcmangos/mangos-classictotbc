@@ -28,9 +28,6 @@
 bool IsAcceptableClientBuild(uint32 build);
 std::string AcceptableClientBuildsListStr();
 
-typedef std::list<uint32> SimpleFactionsList;
-
-SimpleFactionsList const* GetFactionTeamList(uint32 faction);
 char const* GetPetName(uint32 petfamily, uint32 dbclang);
 uint32 GetTalentSpellCost(uint32 spellId);
 uint32 GetTalentSpellCost(TalentSpellPos const* pos);
@@ -46,9 +43,16 @@ AreaTableEntry const* GetAreaEntryByAreaFlagAndMap(uint32 area_flag, uint32 map_
 
 uint32 GetVirtualMapForMapAndZone(uint32 mapid, uint32 zoneId);
 
+enum ContentLevels
+{
+    CONTENT_1_60 = 0,
+    CONTENT_61_70
+};
+ContentLevels GetContentLevelsForMapAndZone(uint32 mapid, uint32 zoneId);
+
 ChatChannelsEntry const* GetChatChannelsEntryFor(const std::string& name, uint32 channel_id = 0);
 
-// [-ZERO] bool IsTotemCategoryCompatiableWith(uint32 itemTotemCategoryId, uint32 requiredTotemCategoryId);
+bool IsTotemCategoryCompatiableWith(uint32 itemTotemCategoryId, uint32 requiredTotemCategoryId);
 
 bool MapCoordinateVsZoneCheck(float x, float y, uint32 mapid, uint32 zone);
 bool Zone2MapCoordinates(float& x, float& y, uint32 zone);
@@ -66,8 +70,10 @@ extern DBCStorage <AreaTableEntry>               sAreaStore;// recommend access 
 extern DBCStorage <AreaTriggerEntry>             sAreaTriggerStore;
 extern DBCStorage <AuctionHouseEntry>            sAuctionHouseStore;
 extern DBCStorage <BankBagSlotPricesEntry>       sBankBagSlotPricesStore;
+extern DBCStorage <BattlemasterListEntry>        sBattlemasterListStore;
 // extern DBCStorage <ChatChannelsEntry>           sChatChannelsStore; -- accessed using function, no usable index
 extern DBCStorage <CharStartOutfitEntry>         sCharStartOutfitStore;
+extern DBCStorage <CharTitlesEntry>              sCharTitlesStore;
 extern DBCStorage <ChatChannelsEntry>            sChatChannelsStore;
 extern DBCStorage <ChrClassesEntry>              sChrClassesStore;
 extern DBCStorage <ChrRacesEntry>                sChrRacesStore;
@@ -83,25 +89,40 @@ extern DBCStorage <DurabilityCostsEntry>         sDurabilityCostsStore;
 extern DBCStorage <DurabilityQualityEntry>       sDurabilityQualityStore;
 extern DBCStorage <EmotesEntry>                  sEmotesStore;
 extern DBCStorage <EmotesTextEntry>              sEmotesTextStore;
-extern DBCStorage <FactionEntry>                 sFactionStore;
+//extern DBCStorage <FactionEntry>                 sFactionStore;
 extern DBCStorage <FactionTemplateEntry>         sFactionTemplateStore;
 extern DBCStorage <GameObjectDisplayInfoEntry>   sGameObjectDisplayInfoStore;
+extern DBCStorage <GemPropertiesEntry>           sGemPropertiesStore;
 
 extern DBCStorage <GMSurveyCurrentSurveyEntry>   sGMSurveyCurrentSurveyStore;
 extern DBCStorage <GMSurveyQuestionsEntry>       sGMSurveyQuestionsStore;
 extern DBCStorage <GMSurveyEntry>                sGMSurveySurveysStore;
 extern DBCStorage <GMTicketCategoryEntry>        sGMTicketCategoryStore;
 
+extern DBCStorage <GtCombatRatingsEntry>         sGtCombatRatingsStore;
+extern DBCStorage <GtChanceToMeleeCritBaseEntry> sGtChanceToMeleeCritBaseStore;
+extern DBCStorage <GtChanceToMeleeCritEntry>     sGtChanceToMeleeCritStore;
+extern DBCStorage <GtChanceToSpellCritBaseEntry> sGtChanceToSpellCritBaseStore;
+extern DBCStorage <GtChanceToSpellCritEntry>     sGtChanceToSpellCritStore;
+extern DBCStorage <GtOCTRegenHPEntry>            sGtOCTRegenHPStore;
+extern DBCStorage <GtNPCManaCostScalerEntry>     sGtNPCManaCostScalerStore;
+// extern DBCStorage <GtOCTRegenMPEntry>            sGtOCTRegenMPStore; -- not used currently
+extern DBCStorage <GtRegenHPPerSptEntry>         sGtRegenHPPerSptStore;
+extern DBCStorage <GtRegenMPPerSptEntry>         sGtRegenMPPerSptStore;
+extern DBCStorage <ItemEntry>                    sItemStore;
 extern DBCStorage <ItemBagFamilyEntry>           sItemBagFamilyStore;
 extern DBCStorage <ItemClassEntry>               sItemClassStore;
 // extern DBCStorage <ItemDisplayInfoEntry>      sItemDisplayInfoStore; -- not used currently
+extern DBCStorage <ItemExtendedCostEntry>        sItemExtendedCostStore;
 extern DBCStorage <ItemRandomPropertiesEntry>    sItemRandomPropertiesStore;
+extern DBCStorage <ItemRandomSuffixEntry>        sItemRandomSuffixStore;
 extern DBCStorage <ItemSetEntry>                 sItemSetStore;
 extern DBCStorage <LiquidTypeEntry>              sLiquidTypeStore;
 extern DBCStorage <LockEntry>                    sLockStore;
 extern DBCStorage <MailTemplateEntry>            sMailTemplateStore;
 extern DBCStorage <MapEntry>                     sMapStore;
 extern DBCStorage <QuestSortEntry>               sQuestSortStore;
+extern DBCStorage <RandomPropertiesPointsEntry>  sRandomPropertiesPointsStore;
 extern DBCStorage <SkillLineEntry>               sSkillLineStore;
 extern DBCStorage <SkillLineAbilityEntry>        sSkillLineAbilityStore;
 extern DBCStorage <SkillRaceClassInfoEntry>      sSkillRaceClassInfoStore;
@@ -111,13 +132,16 @@ extern DBCStorage <SpellCastTimesEntry>          sSpellCastTimesStore;
 extern DBCStorage <SpellDurationEntry>           sSpellDurationStore;
 extern DBCStorage <SpellFocusObjectEntry>        sSpellFocusObjectStore;
 extern DBCStorage <SpellItemEnchantmentEntry>    sSpellItemEnchantmentStore;
+extern DBCStorage <SpellItemEnchantmentConditionEntry> sSpellItemEnchantmentConditionStore;
 extern SpellCategoryStore                        sSpellCategoryStore;
 extern ItemSpellCategoryStore                    sItemSpellCategoryStore;
 extern PetFamilySpellsStore                      sPetFamilySpellsStore;
 extern DBCStorage <SpellRadiusEntry>             sSpellRadiusStore;
 extern DBCStorage <SpellRangeEntry>              sSpellRangeStore;
 extern DBCStorage <SpellShapeshiftFormEntry>     sSpellShapeshiftFormStore;
+extern DBCStorage <SpellVisualEntry>             sSpellVisualStore;
 extern DBCStorage <StableSlotPricesEntry>        sStableSlotPricesStore;
+extern DBCStorage <SummonPropertiesEntry>        sSummonPropertiesStore;
 extern DBCStorage <TalentEntry>                  sTalentStore;
 extern DBCStorage <TalentTabEntry>               sTalentTabStore;
 extern DBCStorage <TaxiNodesEntry>               sTaxiNodesStore;
@@ -125,9 +149,10 @@ extern DBCStorage <TaxiPathEntry>                sTaxiPathStore;
 extern TaxiMask                                  sTaxiNodesMask;
 extern TaxiPathSetBySource                       sTaxiPathSetBySource;
 extern TaxiPathNodesByPath                       sTaxiPathNodesByPath;
+extern DBCStorage <TotemCategoryEntry>           sTotemCategoryStore;
 extern DBCStorage <WMOAreaTableEntry>            sWMOAreaTableStore;
 // extern DBCStorage <WorldMapAreaEntry>           sWorldMapAreaStore; -- use Zone2MapCoordinates and Map2ZoneCoordinates
-// extern DBCStorage <WorldMapOverlayEntry>         sWorldMapOverlayStore;
+// extern DBCStorage <WorldMapOverlayEntry>         sWorldMapOverlayStore; -- not used currently
 
 void LoadDBCStores(const std::string& dataPath);
 
@@ -135,6 +160,7 @@ void LoadDBCStores(const std::string& dataPath);
 DBCStorage <SoundEntriesEntry>          const* GetSoundEntriesStore();
 DBCStorage <SpellRangeEntry>            const* GetSpellRangeStore();
 DBCStorage <FactionEntry>               const* GetFactionStore();
+DBCStorage <ItemEntry>                  const* GetItemDisplayStore();
 DBCStorage <CreatureDisplayInfoEntry>   const* GetCreatureDisplayStore();
 DBCStorage <EmotesEntry>                const* GetEmotesStore();
 DBCStorage <EmotesTextEntry>            const* GetEmotesTextStore();

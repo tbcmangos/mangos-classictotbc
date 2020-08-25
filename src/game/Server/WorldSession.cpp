@@ -33,7 +33,6 @@
 #include "Guilds/Guild.h"
 #include "Guilds/GuildMgr.h"
 #include "World/World.h"
-#include "Globals/ObjectAccessor.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "Social/SocialMgr.h"
 #include "GMTickets/GMTicketMgr.h"
@@ -41,7 +40,7 @@
 
 #include <mutex>
 #include <deque>
-#include <memory>
+#include <algorithm>
 #include <cstdarg>
 
 #ifdef BUILD_PLAYERBOT
@@ -90,13 +89,15 @@ bool WorldSessionFilter::Process(WorldPacket const& packet) const
 }
 
 /// WorldSession constructor
-WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, time_t mute_time, LocaleConstant locale) :
-    m_muteTime(mute_time),
-    _player(nullptr), m_Socket(sock ? sock->shared<WorldSocket>() : nullptr), _security(sec), _accountId(id), _logoutTime(0),
+WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, uint8 expansion, time_t mute_time, LocaleConstant locale) :
+    LookingForGroup_auto_join(false), LookingForGroup_auto_add(true), m_muteTime(mute_time),
+    _player(nullptr), m_Socket(sock ? sock->shared<WorldSocket>() : nullptr),
+    m_requestSocket(nullptr), m_sessionState(WORLD_SESSION_STATE_CREATED),
+    _security(sec), _accountId(id), m_expansion(expansion), _logoutTime(0),
     m_inQueue(false), m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(true),
     m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)), m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)),
-    m_latency(0), m_clientTimeDelay(0), m_tutorialState(TUTORIALDATA_UNCHANGED), m_sessionState(WORLD_SESSION_STATE_CREATED),
-    m_requestSocket(nullptr) {}
+    m_latency(0), m_tutorialState(TUTORIALDATA_UNCHANGED),
+    m_timeSyncClockDeltaQueue(6), m_timeSyncClockDelta(0), m_pendingTimeSyncRequests(), m_timeSyncNextCounter(0), m_timeSyncTimer(0) {}
 
 /// WorldSession destructor
 WorldSession::~WorldSession()
@@ -168,6 +169,14 @@ char const* WorldSession::GetPlayerName() const
     return GetPlayer() ? GetPlayer()->GetName() : "<none>";
 }
 
+void WorldSession::SetExpansion(uint8 expansion)
+{
+    m_expansion = expansion;
+    if (_player)
+        _player->OnExpansionChange(expansion);
+    SendAuthOk(); // this is a hack but does what we need - resets expansion setting in client
+}
+
 /// Send a packet to the client
 void WorldSession::SendPacket(WorldPacket const& packet, bool forcedSend /*= false*/) const
 {
@@ -233,7 +242,6 @@ void WorldSession::QueuePacket(std::unique_ptr<WorldPacket> new_packet)
     std::lock_guard<std::mutex> guard(m_recvQueueLock);
     m_recvQueue.push_back(std::move(new_packet));
 }
-
 /// Logging helper for unexpected opcodes
 void WorldSession::LogUnexpectedOpcode(WorldPacket const& packet, const char* reason) const
 {
@@ -253,7 +261,7 @@ void WorldSession::LogUnprocessedTail(WorldPacket const& packet) const
 }
 
 /// Update the WorldSession (triggered by World update)
-bool WorldSession::Update(PacketFilter& updater)
+bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 {
     std::lock_guard<std::mutex> guard(m_recvQueueLock);
 
@@ -319,7 +327,8 @@ bool WorldSession::Update(PacketFilter& updater)
 
                     // single from authed time opcodes send in to after logout time
                     // and before other STATUS_LOGGEDIN_OR_RECENTLY_LOGGOUT opcodes.
-                    m_playerRecentlyLogout = false;
+                    if (packet->GetOpcode() != CMSG_SET_ACTIVE_VOICE_CHANNEL)
+                        m_playerRecentlyLogout = false;
 
                     ExecuteOpcode(opHandle, *packet);
                     break;
@@ -414,7 +423,7 @@ bool WorldSession::Update(PacketFilter& updater)
                 return true;
             }
 
-            case  WORLD_SESSION_STATE_CHAR_SELECTION:
+            case WORLD_SESSION_STATE_CHAR_SELECTION:
 
                 // waiting to go online
                 // TODO:: Maybe check if have to send queue update?
@@ -460,6 +469,17 @@ bool WorldSession::Update(PacketFilter& updater)
                 break;
         }
     }
+    else
+    {
+        // Send time sync packet every 10s.
+        if (m_timeSyncTimer > 0)
+        {
+            if (diff >= m_timeSyncTimer)
+                SendTimeSync();
+            else
+                m_timeSyncTimer -= diff;
+        }
+    }
 
     return true;
 }
@@ -467,12 +487,6 @@ bool WorldSession::Update(PacketFilter& updater)
 /// %Log the player out
 void WorldSession::LogoutPlayer()
 {
-    // if the player has just logged out, there is no need to do anything here
-    if (m_playerRecentlyLogout)
-        return;
-
-    std::lock_guard<std::mutex> guard(m_logoutMutex);
-
     // finish pending transfers before starting the logout
     while (_player && _player->IsBeingTeleportedFar())
         HandleMoveWorldportAckOpcode();
@@ -621,9 +635,6 @@ void WorldSession::LogoutPlayer()
         WorldPacket data(SMSG_LOGOUT_COMPLETE, 0);
         SendPacket(data);
 
-        ///- Since each account can only have one online character at any given time, ensure all characters for active account are marked as offline
-        // No SQL injection as AccountId is uint32
-
         static SqlStatementID updChars;
 
 #ifdef BUILD_PLAYERBOT
@@ -643,7 +654,6 @@ void WorldSession::LogoutPlayer()
 
     m_playerLogout = false;
     m_playerRecentlyLogout = true;
-
     LogoutRequest(0);
 }
 
@@ -681,30 +691,24 @@ void WorldSession::SendExpectedSpamRecords()
     SendPacket(data);
 }
 
-void WorldSession::SendMotd(Player* currChar)
+void WorldSession::SendMotd()
 {
-    // Send MOTD (1.12.1 not have SMSG_MOTD, so do it in another way)
-    uint32 linecount = 0;
-    std::string str_motd = sWorld.GetMotd();
-    std::string::size_type pos, nextpos;
-    std::string motd;
+    std::vector<std::string> lines;
+    std::string token;
 
-    pos = 0;
-    while ((nextpos = str_motd.find('@', pos)) != std::string::npos)
-    {
-        if (nextpos != pos)
-        {
-            ChatHandler(currChar).PSendSysMessage("%s", str_motd.substr(pos, nextpos - pos).c_str());
-            ++linecount;
-        }
-        pos = nextpos + 1;
-    }
+    std::string motd = sWorld.GetMotd();
+    std::istringstream ss(motd);
 
-    if (pos < str_motd.length())
-    {
-        ChatHandler(currChar).PSendSysMessage("%s", str_motd.substr(pos).c_str());
-        ++linecount;
-    }
+    while (std::getline(ss, token, '@'))
+        lines.push_back(token);
+
+    WorldPacket data(SMSG_MOTD, 4);
+    data << (uint32) lines.size();
+
+    for (const std::string& line : lines)
+        data << line;
+
+    SendPacket(data);
 
     DEBUG_LOG("WORLD: Sent motd (SMSG_MOTD)");
 }
@@ -899,7 +903,16 @@ void WorldSession::SendTransferAborted(uint32 mapid, uint8 reason, uint8 arg) co
     WorldPacket data(SMSG_TRANSFER_ABORTED, 4 + 2);
     data << uint32(mapid);
     data << uint8(reason);                                  // transfer abort reason
-    data << uint8(0);                                       // arg. not used
+    switch (reason)
+    {
+        case TRANSFER_ABORT_INSUF_EXPAN_LVL:
+        case TRANSFER_ABORT_DIFFICULTY:
+            data << uint8(arg);
+            break;
+        default:                                            // possible not neaded (absent in 0.13, but add at backport for safe)
+            data << uint8(0);
+            break;
+    }
     SendPacket(data);
 }
 
@@ -935,17 +948,30 @@ void WorldSession::SendPlaySpellVisual(ObjectGuid guid, uint32 spellArtKit) cons
     SendPacket(data);
 }
 
-void WorldSession::SendAuthOk()
+void WorldSession::SynchronizeMovement(MovementInfo &movementInfo)
+{
+    int64 movementTime = (int64)movementInfo.GetTime() + m_timeSyncClockDelta;
+    if (m_timeSyncClockDelta == 0 || movementTime < 0 || movementTime > 0xFFFFFFFF)
+    {
+        DETAIL_LOG("The computed movement time using clockDelta is erronous. Using fallback instead");
+        movementInfo.UpdateTime(World::GetCurrentMSTime());
+    }
+    else
+        movementInfo.UpdateTime((uint32)movementTime);
+}
+
+void WorldSession::SendAuthOk() const
 {
     WorldPacket packet(SMSG_AUTH_RESPONSE, 1 + 4 + 1 + 4 + 1);
     packet << uint8(AUTH_OK);
     packet << uint32(0);                                    // BillingTimeRemaining
     packet << uint8(0);                                     // BillingPlanFlags
     packet << uint32(0);                                    // BillingTimeRested
+    packet << uint8(GetExpansion());                        // 0 - normal, 1 - TBC. Must be set in database manually for each account.
     SendPacket(packet, true);
 }
 
-void WorldSession::SendAuthQueued()
+void WorldSession::SendAuthQueued() const
 {
     // The 1st SMSG_AUTH_RESPONSE needs to contain other info too.
     WorldPacket packet(SMSG_AUTH_RESPONSE, 1 + 4 + 1 + 4 + 1 + 4);
@@ -953,6 +979,34 @@ void WorldSession::SendAuthQueued()
     packet << uint32(0);                                    // BillingTimeRemaining
     packet << uint8(0);                                     // BillingPlanFlags
     packet << uint32(0);                                    // BillingTimeRested
+    packet << uint8(GetExpansion());                        // 0 - normal, 1 - TBC, must be set in database manually for each account
     packet << uint32(sWorld.GetQueuedSessionPos(this));     // position in queue
     SendPacket(packet, true);
+}
+
+void WorldSession::SendKickReason(uint8 reason, std::string const& string) const
+{
+    WorldPacket packet(SMSG_KICK_REASON, 1);
+    packet << reason;
+    packet << string;
+    SendPacket(packet, true);
+}
+
+void WorldSession::ResetTimeSync()
+{
+    m_timeSyncNextCounter = 0;
+    m_pendingTimeSyncRequests.clear();
+}
+
+void WorldSession::SendTimeSync()
+{
+    WorldPacket data(SMSG_TIME_SYNC_REQ, 4);
+    data << uint32(m_timeSyncNextCounter);
+    SendPacket(data);
+
+    m_pendingTimeSyncRequests[m_timeSyncNextCounter] = WorldTimer::getMSTime();
+
+    // Schedule next sync in 10 sec (except for the 2 first packets, which are spaced by only 5s)
+    m_timeSyncTimer = m_timeSyncNextCounter == 0 ? 5000 : 10000;
+    m_timeSyncNextCounter++;
 }

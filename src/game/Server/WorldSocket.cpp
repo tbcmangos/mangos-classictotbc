@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "Server/WorldSocket.h"
+#include "WorldSocket.h"
 #include "Common.h"
 
 #include "Util.h"
@@ -35,6 +35,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include "World/WorldState.h"
 
 #include <boost/asio.hpp>
 #include <utility>
@@ -162,8 +163,7 @@ bool WorldSocket::ProcessIncomingData()
         return false;
     }
 
-    Opcodes x;
-    const OpcodesList opcode = static_cast<OpcodesList>(header.cmd);
+    const Opcodes opcode = static_cast<Opcodes>(header.cmd);
 
     if (IsClosed())
         return false;
@@ -195,10 +195,11 @@ bool WorldSocket::ProcessIncomingData()
                 return HandlePing(*pct);
 
             case CMSG_KEEP_ALIVE:
-                DEBUG_LOG("CMSG_KEEP_ALIVE ,size: " SIZEFMTD " ", pct->size());
-
+                DEBUG_LOG("CMSG_KEEP_ALIVE, size: " SIZEFMTD " ", pct->size());
                 return true;
 
+            case CMSG_TIME_SYNC_RESP:
+                pct->SetReceivedTime(std::chrono::steady_clock::now());
             default:
             {
                 if (!m_session)
@@ -285,8 +286,9 @@ bool WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
                              "locked, "                  //4
                              "v, "                       //5
                              "s, "                       //6
-                             "mutetime, "                //7
-                             "locale "                   //8
+                             "expansion, "               //7
+                             "mutetime, "                //8
+                             "locale "                   //9
                              "FROM account "
                              "WHERE username = '%s'",
                              safe_account.c_str());
@@ -342,11 +344,20 @@ bool WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
     if (security > SEC_ADMINISTRATOR)                       // prevent invalid security settings in DB
         security = SEC_ADMINISTRATOR;
 
+    uint8 maxServerExpansion = sWorld.getConfig(CONFIG_UINT32_EXPANSION);
+    uint8 currentServerExpansion = sWorldState.GetExpansion();
+    uint8 playerAddonLevel = fields[7].GetUInt8();
+    uint8 expansion;
+    if (security >= SEC_GAMEMASTER)
+        expansion = std::min(playerAddonLevel, maxServerExpansion);
+    else
+        expansion = std::min(playerAddonLevel, currentServerExpansion);
+
     K.SetHexStr(fields[2].GetString());
 
-    time_t mutetime = time_t (fields[7].GetUInt64());
+    time_t mutetime = time_t (fields[8].GetUInt64());
 
-    uint8 tempLoc = LocaleConstant(fields[8].GetUInt8());
+    uint8 tempLoc = LocaleConstant(fields[9].GetUInt8());
     if (tempLoc >= static_cast<uint8>(MAX_LOCALE))
         locale = LOCALE_enUS;
     else
@@ -451,7 +462,7 @@ bool WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
     else
     {
         // new session
-        if (!(m_session = new WorldSession(id, this, AccountTypes(security), mutetime, locale)))
+        if (!(m_session = new WorldSession(id, this, AccountTypes(security), expansion, mutetime, locale)))
             return false;
 
         m_session->LoadTutorialsData();
@@ -503,10 +514,7 @@ bool WorldSocket::HandlePing(WorldPacket& recvPacket)
     // critical section
     {
         if (m_session)
-        {
             m_session->SetLatency(latency);
-            m_session->ResetClientTimeDelay();
-        }
         else
         {
             sLog.outError("WorldSocket::HandlePing: peer sent CMSG_PING, "
