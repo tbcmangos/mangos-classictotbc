@@ -141,8 +141,8 @@ enum MangosStrings
     LANG_YOURS_SWIM_SPEED_CHANGED       = 142,
     LANG_YOU_CHANGE_BACK_SPEED          = 143,
     LANG_YOURS_BACK_SPEED_CHANGED       = 144,
-    // LANG_YOU_CHANGE_FLY_SPEED           = 145,
-    // LANG_YOURS_FLY_SPEED_CHANGED        = 146,
+    LANG_YOU_CHANGE_FLY_SPEED           = 145,
+    LANG_YOURS_FLY_SPEED_CHANGED        = 146,
 
     LANG_YOU_CHANGE_SIZE                = 147,
     LANG_YOURS_SIZE_CHANGED             = 148,
@@ -306,7 +306,7 @@ enum MangosStrings
     LANG_YOU_ENABLE_CHAT                = 304,
 
     LANG_COMMAND_MODIFY_REP             = 305,
-    // LANG_COMMAND_MODIFY_ARENA           = 306,
+    LANG_COMMAND_MODIFY_ARENA           = 306,
     LANG_COMMAND_FACTION_NOTFOUND       = 307,
     LANG_COMMAND_FACTION_UNKNOWN        = 308,
     LANG_COMMAND_FACTION_INVPARAM       = 309,
@@ -349,14 +349,14 @@ enum MangosStrings
     //                                    346 used in master branch
     LANG_COMMAND_GOTAXINODENOTFOUND     = 347,
     LANG_GAMEOBJECT_HAVE_INVALID_DATA   = 348,
-    //                                    349 used in master branch
-    //                                    350 used in master branch
-    //                                    351 used in master branch
-    //                                    352 used in master branch
-    //                                    353 used in master branch
-    //                                    354 used in master branch
-    //                                    355 used in master branch
-    //                                    356 used in master branch
+    LANG_TITLE_LIST_CHAT                = 349,
+    LANG_TITLE_LIST_CONSOLE             = 350,
+    LANG_COMMAND_NOTITLEFOUND           = 351,
+    LANG_INVALID_TITLE_ID               = 352,
+    LANG_TITLE_ADD_RES                  = 353,
+    LANG_TITLE_REMOVE_RES               = 354,
+    LANG_TITLE_CURRENT_RES              = 355,
+    LANG_CURRENT_TITLE_RESET            = 356,
     LANG_AREATRIGER_NOT_HAS_TARGET      = 357,
     LANG_COMMAND_NOTRIGGERFOUND         = 358,
     LANG_TRIGGER_TARGET_LIST_CHAT       = 359,
@@ -370,7 +370,7 @@ enum MangosStrings
     LANG_TRIGGER_REQ_LEVEL              = 367,
     LANG_TRIGGER_REQ_ITEMS              = 368,
     LANG_TRIGGER_REQ_QUEST              = 369,
-    //                                    370 used in master branch
+    LANG_TRIGGER_REQ_KEYS_HEROIC        = 370,
     //                                    371 used in master branch
     //                                    372 used in master branch
     //                                    373, not used
@@ -654,11 +654,10 @@ enum MangosStrings
     LANG_BG_WS_F_PLACED                 = 613,
     LANG_BG_WS_ALLIANCE_FLAG_RESPAWNED  = 614,
     LANG_BG_WS_HORDE_FLAG_RESPAWNED     = 615,
-
-    // LANG_BG_EY_START_ONE_MINUTE       = 636,
-    // LANG_BG_EY_START_HALF_MINUTE      = 637,
-    // LANG_BG_EY_HAS_BEGUN              = 638,
-
+    // 616 - 635 not used
+    LANG_BG_EY_START_ONE_MINUTE         = 636,
+    LANG_BG_EY_START_HALF_MINUTE        = 637,
+    LANG_BG_EY_HAS_BEGUN                = 638,
     // 639 - 649 not used
     LANG_BG_ALLY                        = 650,
     LANG_BG_HORDE                       = 651,
@@ -680,33 +679,33 @@ enum MangosStrings
     LANG_BG_AB_H_NEAR_VICTORY           = 665,
     LANG_BG_MARK_BY_MAIL                = 666,
 
-    // LANG_BG_EY_HAS_TAKEN_A_M_TOWER    = 667,
-    // LANG_BG_EY_HAS_TAKEN_H_M_TOWER    = 668,
-    // LANG_BG_EY_HAS_TAKEN_A_D_RUINS    = 669,
-    // LANG_BG_EY_HAS_TAKEN_H_D_RUINS    = 670,
-    // LANG_BG_EY_HAS_TAKEN_A_B_TOWER    = 671,
-    // LANG_BG_EY_HAS_TAKEN_H_B_TOWER    = 672,
-    // LANG_BG_EY_HAS_TAKEN_A_F_RUINS    = 673,
-    // LANG_BG_EY_HAS_TAKEN_H_F_RUINS    = 674,
-    // LANG_BG_EY_HAS_LOST_A_M_TOWER     = 675,
-    // LANG_BG_EY_HAS_LOST_H_M_TOWER     = 676,
-    // LANG_BG_EY_HAS_LOST_A_D_RUINS     = 677,
-    // LANG_BG_EY_HAS_LOST_H_D_RUINS     = 678,
-    // LANG_BG_EY_HAS_LOST_A_B_TOWER     = 679,
-    // LANG_BG_EY_HAS_LOST_H_B_TOWER     = 680,
-    // LANG_BG_EY_HAS_LOST_A_F_RUINS     = 681,
-    // LANG_BG_EY_HAS_LOST_H_F_RUINS     = 682,
-    // LANG_BG_EY_HAS_TAKEN_FLAG         = 683,
-    // LANG_BG_EY_CAPTURED_FLAG_A        = 684,
-    // LANG_BG_EY_CAPTURED_FLAG_H        = 685,
-    // LANG_BG_EY_DROPPED_FLAG           = 686,
-    // LANG_BG_EY_RESETED_FLAG           = 687,
-
-    // LANG_ARENA_ONE_TOOLOW             = 700,
-    // LANG_ARENA_ONE_MINUTE             = 701,
-    // LANG_ARENA_THIRTY_SECONDS         = 702,
-    // LANG_ARENA_FIFTEEN_SECONDS        = 703,
-    // LANG_ARENA_BEGUN                  = 704,
+    LANG_BG_EY_HAS_TAKEN_A_M_TOWER      = 667,
+    LANG_BG_EY_HAS_TAKEN_H_M_TOWER      = 668,
+    LANG_BG_EY_HAS_TAKEN_A_D_RUINS      = 669,
+    LANG_BG_EY_HAS_TAKEN_H_D_RUINS      = 670,
+    LANG_BG_EY_HAS_TAKEN_A_B_TOWER      = 671,
+    LANG_BG_EY_HAS_TAKEN_H_B_TOWER      = 672,
+    LANG_BG_EY_HAS_TAKEN_A_F_RUINS      = 673,
+    LANG_BG_EY_HAS_TAKEN_H_F_RUINS      = 674,
+    LANG_BG_EY_HAS_LOST_A_M_TOWER       = 675,
+    LANG_BG_EY_HAS_LOST_H_M_TOWER       = 676,
+    LANG_BG_EY_HAS_LOST_A_D_RUINS       = 677,
+    LANG_BG_EY_HAS_LOST_H_D_RUINS       = 678,
+    LANG_BG_EY_HAS_LOST_A_B_TOWER       = 679,
+    LANG_BG_EY_HAS_LOST_H_B_TOWER       = 680,
+    LANG_BG_EY_HAS_LOST_A_F_RUINS       = 681,
+    LANG_BG_EY_HAS_LOST_H_F_RUINS       = 682,
+    LANG_BG_EY_HAS_TAKEN_FLAG           = 683,
+    LANG_BG_EY_CAPTURED_FLAG_A          = 684,
+    LANG_BG_EY_CAPTURED_FLAG_H          = 685,
+    LANG_BG_EY_DROPPED_FLAG             = 686,
+    LANG_BG_EY_RESETED_FLAG             = 687,
+    // 688 - 699 not used
+    LANG_ARENA_ONE_TOOLOW               = 700,
+    LANG_ARENA_ONE_MINUTE               = 701,
+    LANG_ARENA_THIRTY_SECONDS           = 702,
+    LANG_ARENA_FIFTEEN_SECONDS          = 703,
+    LANG_ARENA_HAS_BEGUN                = 704,
 
     LANG_WAIT_BEFORE_SPEAKING           = 705,
     LANG_NOT_EQUIPPED_ITEM              = 706,
@@ -717,21 +716,21 @@ enum MangosStrings
 
     LANG_BG_QUEUE_ANNOUNCE_SELF         = 711,
     LANG_BG_QUEUE_ANNOUNCE_WORLD        = 712,
-    // LANG_YOUR_ARENA_LEVEL_REQ_ERROR   = 713,
-    //                                  = 714, not used
+    LANG_YOUR_ARENA_LEVEL_REQ_ERROR     = 713,
+//                                      = 714, not used
     LANG_YOUR_BG_LEVEL_REQ_ERROR        = 715,
-    //                                  = 716, not used
+//                                      = 716, not used
     LANG_BG_STARTED_ANNOUNCE_WORLD      = 717,
-    // LANG_ARENA_QUEUE_ANNOUNCE_WORLD_JOIN= 718,
-    // LANG_ARENA_QUEUE_ANNOUNCE_WORLD_EXIT= 719,
+    LANG_ARENA_QUEUE_ANNOUNCE_WORLD_JOIN = 718,
+    LANG_ARENA_QUEUE_ANNOUNCE_WORLD_EXIT = 719,
 
     LANG_BG_GROUP_TOO_LARGE             = 720,              // "Your group is too large for this battleground. Please regroup to join."
-    // LANG_ARENA_GROUP_TOO_LARGE        = 721,             // "Your group is too large for this arena. Please regroup to join."
-    // LANG_ARENA_YOUR_TEAM_ONLY         = 722,             // "Your group has members not in your arena team. Please regroup to join."
-    // LANG_ARENA_NOT_ENOUGH_PLAYERS     = 723,             // "Your group does not have enough players to join this match."
-    // LANG_ARENA_GOLD_WINS              = 724,             // "The Gold Team wins!"
-    // LANG_ARENA_GREEN_WINS             = 725,             // "The Green Team wins!"
-    //                                  = 726, not used
+    LANG_ARENA_GROUP_TOO_LARGE          = 721,              // "Your group is too large for this arena. Please regroup to join."
+    LANG_ARENA_YOUR_TEAM_ONLY           = 722,              // "Your group has members not in your arena team. Please regroup to join."
+    LANG_ARENA_NOT_ENOUGH_PLAYERS       = 723,              // "Your group does not have enough players to join this match."
+    LANG_ARENA_GOLD_WINS                = 724,              // "The Gold Team wins!"
+    LANG_ARENA_GREEN_WINS               = 725,              // "The Green Team wins!"
+//                                      = 726, not used
     LANG_BG_GROUP_OFFLINE_MEMBER        = 727,              // "Your group has an offline member. Please remove him before joining."
     LANG_BG_GROUP_MIXED_FACTION         = 728,              // "Your group has players from the opposing faction. You can't join the battleground as a group."
     LANG_BG_GROUP_MIXED_LEVELS          = 729,              // "Your group has players from different battleground brakets. You can't join as group."
@@ -743,19 +742,19 @@ enum MangosStrings
     LANG_CANNOT_SUMMON_TO_BG            = 734,              // "You cannot summon players to a battleground or arena map."
     LANG_CANNOT_GO_TO_BG_GM             = 735,              // "You must be in GM mode to teleport to a player in a battleground."
     LANG_CANNOT_GO_TO_BG_FROM_BG        = 736,              // "You cannot teleport to a battleground from another battleground. Please leave the current battleground first."
-    // LANG_DEBUG_ARENA_ON               = 737,
-    // LANG_DEBUG_ARENA_OFF              = 738,
+    LANG_DEBUG_ARENA_ON                 = 737,
+    LANG_DEBUG_ARENA_OFF                = 738,
     LANG_DEBUG_BG_ON                    = 739,
     LANG_DEBUG_BG_OFF                   = 740,
-    // LANG_DIST_ARENA_POINTS_START        = 741,
-    // LANG_DIST_ARENA_POINTS_ONLINE_START = 742,
-    // LANG_DIST_ARENA_POINTS_ONLINE_END   = 743,
-    // LANG_DIST_ARENA_POINTS_TEAM_START   = 744,
-    // LANG_DIST_ARENA_POINTS_TEAM_END     = 745,
-    // LANG_DIST_ARENA_POINTS_END          = 746,
-    //                                  = 747, not used
-    //                                  = 748, not used
-    //                                  = 749, not used
+    LANG_DIST_ARENA_POINTS_START        = 741,
+    LANG_DIST_ARENA_POINTS_ONLINE_START = 742,
+    LANG_DIST_ARENA_POINTS_ONLINE_END   = 743,
+    LANG_DIST_ARENA_POINTS_TEAM_START   = 744,
+    LANG_DIST_ARENA_POINTS_TEAM_END     = 745,
+    LANG_DIST_ARENA_POINTS_END          = 746,
+    LANG_DIST_ARENA_REWARDS_START       = 747,
+    LANG_DIST_ARENA_REWARDS_END         = 748,
+//                                      = 749, not used
     LANG_BATTLEGROUND_PREMATURE_FINISH_WARNING      = 750,  // "Not enough players. This game will close in %u mins."
     LANG_BATTLEGROUND_PREMATURE_FINISH_WARNING_SECS = 751,  // "Not enough players. This game will close in %u seconds."
     LANG_BATTLEGROUND_ONLY_ALLIANCE_USE = 752,              // "Only The Alliance can use that portal"
@@ -818,9 +817,9 @@ enum MangosStrings
     LANG_GUILD_VETERAN                  = 813,
     LANG_GUILD_MEMBER                   = 814,
     LANG_GUILD_INITIATE                 = 815,
-    //                                    816 used in master branch
+    LANG_FAIL_ENTER_SPECTRAL_REALM      = 816,
     //                                    817 used in master branch
-    //                                    818 used in master branch
+    LANG_TELEREQ_QUEST_BLACK_MORASS     = 818,
     // Room for in-game strings           819-999 not used
 
     // Level 4 (CLI only commands)
@@ -927,7 +926,7 @@ enum MangosStrings
     LANG_SCRIPTS_WRONG_API              = 1167,
     LANG_SCRIPTS_RELOADED_OK            = 1168,
     LANG_SCRIPTS_OUTDATED               = 1169,
-    //                                    1170 used in master branch
+    LANG_NPCINFO_CHAR_DIFFICULTY        = 1170,
     LANG_AHBOT_RELOAD_OK                = 1171,
     LANG_AHBOT_RELOAD_FAIL              = 1172,
     LANG_AHBOT_STATUS_BAR_CONSOLE       = 1173,
@@ -959,52 +958,7 @@ enum MangosStrings
 
     // Reserved for old client release branches specific strings
     // Room for old clients 2.x           1300-1399 not used
-
-    // MaNGOSZero specific strings
-    // alliance ranks
-    LANG_ALI_PRIVATE                    = 1400,
-    LANG_ALI_CORPORAL                   = 1401,
-    LANG_ALI_SERGEANT                   = 1402,
-    LANG_ALI_MASTER_SERGEANT            = 1403,
-    LANG_ALI_SERGEANT_MAJOR             = 1404,
-    LANG_ALI_KNIGHT                     = 1405,
-    LANG_ALI_KNIGHT_LIEUTENANT          = 1406,
-    LANG_ALI_KNIGHT_CAPTAIN             = 1407,
-    LANG_ALI_KNIGHT_CHAMPION            = 1408,
-    LANG_ALI_LIEUTENANT_COMMANDER       = 1409,
-    LANG_ALI_COMMANDER                  = 1410,
-    LANG_ALI_MARSHAL                    = 1411,
-    LANG_ALI_FIELD_MARSHAL              = 1412,
-    LANG_ALI_GRAND_MARSHAL              = 1413,
-
-    // horde ranks
-    LANG_HRD_SCOUT                      = 1414,
-    LANG_HRD_GRUNT                      = 1415,
-    LANG_HRD_SERGEANT                   = 1416,
-    LANG_HRD_SENIOR_SERGEANT            = 1417,
-    LANG_HRD_FIRST_SERGEANT             = 1418,
-    LANG_HRD_STONE_GUARD                = 1419,
-    LANG_HRD_BLOOD_GUARD                = 1420,
-    LANG_HRD_LEGIONNARE                 = 1421,
-    LANG_HRD_CENTURION                  = 1422,
-    LANG_HRD_CHAMPION                   = 1423,
-    LANG_HRD_LIEUTENANT_GENERAL         = 1424,
-    LANG_HRD_GENERAL                    = 1425,
-    LANG_HRD_WARLORD                    = 1426,
-    LANG_HRD_HIGH_WARLORD               = 1427,
-    LANG_GAME_MASTER                    = 1428,
-    LANG_NO_RANK                        = 1429,
-    LANG_RANK_DISHONORED                = 1430,
-    LANG_RANK_EXILED                    = 1431,
-    LANG_RANK_OUTLAW                    = 1432,
-    LANG_RANK_PARIAH                    = 1433,
-    LANG_RANK                           = 1434,
-    LANG_HONOR_TODAY                    = 1435,
-    LANG_HONOR_YESTERDAY                = 1436,
-    LANG_HONOR_THIS_WEEK                = 1437,
-    LANG_HONOR_LAST_WEEK                = 1438,
-    LANG_HONOR_LIFE                     = 1439,
-    // Room for old clients 1.x           1440-1499 not used
+    // Room for old clients 1.x           1400-1499 not used
 
     // Level 2 (continue)
     LANG_POOL_CHANCE_POOL_LIST_CONSOLE  = 1500,
@@ -1094,7 +1048,36 @@ enum MangosStrings
     LANG_OPVP_EP_CAPTURE_PWT_H          = 1606,
     LANG_OPVP_EP_CAPTURE_PWT_A          = 1607,
 
-    //                                    1608-1634 used in master branch
+    LANG_OPVP_HP_CAPTURE_OVERLOOK_H     = 1608,
+    LANG_OPVP_HP_CAPTURE_OVERLOOK_A     = 1609,
+    LANG_OPVP_HP_CAPTURE_STADIUM_H      = 1610,
+    LANG_OPVP_HP_CAPTURE_STADIUM_A      = 1611,
+    LANG_OPVP_HP_CAPTURE_BROKENHILL_H   = 1612,
+    LANG_OPVP_HP_CAPTURE_BROKENHILL_A   = 1613,
+
+    LANG_OPVP_ZM_CAPTURE_EAST_BEACON_H  = 1614,
+    LANG_OPVP_ZM_CAPTURE_EAST_BEACON_A  = 1615,
+    LANG_OPVP_ZM_CAPTURE_WEST_BEACON_H  = 1616,
+    LANG_OPVP_ZM_CAPTURE_WEST_BEACON_A  = 1617,
+    LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_H = 1618,
+    LANG_OPVP_ZM_CAPTURE_BOTH_BEACONS_A = 1619,
+    LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_H    = 1620,
+    LANG_OPVP_ZM_SPAWN_FIELD_SCOUT_A    = 1621,
+    LANG_OPVP_ZM_CAPTURE_GRAVEYARD_H    = 1622,
+    LANG_OPVP_ZM_CAPTURE_GRAVEYARD_A    = 1623,
+
+    LANG_OPVP_TF_CAPTURE_TOWER_H        = 1624,
+    LANG_OPVP_TF_CAPTURE_TOWER_A        = 1625,
+    LANG_OPVP_TF_LOSE_TOWER_H           = 1626,
+    LANG_OPVP_TF_LOSE_TOWER_A           = 1627,
+    LANG_OPVP_TF_CAPTURE_ALL_TOWERS_H   = 1628,
+    LANG_OPVP_TF_CAPTURE_ALL_TOWERS_A   = 1629,
+
+    LANG_OPVP_NA_PROGRESS_H             = 1630,
+    LANG_OPVP_NA_PROGRESS_A             = 1631,
+    LANG_OPVP_NA_CAPTURE_H              = 1632,
+    LANG_OPVP_NA_CAPTURE_A              = 1633,
+    LANG_OPVP_NA_DEFENSELESS            = 1634,
 
     LANG_OPVP_SI_CAPTURE_H              = 1635,
     LANG_OPVP_SI_CAPTURE_A              = 1636,

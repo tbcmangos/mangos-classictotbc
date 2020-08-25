@@ -19,6 +19,8 @@
 #include "Common.h"
 #include "Tools/PlayerDump.h"
 #include "Database/DatabaseEnv.h"
+#include "Server/SQLStorages.h"
+#include "Entities/UpdateFields.h"
 #include "Globals/ObjectMgr.h"
 #include "Accounts/AccountMgr.h"
 
@@ -37,11 +39,12 @@ static DumpTable dumpTables[] =
     { "characters",                       DTT_CHARACTER  }, // -> guid, must be first for name check
     { "character_action",                 DTT_CHAR_TABLE },
     { "character_aura",                   DTT_CHAR_TABLE },
+    { "character_declinedname",           DTT_CHAR_NAME_TABLE },
     { "character_homebind",               DTT_CHAR_TABLE },
-    { "character_honor_cp",               DTT_CHAR_TABLE },
     { "character_inventory",              DTT_INVENTORY  }, // -> item guids
     { "character_queststatus",            DTT_CHAR_TABLE },
     { "character_pet",                    DTT_PET        }, // -> pet number
+    { "character_pet_declinedname",       DTT_PET_DECL   }, //                  <- pet number
     { "character_reputation",             DTT_CHAR_TABLE },
     { "character_skills",                 DTT_CHAR_TABLE },
     { "character_spell",                  DTT_CHAR_TABLE },
@@ -282,6 +285,7 @@ void PlayerDumpWriter::DumpTableContent(std::string& dump, uint32 guid, char con
         case DTT_ITEM_LOOT: fieldname = "guid";      guids = &items; break;
         case DTT_PET:       fieldname = "owner";                     break;
         case DTT_PET_TABLE: fieldname = "guid";      guids = &pets;  break;
+        case DTT_PET_DECL:  fieldname = "id";                        break;
         case DTT_MAIL:      fieldname = "receiver";                  break;
         case DTT_MAIL_ITEM: fieldname = "mail_id";   guids = &mails; break;
         case DTT_ITEM_TEXT: fieldname = "id";        guids = &texts; break;
@@ -402,6 +406,8 @@ DumpReturn PlayerDumpWriter::WriteDump(const std::string& file, uint32 guid)
 
 DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, std::string name, uint32 guid)
 {
+    bool nameInvalidated = false;                           // set when name changed or will requested changed at next login
+
     // check character count
     uint32 charcount = sAccountMgr.GetCharactersCount(account);
     if (charcount >= 10)
@@ -516,10 +522,23 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
             ROLLBACK(DUMP_FILE_BROKEN);
         }
 
+        bool execute_ok = true;                             // false, if need skip soem query
+
         // change the data to server values
         switch (type)
         {
             case DTT_CHAR_TABLE:
+                if (!changenth(line, 1, newguid))           // character_*.guid update
+                    ROLLBACK(DUMP_FILE_BROKEN);
+                break;
+
+            case DTT_CHAR_NAME_TABLE:
+                if (nameInvalidated)                        // ignore declined names if name will changed in some way
+                {
+                    execute_ok = false;
+                    break;
+                }
+
                 if (!changenth(line, 1, newguid))           // character_*.guid update
                     ROLLBACK(DUMP_FILE_BROKEN);
                 break;
@@ -543,14 +562,18 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
                     {
                         delete result;
 
-                        if (!changenth(line, 35, "1"))      // characters.at_login set to "rename on login"
+                        if (!changenth(line, 36, "1"))      // characters.at_login set to "rename on login"
                             ROLLBACK(DUMP_FILE_BROKEN);
+
+                        nameInvalidated = true;
                     }
                 }
                 else
                 {
                     if (!changenth(line, 3, name.c_str()))  // characters.name update
                         ROLLBACK(DUMP_FILE_BROKEN);
+
+                    nameInvalidated = true;
                 }
 
                 break;
@@ -644,6 +667,25 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
 
                 break;
             }
+            case DTT_PET_DECL:                              // character_pet_declinedname
+            {
+                snprintf(currpetid, 20, "%s", getnth(line, 1).c_str());
+
+                // lookup currpetid and match to new inserted pet id
+                std::map<uint32, uint32> :: const_iterator petids_iter = petids.find(atoi(currpetid));
+                if (petids_iter == petids.end())            // couldn't find new inserted id
+                    ROLLBACK(DUMP_FILE_BROKEN);
+
+                snprintf(newpetid, 20, "%d", petids_iter->second);
+
+                if (!changenth(line, 1, newpetid))          // character_pet_declinedname.id
+                    ROLLBACK(DUMP_FILE_BROKEN);
+
+                if (!changenth(line, 2, newguid))           // character_pet_declinedname.owner update
+                    ROLLBACK(DUMP_FILE_BROKEN);
+
+                break;
+            }
             case DTT_MAIL:                                  // mail
             {
                 if (!changeGuid(line, 1, mails, sObjectMgr.m_MailIds.GetNextAfterMaxUsed()))
@@ -681,7 +723,7 @@ DumpReturn PlayerDumpReader::LoadDump(const std::string& file, uint32 account, s
                 break;
         }
 
-        if (!CharacterDatabase.Execute(line.c_str()))
+        if (execute_ok && !CharacterDatabase.Execute(line.c_str()))
             ROLLBACK(DUMP_FILE_BROKEN);
     }
 
