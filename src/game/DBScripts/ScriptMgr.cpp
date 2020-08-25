@@ -21,7 +21,6 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "Globals/ObjectMgr.h"
-#include "Globals/ObjectAccessor.h"
 #include "MotionGenerators/WaypointManager.h"
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
@@ -106,7 +105,7 @@ void ScriptMgr::LoadScripts(ScriptMapMapName& scripts, const char* tablename)
     scripts.second.clear();                                 // need for reload support
 
     //                                                 0   1      2        3         4          5          6            7              8           9        10        11        12       13 14 15 16  17
-    QueryResult* result = WorldDatabase.PQuery("SELECT id, delay, command, datalong, datalong2, datalong3, buddy_entry, search_radius, data_flags, dataint, dataint2, dataint3, dataint4, x, y, z, o, condition_id FROM %s", tablename);
+    QueryResult* result = WorldDatabase.PQuery("SELECT id, delay, command, datalong, datalong2, datalong3, buddy_entry, search_radius, data_flags, dataint, dataint2, dataint3, dataint4, x, y, z, o, condition_id FROM %s ORDER BY priority", tablename);
 
     uint32 count = 0;
 
@@ -1618,7 +1617,7 @@ bool ScriptAction::HandleScriptStep()
             uint32 factionId = m_script->textId[1];
             uint32 modelId = m_script->textId[2];
 
-            Creature* pCreature = pSource->SummonCreature(m_script->summonCreature.creatureEntry, x, y, z, o, m_script->summonCreature.despawnDelay ? TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN : TEMPSPAWN_DEAD_DESPAWN, m_script->summonCreature.despawnDelay, (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL) ? true : false, run, m_script->summonCreature.pathId, factionId, modelId);
+            Creature* pCreature = pSource->SummonCreature(m_script->summonCreature.creatureEntry, x, y, z, o, m_script->summonCreature.despawnDelay ? TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN : TEMPSPAWN_DEAD_DESPAWN, m_script->summonCreature.despawnDelay, (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL) != 0, run, m_script->summonCreature.pathId, factionId, modelId);
             if (!pCreature)
             {
                 sLog.outErrorDb(" DB-SCRIPTS: Process table `%s` id %u, command %u failed for creature (entry: %u).", m_table, m_script->id, m_script->command, m_script->summonCreature.creatureEntry);
@@ -2252,9 +2251,9 @@ bool ScriptAction::HandleScriptStep()
             if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
             {
                 if (m_script->fly.fly)
-                    pSource->SetByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND);
+                    pSource->SetByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY_ANIM);
                 else
-                    pSource->RemoveByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND);
+                    pSource->RemoveByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY_ANIM);
             }
 
             ((Creature*)pSource)->SetLevitate(m_script->fly.fly != 0);
@@ -2432,7 +2431,8 @@ void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
                 eventIds.insert(itr->goober.eventId);
                 break;
             case GAMEOBJECT_TYPE_CHEST:
-                eventIds.insert(itr->chest.eventId);
+                if (itr->chest.eventId > 0) // eventIds is unsigned but GAMEOBJECT_TYPE_CHEST event ID can be negative in database
+                    eventIds.insert(itr->chest.eventId);
                 break;
             case GAMEOBJECT_TYPE_CAMERA:
                 eventIds.insert(itr->camera.eventID);
@@ -2468,6 +2468,21 @@ void ScriptMgr::CollectPossibleEventIds(std::set<uint32>& eventIds)
             }
         }
     }
+
+    // Load all possible event entries from taxi path nodes
+    for (auto& path_idx : sTaxiPathNodesByPath)
+    {
+        for (size_t node_idx = 0; node_idx < path_idx.size(); ++node_idx)
+        {
+            TaxiPathNodeEntry const& node = *path_idx[node_idx];
+
+            if (node.arrivalEventID)
+                eventIds.insert(node.arrivalEventID);
+
+            if (node.departureEventID)
+                eventIds.insert(node.departureEventID);
+        }
+    }
 }
 
 // Starters for events
@@ -2492,16 +2507,16 @@ bool StartEvents_Event(Map* map, uint32 id, Object* source, Object* target, bool
         }
         else
         {
-            if (map->IsBattleGround())
+            if (map->IsBattleGroundOrArena())
                 bg = ((BattleGroundMap*)map)->GetBG();
             else                                            // Use the go, because GOs don't move
                 opvp = sOutdoorPvPMgr.GetScript(((GameObject*)source)->GetZoneId());
         }
 
-        if (bg && bg->HandleEvent(id, static_cast<GameObject*>(source)))
+        if (bg && bg->HandleEvent(id, static_cast<GameObject*>(source), forwardToPvp))
             return true;
 
-        if (opvp && opvp->HandleEvent(id, static_cast<GameObject*>(source)))
+        if (opvp && opvp->HandleEvent(id, static_cast<GameObject*>(source), forwardToPvp))
             return true;
     }
 
