@@ -57,6 +57,7 @@ enum LootSlotType
     LOOT_SLOT_VIEW    = 1,                                  // can be only view (ignore any loot attempts)
     LOOT_SLOT_MASTER  = 2,                                  // can be looted only master (error message)
     LOOT_SLOT_REQS    = 3,                                  // can't be looted (error message about missing reqs)
+    LOOT_SLOT_OWNER   = 4,                                  // ignore binding confirmation and etc, for single player looting
     MAX_LOOT_SLOT_TYPE                                      // custom, use for mark skipped from show items
 };
 
@@ -311,6 +312,7 @@ class Loot
         void GetLootItemsListFor(Player* player, LootItemList& lootList);
         void SetGoldAmount(uint32 _gold);
         void SendGold(Player* player);
+        void SendReleaseFor(Player* plr);
         bool IsItemAlreadyIn(uint32 itemId) const;
         void PrintLootList(ChatHandler& chat, WorldSession* session) const;
         bool HasLoot() const;
@@ -335,7 +337,6 @@ class Loot
         bool IsLootedFor(Player const* player) const;
         bool IsLootedForAll() const;
         void SendReleaseFor(ObjectGuid const& guid);
-        void SendReleaseFor(Player* plr);
         void SendReleaseForAll();
         void SendAllowedLooter();
         void NotifyMoneyRemoved();
@@ -387,6 +388,7 @@ extern LootStore LootTemplates_Mail;
 extern LootStore LootTemplates_Pickpocketing;
 extern LootStore LootTemplates_Skinning;
 extern LootStore LootTemplates_Disenchant;
+extern LootStore LootTemplates_Prospecting;
 
 void LoadLootTemplates_Creature();
 void LoadLootTemplates_Fishing();
@@ -396,6 +398,7 @@ void LoadLootTemplates_Mail();
 void LoadLootTemplates_Pickpocketing();
 void LoadLootTemplates_Skinning();
 void LoadLootTemplates_Disenchant();
+void LoadLootTemplates_Prospecting();
 
 void LoadLootTemplates_Reference();
 
@@ -409,6 +412,7 @@ inline void LoadLootTables()
     LoadLootTemplates_Pickpocketing();
     LoadLootTemplates_Skinning();
     LoadLootTemplates_Disenchant();
+    LoadLootTemplates_Prospecting();
 
     LoadLootTemplates_Reference();
 }

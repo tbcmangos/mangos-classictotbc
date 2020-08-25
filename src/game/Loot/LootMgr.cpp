@@ -18,17 +18,15 @@
 
 #include "Loot/LootMgr.h"
 #include "Log.h"
+#include "Globals/ObjectMgr.h"
 #include "ProgressBar.h"
 #include "World/World.h"
 #include "Util.h"
 #include "Globals/SharedDefines.h"
-#include "Globals/ObjectAccessor.h"
-#include "Globals/ObjectMgr.h"
 #include "Server/DBCStores.h"
 #include "Server/SQLStorages.h"
 #include "BattleGround/BattleGroundAV.h"
 #include "Entities/ItemEnchantmentMgr.h"
-#include "Entities/Corpse.h"
 #include "Tools/Language.h"
 #include <sstream>
 #include <iomanip>
@@ -53,6 +51,7 @@ LootStore LootTemplates_Gameobject("gameobject_loot_template",   "gameobject loo
 LootStore LootTemplates_Item("item_loot_template",         "item entry with ITEM_FLAG_LOOTABLE", true);
 LootStore LootTemplates_Mail("mail_loot_template",         "mail template id",               false);
 LootStore LootTemplates_Pickpocketing("pickpocketing_loot_template", "creature pickpocket lootid",     true);
+LootStore LootTemplates_Prospecting("prospecting_loot_template",  "item entry (ore)",               true);
 LootStore LootTemplates_Reference("reference_loot_template",    "reference id",                   false);
 LootStore LootTemplates_Skinning("skinning_loot_template",     "creature skinning id",           true);
 
@@ -360,7 +359,7 @@ LootItem::LootItem(LootStoreItem const& li, uint32 _lootSlot, uint32 threshold)
     conditionId       = li.conditionId;
     lootSlot          = _lootSlot;
     count             = urand(li.mincountOrRef, li.maxcount);     // constructor called for mincountOrRef > 0 only
-    randomSuffix      = 0; // TODO:: do we need to implement it? GenerateEnchSuffixFactor(itemId);
+    randomSuffix      = GenerateEnchSuffixFactor(itemId);
     randomPropertyId  = Item::GenerateItemRandomPropertyId(itemId);
     isBlocked         = false;
     currentLooterPass = false;
@@ -437,7 +436,7 @@ LootSlotType LootItem::GetSlotTypeForSharedLoot(Player const* player, Loot const
         return MAX_LOOT_SLOT_TYPE;
 
     if (freeForAll)
-        return LOOT_SLOT_NORMAL;                                         // player have not yet looted a free for all item
+        return loot->m_lootMethod == NOT_GROUP_TYPE_LOOT ? LOOT_SLOT_OWNER : LOOT_SLOT_NORMAL; // player have not yet looted a free for all item
 
     // quest items and conditional items cases
     if (lootItemType == LOOTITEM_TYPE_QUEST || lootItemType == LOOTITEM_TYPE_CONDITIONNAL)
@@ -446,18 +445,18 @@ LootSlotType LootItem::GetSlotTypeForSharedLoot(Player const* player, Loot const
         {
             case NOT_GROUP_TYPE_LOOT:
             case FREE_FOR_ALL:
-                return LOOT_SLOT_NORMAL;
+                return LOOT_SLOT_OWNER;
 
             default:
                 if (loot->m_isChest)
-                    return LOOT_SLOT_NORMAL;
+                    return LOOT_SLOT_OWNER;
 
                 if (isBlocked)
                     return LOOT_SLOT_VIEW;
 
                 // Check if its turn of that player to loot a not party loot. The loot may be released or the item may be passed by currentLooter
                 if (isReleased || currentLooterPass || loot->m_currentLooterGuid == player->GetObjectGuid())
-                    return LOOT_SLOT_NORMAL;
+                    return LOOT_SLOT_OWNER;
                 return MAX_LOOT_SLOT_TYPE;
         }
     }
@@ -465,7 +464,7 @@ LootSlotType LootItem::GetSlotTypeForSharedLoot(Player const* player, Loot const
     switch (loot->m_lootMethod)
     {
         case FREE_FOR_ALL:
-            return LOOT_SLOT_NORMAL;
+            return LOOT_SLOT_OWNER;
         case GROUP_LOOT:
         case NEED_BEFORE_GREED:
         {
@@ -486,10 +485,10 @@ LootSlotType LootItem::GetSlotTypeForSharedLoot(Player const* player, Loot const
             if (isUnderThreshold)
             {
                 if (loot->m_isChest)
-                    return LOOT_SLOT_NORMAL;
+                    return LOOT_SLOT_OWNER;
 
                 if (isReleased || currentLooterPass || player->GetObjectGuid() == loot->m_currentLooterGuid)
-                    return LOOT_SLOT_NORMAL;
+                    return LOOT_SLOT_OWNER;
 
                 return MAX_LOOT_SLOT_TYPE;
             }
@@ -509,12 +508,12 @@ LootSlotType LootItem::GetSlotTypeForSharedLoot(Player const* player, Loot const
                 return LOOT_SLOT_NORMAL;
 
             if (isReleased || currentLooterPass || player->GetObjectGuid() == loot->m_currentLooterGuid)
-                return LOOT_SLOT_NORMAL;
+                return LOOT_SLOT_OWNER;
 
             return MAX_LOOT_SLOT_TYPE;
         }
         case NOT_GROUP_TYPE_LOOT:
-            return LOOT_SLOT_NORMAL;
+            return LOOT_SLOT_OWNER;
         default:
             return MAX_LOOT_SLOT_TYPE;
     }
@@ -1366,6 +1365,7 @@ void Loot::Release(Player* player)
                         SendReleaseForAll();
                         creature->SetLootStatus(CREATURE_LOOT_STATUS_LOOTED);
                     }
+                    break;
                 }
                 default:
                     break;
@@ -1426,7 +1426,6 @@ void Loot::ShowContentTo(Player* plr)
 void Loot::GroupCheck()
 {
     m_isChecked = true;
-
     PlayerList playerList;
     Player* masterLooter = nullptr;
     for (auto playerGuid : m_ownerSet)
@@ -1778,6 +1777,7 @@ Loot::Loot(Player* player, GameObject* gameObject, LootType type) :
                 break;
             }
         }
+
         gameObject->SetLootState(GO_ACTIVATED);
     }
     return;
@@ -1858,6 +1858,10 @@ Loot::Loot(Player* player, Item* item, LootType type) :
     {
         case LOOT_DISENCHANTING:
             FillLoot(item->GetProto()->DisenchantID, LootTemplates_Disenchant, player, true);
+            item->SetLootState(ITEM_LOOT_TEMPORARY);
+            break;
+        case LOOT_PROSPECTING:
+            FillLoot(item->GetEntry(), LootTemplates_Prospecting, player, true);
             item->SetLootState(ITEM_LOOT_TEMPORARY);
             break;
         default:
@@ -2276,7 +2280,7 @@ ByteBuffer& operator<<(ByteBuffer& b, LootItem const& li)
     b << uint32(li.itemId);
     b << uint32(li.count);                                  // nr of items of this type
     b << uint32(ObjectMgr::GetItemPrototype(li.itemId)->DisplayInfoID);
-    b << uint32(0);
+    b << uint32(li.randomSuffix);
     b << uint32(li.randomPropertyId);
     return b;
 }
@@ -2777,6 +2781,31 @@ void LoadLootTemplates_Pickpocketing()
     LootTemplates_Pickpocketing.ReportUnusedIds(ids_set);
 }
 
+void LoadLootTemplates_Prospecting()
+{
+    LootIdSet ids_set;
+    LootTemplates_Prospecting.LoadAndCollectLootIds(ids_set);
+
+    // remove real entries and check existence loot
+    for (uint32 i = 1; i < sItemStorage.GetMaxEntry(); ++i)
+    {
+        ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(i);
+        if (!proto)
+            continue;
+
+        if (!(proto->Flags & ITEM_FLAG_IS_PROSPECTABLE))
+            continue;
+
+        if (ids_set.find(proto->ItemId) != ids_set.end())
+            ids_set.erase(proto->ItemId);
+        // else -- exist some cases that possible can be prospected but not expected have any result loot
+        //    LootTemplates_Prospecting.ReportNotExistedId(proto->ItemId);
+    }
+
+    // output error for any still listed (not referenced from appropriate table) ids
+    LootTemplates_Prospecting.ReportUnusedIds(ids_set);
+}
+
 void LoadLootTemplates_Mail()
 {
     LootIdSet ids_set;
@@ -2831,6 +2860,7 @@ void LoadLootTemplates_Reference()
     LootTemplates_Pickpocketing.CheckLootRefs(&ids_set);
     LootTemplates_Skinning.CheckLootRefs(&ids_set);
     LootTemplates_Disenchant.CheckLootRefs(&ids_set);
+    LootTemplates_Prospecting.CheckLootRefs(&ids_set);
     LootTemplates_Mail.CheckLootRefs(&ids_set);
     LootTemplates_Reference.CheckLootRefs(&ids_set);
 
@@ -2941,6 +2971,8 @@ void LootMgr::CheckDropStats(ChatHandler& chat, uint32 amountOfCheck, uint32 loo
             store = &LootTemplates_Skinning;
         else if (lootStore == "disenchanting")
             store = &LootTemplates_Disenchant;
+        else if (lootStore == "prospecting")
+            store = &LootTemplates_Prospecting;
         else if (lootStore == "mail")
             store = &LootTemplates_Mail;
     }
