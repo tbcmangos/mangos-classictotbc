@@ -622,6 +622,7 @@ void WheatyExceptionReport::WriteStackDetails(
             _tprintf(_T("\r\n"));
         }
     }
+
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -634,7 +635,6 @@ WheatyExceptionReport::EnumerateSymbolsCallback(
     ULONG         SymbolSize,
     PVOID         UserContext)
 {
-
     char szBuffer[2048];
 
     __try
