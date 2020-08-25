@@ -235,6 +235,7 @@ Defining a buddy could be done in several way:
                                             * datalong = sound_id
                                             * datalong2 (bitmask: 0/1=target-player, 0/2=with distance dependent, 0/4=map wide, 0/8=zone wide;
                                                                   so 1|2 = 3 is target with distance dependent)
+                                            * data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL: play music instead of sound
 
 17 SCRIPT_COMMAND_CREATE_ITEM               source or target must be player
                                             * datalong = item entry
@@ -340,7 +341,7 @@ Defining a buddy could be done in several way:
 
 39 SCRIPT_COMMAND_SET_FLY                   * resultingSource = Creature
                                             * datalong = bool 0=off, 1=on
-                                            * data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL set/unset byte flag UNIT_BYTE1_FLAG_ALWAYS_STAND
+                                            * data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL set/unset byte flag UNIT_BYTE1_FLAG_FLY_ANIM
 
 40 SCRIPT_COMMAND_DESPAWN_GO                * resultingTarget = GameObject. Please note that not all gameobject types support this command.
 
