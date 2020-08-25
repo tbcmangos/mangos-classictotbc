@@ -39,6 +39,9 @@ void WorldSession::SendTradeStatus(TradeStatusInfo const& info) const
         case TRADE_STATUS_BEGIN_TRADE:
             data << info.TraderGuid;                        // CGTradeInfo::m_tradingPlayer
             break;
+        case TRADE_STATUS_OPEN_WINDOW:
+            data << uint32(0);                              // CGTradeInfo::m_tradeID
+            break;
         case TRADE_STATUS_CLOSE_WINDOW:
             data << uint32(info.Result);                    // InventoryResult
             data << uint8(info.IsTargetResult);             // bool isTargetError; used for: EQUIP_ERR_BAG_FULL, EQUIP_ERR_CANT_CARRY_MORE_OF_THIS, EQUIP_ERR_MISSING_REAGENT, EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED
@@ -73,6 +76,7 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/) const
 
     WorldPacket data(SMSG_TRADE_STATUS_EXTENDED, (100));    // guess size
     data << uint8(trader_state ? 1 : 0);                    // send trader or own trade windows state (last need for proper show spell apply to non-trade slot)
+    data << uint32(0);                                      // CGTradeInfo::m_tradeID
     data << uint32(TRADE_SLOT_COUNT);                       // trade slots count/number?, = next field in most cases
     data << uint32(TRADE_SLOT_COUNT);                       // trade slots count/number?, = prev field in most cases
     data << uint32(view_trade->GetMoney());                 // trader gold
@@ -87,12 +91,14 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/) const
             data << uint32(item->GetProto()->ItemId);       // entry
             data << uint32(item->GetProto()->DisplayInfoID);// display id
             data << uint32(item->GetCount());               // stack count
-
             // wrapped: hide stats but show giftcreator name
             data << uint32(item->HasFlag(ITEM_FIELD_FLAGS, ITEM_DYNFLAG_WRAPPED) ? 1 : 0);
             data << item->GetGuidValue(ITEM_FIELD_GIFTCREATOR);
 
             data << uint32(item->GetEnchantmentId(PERM_ENCHANTMENT_SLOT));
+            for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS; ++enchant_slot)
+                data << uint32(item->GetEnchantmentId(EnchantmentSlot(enchant_slot)));
+            // creator
             data << item->GetGuidValue(ITEM_FIELD_CREATOR);
             data << uint32(item->GetSpellCharges());        // charges
             data << uint32(item->GetItemSuffixFactor());    // SuffixFactor
@@ -105,11 +111,10 @@ void WorldSession::SendUpdateTrade(bool trader_state /*= true*/) const
         }
         else
         {
-            for (uint8 j = 0; j < 15; ++j)
+            for (uint8 j = 0; j < 18; ++j)
                 data << uint32(0);
         }
     }
-
     SendPacket(data);
 }
 
@@ -523,7 +528,7 @@ void WorldSession::HandleBeginTradeOpcode(WorldPacket& /*recvPacket*/)
     SendTradeStatus(info);
 }
 
-void WorldSession::SendCancelTrade() const
+void WorldSession::SendCancelTrade()
 {
     if (m_playerRecentlyLogout)
         return;
@@ -628,11 +633,8 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    // [XFACTION]: Vanilla-specific - possibility to trade with opposing team when not in the same group
-    const bool xfaction = (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_TRADE) && pOther->GetTeam() != _player->GetTeam());
-
     // [XFACTION]: Reserve possibility to trade with each other for crossfaction group members (when no charms involved)
-    if (!_player->CanCooperate(pOther) && (pOther->HasCharmer() || _player->HasCharmer() || (!pOther->IsInGroup(_player) && !xfaction)))
+    if (!_player->CanCooperate(pOther) && (pOther->HasCharmer() || _player->HasCharmer() || !pOther->IsInGroup(_player)))
     {
         info.Status = TRADE_STATUS_WRONG_FACTION;
         SendTradeStatus(info);
