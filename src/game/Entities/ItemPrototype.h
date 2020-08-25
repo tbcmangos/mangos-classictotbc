@@ -30,9 +30,35 @@ enum ItemModType
     ITEM_MOD_INTELLECT                = 5,
     ITEM_MOD_SPIRIT                   = 6,
     ITEM_MOD_STAMINA                  = 7,
+    ITEM_MOD_DEFENSE_SKILL_RATING     = 12,
+    ITEM_MOD_DODGE_RATING             = 13,
+    ITEM_MOD_PARRY_RATING             = 14,
+    ITEM_MOD_BLOCK_RATING             = 15,
+    ITEM_MOD_HIT_MELEE_RATING         = 16,
+    ITEM_MOD_HIT_RANGED_RATING        = 17,
+    ITEM_MOD_HIT_SPELL_RATING         = 18,
+    ITEM_MOD_CRIT_MELEE_RATING        = 19,
+    ITEM_MOD_CRIT_RANGED_RATING       = 20,
+    ITEM_MOD_CRIT_SPELL_RATING        = 21,
+    ITEM_MOD_HIT_TAKEN_MELEE_RATING   = 22,
+    ITEM_MOD_HIT_TAKEN_RANGED_RATING  = 23,
+    ITEM_MOD_HIT_TAKEN_SPELL_RATING   = 24,
+    ITEM_MOD_CRIT_TAKEN_MELEE_RATING  = 25,
+    ITEM_MOD_CRIT_TAKEN_RANGED_RATING = 26,
+    ITEM_MOD_CRIT_TAKEN_SPELL_RATING  = 27,
+    ITEM_MOD_HASTE_MELEE_RATING       = 28,
+    ITEM_MOD_HASTE_RANGED_RATING      = 29,
+    ITEM_MOD_HASTE_SPELL_RATING       = 30,
+    ITEM_MOD_HIT_RATING               = 31,
+    ITEM_MOD_CRIT_RATING              = 32,
+    ITEM_MOD_HIT_TAKEN_RATING         = 33,
+    ITEM_MOD_CRIT_TAKEN_RATING        = 34,
+    ITEM_MOD_RESILIENCE_RATING        = 35,
+    ITEM_MOD_HASTE_RATING             = 36,
+    ITEM_MOD_EXPERTISE_RATING         = 37
 };
 
-#define MAX_ITEM_MOD                    8
+#define MAX_ITEM_MOD                    38
 
 enum ItemSpelltriggerType
 {
@@ -40,16 +66,11 @@ enum ItemSpelltriggerType
     ITEM_SPELLTRIGGER_ON_EQUIP        = 1,
     ITEM_SPELLTRIGGER_CHANCE_ON_HIT   = 2,
     ITEM_SPELLTRIGGER_SOULSTONE       = 4,
-    /*
-     * ItemSpelltriggerType 5 might have changed on 2.4.3/3.0.3: Such auras
-     * will be applied on item pickup and removed on item loss - maybe on the
-     * other hand the item is destroyed if the aura is removed ("removed on
-     * death" of spell 57348 makes me think so)
-     */
-    ITEM_SPELLTRIGGER_ON_NO_DELAY_USE = 5,                  // no equip cooldown
+    ITEM_SPELLTRIGGER_ON_STORE        = 5,                  // casted at add item to inventory/equip, applied aura removed at remove item, item deleted at aura cancel/expire/etc
+    ITEM_SPELLTRIGGER_LEARN_SPELL_ID  = 6                   // used in item_template.spell_2 with spell_id with SPELL_GENERIC_LEARN in spell_1
 };
 
-#define MAX_ITEM_SPELLTRIGGER           6
+#define MAX_ITEM_SPELLTRIGGER           7
 
 enum ItemBondingType
 {
@@ -87,22 +108,40 @@ enum ItemPrototypeFlags
     ITEM_FLAG_IS_PROSPECTABLE                   = 0x00040000, // item can have prospecting loot (in fact some items expected have empty loot)
     ITEM_FLAG_UNIQUE_EQUIPPABLE                 = 0x00080000,
     ITEM_FLAG_IGNORE_FOR_AURAS                  = 0x00100000,
-    ITEM_FLAG_IGNORE_DEFAULT_ARENA_RESTRICTIONS = 0x00200000, // last used flag in 1.12.1
+    ITEM_FLAG_IGNORE_DEFAULT_ARENA_RESTRICTIONS = 0x00200000,
+    ITEM_FLAG_NO_DURABILITY_LOSS                = 0x00400000, // Only items of ITEM_SUBCLASS_WEAPON_THROWN have it but not all, so can't be used as in game check
+    ITEM_FLAG_USE_WHEN_SHAPESHIFTED             = 0x00800000, // last used flag in 2.3.0
 };
 
-enum BagFamily
+enum BagFamilyMask
 {
-    BAG_FAMILY_NONE                             = 0,
-    BAG_FAMILY_ARROWS                           = 1,
-    BAG_FAMILY_BULLETS                          = 2,
-    BAG_FAMILY_SOUL_SHARDS                      = 3,
-    BAG_FAMILY_UNKNOWN1                         = 4,
-    BAG_FAMILY_UNKNOWN2                         = 5,
-    BAG_FAMILY_HERBS                            = 6,
-    BAG_FAMILY_ENCHANTING_SUPP                  = 7,
-    BAG_FAMILY_ENGINEERING_SUPP                 = 8,
-    BAG_FAMILY_KEYS                             = 9,
+    BAG_FAMILY_MASK_NONE                      = 0x00000000,
+    BAG_FAMILY_MASK_ARROWS                    = 0x00000001,
+    BAG_FAMILY_MASK_BULLETS                   = 0x00000002,
+    BAG_FAMILY_MASK_SOUL_SHARDS               = 0x00000004,
+    BAG_FAMILY_MASK_LEATHERWORKING_SUPP       = 0x00000008,
+    BAG_FAMILY_MASK_INSCRIPTION_SUPP          = 0x00000010,
+    BAG_FAMILY_MASK_HERBS                     = 0x00000020,
+    BAG_FAMILY_MASK_ENCHANTING_SUPP           = 0x00000040,
+    BAG_FAMILY_MASK_ENGINEERING_SUPP          = 0x00000080,
+    BAG_FAMILY_MASK_KEYS                      = 0x00000100,
+    BAG_FAMILY_MASK_GEMS                      = 0x00000200,
+    BAG_FAMILY_MASK_MINING_SUPP               = 0x00000400,
+    BAG_FAMILY_MASK_SOULBOUND_EQUIPMENT       = 0x00000800,
+    BAG_FAMILY_MASK_VANITY_PETS               = 0x00001000,
+    BAG_FAMILY_MASK_CURRENCY_TOKENS           = 0x00002000,
+    BAG_FAMILY_MASK_QUEST_ITEMS               = 0x00004000
 };
+
+enum SocketColor
+{
+    SOCKET_COLOR_META                           = 1,
+    SOCKET_COLOR_RED                            = 2,
+    SOCKET_COLOR_YELLOW                         = 4,
+    SOCKET_COLOR_BLUE                           = 8
+};
+
+#define SOCKET_COLOR_ALL (SOCKET_COLOR_META | SOCKET_COLOR_RED | SOCKET_COLOR_YELLOW | SOCKET_COLOR_BLUE)
 
 enum InventoryType
 {
@@ -217,9 +256,9 @@ enum ItemSubclassWeapon
 
 #define MAX_ITEM_SUBCLASS_WEAPON                  21
 
-/* enum ItemSubclassGem [-ZERO] not used in pre-bc
+enum ItemSubclassGem
 {
-  ITEM_SUBCLASS_GEM_RED                       = 0,
+    ITEM_SUBCLASS_GEM_RED                       = 0,
     ITEM_SUBCLASS_GEM_BLUE                      = 1,
     ITEM_SUBCLASS_GEM_YELLOW                    = 2,
     ITEM_SUBCLASS_GEM_PURPLE                    = 3,
@@ -229,9 +268,8 @@ enum ItemSubclassWeapon
     ITEM_SUBCLASS_GEM_SIMPLE                    = 7,
     ITEM_SUBCLASS_GEM_PRISMATIC                 = 8
 };
-*/
 
-#define MAX_ITEM_SUBCLASS_GEM                     1
+#define MAX_ITEM_SUBCLASS_GEM                     9
 
 enum ItemSubclassArmor
 {
@@ -273,7 +311,7 @@ enum ItemSubclassTradeGoods
     ITEM_SUBCLASS_PARTS                         = 1,
     ITEM_SUBCLASS_EXPLOSIVES                    = 2,
     ITEM_SUBCLASS_DEVICES                       = 3,
-    // ITEM_SUBCLASS_JEWELCRAFTING                 = 4,
+    ITEM_SUBCLASS_JEWELCRAFTING                 = 4,
     ITEM_SUBCLASS_CLOTH                         = 5,
     ITEM_SUBCLASS_LEATHER                       = 6,
     ITEM_SUBCLASS_METAL_STONE                   = 7,
@@ -281,7 +319,8 @@ enum ItemSubclassTradeGoods
     ITEM_SUBCLASS_HERB                          = 9,
     ITEM_SUBCLASS_ELEMENTAL                     = 10,
     ITEM_SUBCLASS_TRADE_GOODS_OTHER             = 11,
-    ITEM_SUBCLASS_ENCHANTING                    = 12
+    ITEM_SUBCLASS_ENCHANTING                    = 12,
+    ITEM_SUBCLASS_MATERIAL                      = 13        // Added in 2.4.2
 };
 
 #define MAX_ITEM_SUBCLASS_TRADE_GOODS             14
@@ -305,6 +344,7 @@ enum ItemSubclassRecipe
     ITEM_SUBCLASS_FIRST_AID_MANUAL              = 7,
     ITEM_SUBCLASS_ENCHANTING_FORMULA            = 8,
     ITEM_SUBCLASS_FISHING_MANUAL                = 9,
+    ITEM_SUBCLASS_JEWELCRAFTING_RECIPE          = 10
 };
 
 #define MAX_ITEM_SUBCLASS_RECIPE                  11
@@ -359,6 +399,22 @@ enum ItemSubclassJunk
 };
 
 #define MAX_ITEM_SUBCLASS_JUNK                    6
+
+enum ItemSubclassGlyph
+{
+    ITEM_SUBCLASS_GLYPH_WARRIOR                 = 1,
+    ITEM_SUBCLASS_GLYPH_PALADIN                 = 2,
+    ITEM_SUBCLASS_GLYPH_HUNTER                  = 3,
+    ITEM_SUBCLASS_GLYPH_ROGUE                   = 4,
+    ITEM_SUBCLASS_GLYPH_PRIEST                  = 5,
+    ITEM_SUBCLASS_GLYPH_DEATH_KNIGHT            = 6,
+    ITEM_SUBCLASS_GLYPH_SHAMAN                  = 7,
+    ITEM_SUBCLASS_GLYPH_MAGE                    = 8,
+    ITEM_SUBCLASS_GLYPH_WARLOCK                 = 9,
+    ITEM_SUBCLASS_GLYPH_DRUID                   = 11
+};
+
+#define MAX_ITEM_SUBCLASS_GLYPH                   12
 
 const uint32 MaxItemSubclassValues[MAX_ITEM_CLASS] =
 {
@@ -433,6 +489,7 @@ struct _Socket
 };
 
 #define MAX_ITEM_PROTO_DAMAGES 5
+#define MAX_ITEM_PROTO_SOCKETS 3
 #define MAX_ITEM_PROTO_SPELLS  5
 #define MAX_ITEM_PROTO_STATS  10
 
@@ -441,6 +498,7 @@ struct ItemPrototype
     uint32 ItemId;
     uint32 Class;                                           // id from ItemClass.dbc
     uint32 SubClass;                                        // id from ItemSubClass.dbc
+    uint32 Unk0;
     char*  Name1;
     uint32 DisplayInfoID;                                   // id from ItemDisplayInfo.dbc
     uint32 Quality;
@@ -486,12 +544,19 @@ struct ItemPrototype
     uint32 Material;                                        // id from Material.dbc
     uint32 Sheath;
     uint32 RandomProperty;                                  // id from ItemRandomProperties.dbc
+    uint32 RandomSuffix;                                    // id from ItemRandomSuffix.dbc
     uint32 Block;
     uint32 ItemSet;                                         // id from ItemSet.dbc
     uint32 MaxDurability;
     uint32 Area;                                            // id from AreaTable.dbc
     uint32 Map;                                             // id from Map.dbc
-    uint32 BagFamily;
+    uint32 BagFamily;                                       // bit mask (1 << id from ItemBagFamily.dbc)
+    uint32 TotemCategory;                                   // id from TotemCategory.dbc
+    _Socket Socket[MAX_ITEM_PROTO_SOCKETS];
+    uint32 socketBonus;                                     // id from SpellItemEnchantment.dbc
+    uint32 GemProperties;                                   // id from GemProperties.dbc
+    int32 RequiredDisenchantSkill;
+    float  ArmorDamageModifier;
     uint32 ScriptId;
     uint32 DisenchantID;
     uint32 FoodType;

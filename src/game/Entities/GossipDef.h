@@ -31,25 +31,25 @@ class WorldSession;
 
 enum Gossip_Option
 {
-    GOSSIP_OPTION_NONE              = 0,                    // UNIT_NPC_FLAG_NONE                (0)
-    GOSSIP_OPTION_GOSSIP            = 1,                    // UNIT_NPC_FLAG_GOSSIP              (1)
-    GOSSIP_OPTION_QUESTGIVER        = 2,                    // UNIT_NPC_FLAG_QUESTGIVER          (2)
-    GOSSIP_OPTION_VENDOR            = 3,                    // UNIT_NPC_FLAG_VENDOR              (128)
-    GOSSIP_OPTION_TAXIVENDOR        = 4,                    // UNIT_NPC_FLAG_TAXIVENDOR          (8192)
-    GOSSIP_OPTION_TRAINER           = 5,                    // UNIT_NPC_FLAG_TRAINER             (16)
-    GOSSIP_OPTION_SPIRITHEALER      = 6,                    // UNIT_NPC_FLAG_SPIRITHEALER        (16384)
-    GOSSIP_OPTION_SPIRITGUIDE       = 7,                    // UNIT_NPC_FLAG_SPIRITGUIDE         (32768)
-    GOSSIP_OPTION_INNKEEPER         = 8,                    // UNIT_NPC_FLAG_INNKEEPER           (65536)
-    GOSSIP_OPTION_BANKER            = 9,                    // UNIT_NPC_FLAG_BANKER              (131072)
-    GOSSIP_OPTION_PETITIONER        = 10,                   // UNIT_NPC_FLAG_PETITIONER          (262144)
-    GOSSIP_OPTION_TABARDDESIGNER    = 11,                   // UNIT_NPC_FLAG_TABARDDESIGNER      (524288)
-    GOSSIP_OPTION_BATTLEFIELD       = 12,                   // UNIT_NPC_FLAG_BATTLEFIELDPERSON   (1048576)
-    GOSSIP_OPTION_AUCTIONEER        = 13,                   // UNIT_NPC_FLAG_AUCTIONEER          (2097152)
-    GOSSIP_OPTION_STABLEPET         = 14,                   // UNIT_NPC_FLAG_STABLE              (4194304)
-    GOSSIP_OPTION_ARMORER           = 15,                   // UNIT_NPC_FLAG_ARMORER             (4096)
-    GOSSIP_OPTION_UNLEARNTALENTS    = 16,                   // UNIT_NPC_FLAG_TRAINER             (16) (bonus option for GOSSIP_OPTION_TRAINER)
-    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17,                   // UNIT_NPC_FLAG_TRAINER             (16) (bonus option for GOSSIP_OPTION_TRAINER)
-    GOSSIP_OPTION_BOT               = 99,                   // UNIT_NPC_FLAG_GOSSIP              (1) UNUSED (just for bot system)
+    GOSSIP_OPTION_NONE              = 0,                    // UNIT_NPC_FLAG_NONE               (0)
+    GOSSIP_OPTION_GOSSIP            = 1,                    // UNIT_NPC_FLAG_GOSSIP             (1)
+    GOSSIP_OPTION_QUESTGIVER        = 2,                    // UNIT_NPC_FLAG_QUESTGIVER         (2)
+    GOSSIP_OPTION_VENDOR            = 3,                    // UNIT_NPC_FLAG_VENDOR             (128)
+    GOSSIP_OPTION_TAXIVENDOR        = 4,                    // UNIT_NPC_FLAG_TAXIVENDOR         (8192)
+    GOSSIP_OPTION_TRAINER           = 5,                    // UNIT_NPC_FLAG_TRAINER            (16)
+    GOSSIP_OPTION_SPIRITHEALER      = 6,                    // UNIT_NPC_FLAG_SPIRITHEALER       (16384)
+    GOSSIP_OPTION_SPIRITGUIDE       = 7,                    // UNIT_NPC_FLAG_SPIRITGUIDE        (32768)
+    GOSSIP_OPTION_INNKEEPER         = 8,                    // UNIT_NPC_FLAG_INNKEEPER          (65536)
+    GOSSIP_OPTION_BANKER            = 9,                    // UNIT_NPC_FLAG_BANKER             (131072)
+    GOSSIP_OPTION_PETITIONER        = 10,                   // UNIT_NPC_FLAG_PETITIONER         (262144)
+    GOSSIP_OPTION_TABARDDESIGNER    = 11,                   // UNIT_NPC_FLAG_TABARDDESIGNER     (524288)
+    GOSSIP_OPTION_BATTLEFIELD       = 12,                   // UNIT_NPC_FLAG_BATTLEFIELDPERSON  (1048576)
+    GOSSIP_OPTION_AUCTIONEER        = 13,                   // UNIT_NPC_FLAG_AUCTIONEER         (2097152)
+    GOSSIP_OPTION_STABLEPET         = 14,                   // UNIT_NPC_FLAG_STABLE             (4194304)
+    GOSSIP_OPTION_ARMORER           = 15,                   // UNIT_NPC_FLAG_ARMORER            (4096)
+    GOSSIP_OPTION_UNLEARNTALENTS    = 16,                   // UNIT_NPC_FLAG_TRAINER            (16) (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17,                   // UNIT_NPC_FLAG_TRAINER            (16) (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_BOT               = 99,                   // UNIT_NPC_FLAG_GOSSIP             (1) UNUSED (just for bot system)
 
     // Custom ones for SD2 system communication
     GOSSIP_OPTION_SD2_1             = 100,
@@ -75,14 +75,14 @@ enum GossipOptionIcon
     GOSSIP_ICON_DOT                 = 10,                   // yellow dot
     GOSSIP_ICON_CHAT_11             = 11,                   // This and below are most the same visual as GOSSIP_ICON_CHAT
     GOSSIP_ICON_CHAT_12             = 12,                   // but are still used for unknown reasons.
-    GOSSIP_ICON_DOT_13              = 13,
-    GOSSIP_ICON_DOT_14              = 14,                   // probably invalid
-    GOSSIP_ICON_DOT_15              = 15,                   // probably invalid
-    GOSSIP_ICON_DOT_16              = 16,
-    GOSSIP_ICON_DOT_17              = 17,
-    GOSSIP_ICON_DOT_18              = 18,
-    GOSSIP_ICON_DOT_19              = 19,
-    GOSSIP_ICON_DOT_20              = 20,
+    GOSSIP_ICON_CHAT_13             = 13,
+    GOSSIP_ICON_CHAT_14             = 14,                   // probably invalid
+    GOSSIP_ICON_CHAT_15             = 15,                   // probably invalid
+    GOSSIP_ICON_CHAT_16             = 16,
+    GOSSIP_ICON_CHAT_17             = 17,
+    GOSSIP_ICON_CHAT_18             = 18,
+    GOSSIP_ICON_CHAT_19             = 19,
+    GOSSIP_ICON_CHAT_20             = 20,
     GOSSIP_ICON_MAX
 };
 
@@ -140,6 +140,7 @@ struct GossipMenuItem
     uint32      m_gSender;
     uint32      m_gOptionId;
     std::string m_gBoxMessage;
+    uint32      m_gBoxMoney;
 };
 
 typedef std::vector<GossipMenuItem> GossipMenuItemList;
@@ -168,13 +169,13 @@ class GossipMenu
         ~GossipMenu();
 
         void AddMenuItem(uint8 Icon, const std::string& Message, bool Coded = false);
-        void AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSender, uint32 dtAction, const std::string& BoxMessage, bool Coded = false);
+        void AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSender, uint32 dtAction, const std::string& BoxMessage, uint32 BoxMoney, bool Coded = false);
 
         // for using from scripts, don't must be inlined
         void AddMenuItem(uint8 Icon, char const* Message, bool Coded = false);
-        void AddMenuItem(uint8 Icon, char const* Message, uint32 dtSender, uint32 dtAction, char const* BoxMessage, bool Coded = false);
+        void AddMenuItem(uint8 Icon, char const* Message, uint32 dtSender, uint32 dtAction, char const* BoxMessage, uint32 BoxMoney, bool Coded = false);
 
-        void AddMenuItem(uint8 Icon, int32 itemText, uint32 dtSender, uint32 dtAction, int32 boxText, bool Coded = false);
+        void AddMenuItem(uint8 Icon, int32 itemText, uint32 dtSender, uint32 dtAction, int32 boxText, uint32 BoxMoney, bool Coded = false);
 
         void SetMenuId(uint32 menu_id) { m_gMenuId = menu_id; }
         uint32 GetMenuId() const { return m_gMenuId; }

@@ -46,7 +46,7 @@ void WorldSession::HandleRepopRequestOpcode(WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_REPOP_REQUEST");
 
-    // recv_data.read_skip<uint8>(); client crash
+    recv_data.read_skip<uint8>();
 
     if (GetPlayer()->IsAlive() || GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
         return;
@@ -188,6 +188,7 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recv_data)
             continue;
 
         uint32 pzoneid = pl->GetZoneId();
+        uint8 gender = pl->getGender();
 
         bool z_show = true;
         for (uint32 i = 0; i < zones_count; ++i)
@@ -254,6 +255,7 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recv_data)
         data << uint32(lvl);                                // player level
         data << uint32(class_);                             // player class
         data << uint32(race);                               // player race
+        data << uint8(gender);                              // player gender
         data << uint32(pzoneid);                            // player zone id
     }
 
@@ -327,6 +329,13 @@ void WorldSession::HandleLogoutCancelOpcode(WorldPacket& /*recv_data*/)
 
 void WorldSession::HandleTogglePvP(WorldPacket& recv_data)
 {
+    uint32 zoneId = GetPlayer()->GetZoneId();
+    if (AreaTableEntry const* zone = GetAreaEntryByAreaID(zoneId))
+    {
+        if (zone->flags & AREA_FLAG_SANCTUARY)
+            return;
+    }
+
     // this opcode can be used in two ways: Either set explicit new status or toggle old status
     if (recv_data.size() == 1)
     {
@@ -415,10 +424,13 @@ void WorldSession::HandleStandStateChangeOpcode(WorldPacket& recv_data)
     _player->SetStandState(uint8(animstate), true);
 }
 
-void WorldSession::HandleFriendListOpcode(WorldPacket& recv_data)
+void WorldSession::HandleContactListOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Received opcode CMSG_FRIEND_LIST");
-    _player->GetSocial()->SendFriendList();
+    DEBUG_LOG("WORLD: Received opcode CMSG_CONTACT_LIST");
+    uint32 unk;
+    recv_data >> unk;
+    DEBUG_LOG("unk value is %u", unk);
+    _player->GetSocial()->SendSocialList();
 }
 
 void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
@@ -426,8 +438,11 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: Received opcode CMSG_ADD_FRIEND");
 
     std::string friendName = GetMangosString(LANG_FRIEND_IGNORE_UNKNOWN);
+    std::string friendNote;
 
     recv_data >> friendName;
+
+    recv_data >> friendNote;
 
     if (!normalizePlayerName(friendName))
         return;
@@ -437,10 +452,10 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: %s asked to add friend : '%s'",
               GetPlayer()->GetName(), friendName.c_str());
 
-    CharacterDatabase.AsyncPQuery(&WorldSession::HandleAddFriendOpcodeCallBack, GetAccountId(), "SELECT guid, race FROM characters WHERE name = '%s'", friendName.c_str());
+    CharacterDatabase.AsyncPQuery(&WorldSession::HandleAddFriendOpcodeCallBack, GetAccountId(), friendNote, "SELECT guid, race FROM characters WHERE name = '%s'", friendName.c_str());
 }
 
-void WorldSession::HandleAddFriendOpcodeCallBack(QueryResult* result, uint32 accountId)
+void WorldSession::HandleAddFriendOpcodeCallBack(QueryResult* result, uint32 accountId, std::string friendNote)
 {
     if (!result)
         return;
@@ -481,6 +496,8 @@ void WorldSession::HandleAddFriendOpcodeCallBack(QueryResult* result, uint32 acc
                 friendResult = FRIEND_LIST_FULL;
                 DEBUG_LOG("WORLD: %s's friend list is full.", player->GetName());
             }
+
+            player->GetSocial()->SetFriendNote(friendGuid, std::move(friendNote));
         }
     }
 
@@ -578,6 +595,15 @@ void WorldSession::HandleDelIgnoreOpcode(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: Sent motd (SMSG_FRIEND_STATUS)");
 }
 
+void WorldSession::HandleSetContactNotesOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_SET_CONTACT_NOTES");
+    ObjectGuid guid;
+    std::string note;
+    recv_data >> guid >> note;
+    _player->GetSocial()->SetFriendNote(guid, note);
+}
+
 void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
 {
     uint32 suggestion, contentlen, typelen;
@@ -608,6 +634,10 @@ void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
     recv_data >> guid;
 
     if (GetPlayer()->IsAlive())
+        return;
+
+    // do not allow corpse reclaim in arena
+    if (GetPlayer()->InArena())
         return;
 
     // body not released yet
@@ -982,8 +1012,77 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
     if (_player->CanAttack(plr))
         return;
 
-    WorldPacket data(SMSG_INSPECT, 8);
-    data << ObjectGuid(guid);
+    uint32 talent_points = 0x3D;
+    uint32 guid_size = plr->GetPackGUID().size();
+    WorldPacket data(SMSG_INSPECT_TALENT, 4 + talent_points);
+    data << plr->GetPackGUID();
+    data << uint32(talent_points);
+
+    // fill by 0 talents array
+    for (uint32 i = 0; i < talent_points; ++i)
+        data << uint8(0);
+
+    if (sWorld.getConfig(CONFIG_BOOL_TALENTS_INSPECTING) || _player->isGameMaster())
+    {
+        // find class talent tabs (all players have 3 talent tabs)
+        uint32 const* talentTabIds = GetTalentTabPages(plr->getClass());
+
+        uint32 talentTabPos = 0;                            // pos of first talent rank in tab including all prev tabs
+        for (uint32 i = 0; i < 3; ++i)
+        {
+            uint32 talentTabId = talentTabIds[i];
+
+            // fill by real data
+            for (uint32 talentId = 0; talentId < sTalentStore.GetNumRows(); ++talentId)
+            {
+                TalentEntry const* talentInfo = sTalentStore.LookupEntry(talentId);
+                if (!talentInfo)
+                    continue;
+
+                // skip another tab talents
+                if (talentInfo->TalentTab != talentTabId)
+                    continue;
+
+                // find talent rank
+                uint32 curtalent_maxrank = 0;
+                for (uint32 k = MAX_TALENT_RANK; k > 0; --k)
+                {
+                    if (talentInfo->RankID[k - 1] && plr->HasSpell(talentInfo->RankID[k - 1]))
+                    {
+                        curtalent_maxrank = k;
+                        break;
+                    }
+                }
+
+                // not learned talent
+                if (!curtalent_maxrank)
+                    continue;
+
+                // 1 rank talent bit index
+                uint32 curtalent_index = talentTabPos + GetTalentInspectBitPosInTab(talentId);
+
+                uint32 curtalent_rank_index = curtalent_index + curtalent_maxrank - 1;
+
+                // slot/offset in 7-bit bytes
+                uint32 curtalent_rank_slot7   = curtalent_rank_index / 7;
+                uint32 curtalent_rank_offset7 = curtalent_rank_index % 7;
+
+                // rank pos with skipped 8 bit
+                uint32 curtalent_rank_index2 = curtalent_rank_slot7 * 8 + curtalent_rank_offset7;
+
+                // slot/offset in 8-bit bytes with skipped high bit
+                uint32 curtalent_rank_slot = curtalent_rank_index2 / 8;
+                uint32 curtalent_rank_offset =  curtalent_rank_index2 % 8;
+
+                // apply mask
+                uint32 val = data.read<uint8>(guid_size + 4 + curtalent_rank_slot);
+                val |= (1 << curtalent_rank_offset);
+                data.put<uint8>(guid_size + 4 + curtalent_rank_slot, val & 0xFF);
+            }
+
+            talentTabPos += GetTalentTabInspectBitSize(talentTabId);
+        }
+    }
 
     SendPacket(data);
 }
@@ -997,7 +1096,7 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
 
     if (!player)
     {
-        DEBUG_LOG("%s not found!", guid.GetString().c_str());
+        sLog.outError("InspectHonorStats: WTF, player not found...");
         return;
     }
 
@@ -1007,32 +1106,13 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
     if (_player->CanAttack(player))
         return;
 
-    WorldPacket data(MSG_INSPECT_HONOR_STATS, (8 + 1 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1));
-    data << guid;                                       // player guid
-    // Rank, filling bar, PLAYER_BYTES_3, ??
-    data << (uint8)player->GetByteValue(PLAYER_FIELD_BYTES2, 0);
-    // Today Honorable and Dishonorable Kills
-    data << player->GetUInt32Value(PLAYER_FIELD_SESSION_KILLS);
-    // Yesterday Honorable Kills
-    data << player->GetUInt32Value(PLAYER_FIELD_YESTERDAY_KILLS);
-    // Last Week Honorable Kills
-    data << player->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_KILLS);
-    // This Week Honorable kills
-    data << player->GetUInt32Value(PLAYER_FIELD_THIS_WEEK_KILLS);
-    // Lifetime Honorable Kills
-    data << player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS);
-    // Lifetime Dishonorable Kills
-    data << player->GetUInt32Value(PLAYER_FIELD_LIFETIME_DISHONORABLE_KILLS);
-    // Yesterday Honor
-    data << player->GetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION);
-    // Last Week Honor
-    data << player->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_CONTRIBUTION);
-    // This Week Honor
-    data << player->GetUInt32Value(PLAYER_FIELD_THIS_WEEK_CONTRIBUTION);
-    // Last Week Standing
-    data << player->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_RANK);
-    data << (uint8)player->GetHonorHighestRankInfo().visualRank;           // Highest Rank, ??
-
+    WorldPacket data(MSG_INSPECT_HONOR_STATS, 8 + 1 + 4 * 4);
+    data << player->GetObjectGuid();
+    data << uint8(player->GetHighestPvPRankIndex());
+    data << uint32(player->GetUInt32Value(PLAYER_FIELD_KILLS));
+    data << uint32(player->GetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION));
+    data << uint32(player->GetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION));
+    data << uint32(player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORBALE_KILLS));
     SendPacket(data);
 }
 
@@ -1131,6 +1211,86 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
     DEBUG_LOG("Received whois command from player %s for character %s", GetPlayer()->GetName(), charname.c_str());
 }
 
+void WorldSession::HandleComplainOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_COMPLAIN");
+
+    uint8 spamType;
+    recv_data >> spamType;                                 // Spam type (Mail = 0, Chat = 1)
+
+    switch (spamType)
+    {
+        case 0:
+            HandleComplainMail(recv_data);
+            break;
+        case 1:
+            HandleComplainChat(recv_data);
+            break;
+    }
+
+    // NOTE: all chat messages from this spammer automatically ignored by spam reporter until logout in case chat spam.
+    // if it's mail spam - ALL mails from this spammer automatically removed by client
+
+    // Complaint Received message
+    WorldPacket data(SMSG_COMPLAIN_RESULT, 1);
+    data << uint8(0);
+    SendPacket(data);
+}
+
+void WorldSession::HandleComplainMail(WorldPacket& recv_data)
+{
+    ObjectGuid spammer;
+    uint32 unk1 = 0;
+    uint32 mailId = 0;
+    uint32 unk2 = 0;
+
+    recv_data >> spammer;
+    recv_data >> unk1;
+    recv_data >> mailId;
+    recv_data >> unk2;
+
+    DEBUG_LOG("REPORT SPAM MAIL: Spammer %s, unk1 %u, mailId %u, unk2 %u", spammer.GetString().c_str(), unk1, mailId, unk2);
+}
+
+void WorldSession::HandleComplainChat(WorldPacket& recv_data)
+{
+    ObjectGuid spammer;
+    uint32 unk1 = 0;
+    uint32 messageType = 0;
+    uint32 channelId = 0;
+    uint32 secondsSinceMessage = 0;
+    std::string description;
+
+    recv_data >> spammer;
+    recv_data >> unk1;
+    recv_data >> messageType;
+    recv_data >> channelId;
+    recv_data >> secondsSinceMessage;
+    recv_data >> description;
+
+    DEBUG_LOG("REPORT SPAM CHAT: Spammer %s, unk1 %u, messageType %u, channelId %u, secondsSinceMessage %u, description %s", spammer.GetString().c_str(), unk1, messageType, channelId, secondsSinceMessage, description.c_str());
+}
+
+void WorldSession::HandleRealmSplitOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_REALM_SPLIT");
+
+    uint32 unk;
+    std::string split_date = "01/01/01";
+    recv_data >> unk;
+
+    WorldPacket data(SMSG_REALM_SPLIT, 4 + 4 + split_date.size() + 1);
+    data << unk;
+    data << uint32(0x00000000);                             // realm split state
+    // split states:
+    // 0x0 realm normal
+    // 0x1 realm split
+    // 0x2 realm split pending
+    data << split_date;
+    SendPacket(data, true);
+    // DEBUG_LOG("response sent %u", unk);
+}
+
 void WorldSession::HandleFarSightOpcode(WorldPacket& recv_data)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_FAR_SIGHT");
@@ -1156,6 +1316,25 @@ void WorldSession::HandleFarSightOpcode(WorldPacket& recv_data)
     }
 }
 
+void WorldSession::HandleSetTitleOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_SET_TITLE");
+
+    int32 title;
+    recv_data >> title;
+
+    // -1 at none
+    if (title > 0 && title < MAX_TITLE_INDEX)
+    {
+        if (!GetPlayer()->HasTitle(title))
+            return;
+    }
+    else
+        title = 0;
+
+    GetPlayer()->SetUInt32Value(PLAYER_CHOSEN_TITLE, title);
+}
+
 void WorldSession::HandleResetInstancesOpcode(WorldPacket& /*recv_data*/)
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_RESET_INSTANCES");
@@ -1167,6 +1346,51 @@ void WorldSession::HandleResetInstancesOpcode(WorldPacket& /*recv_data*/)
     }
     else
         _player->ResetInstances(INSTANCE_RESET_ALL);
+}
+
+void WorldSession::HandleSetDungeonDifficultyOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode MSG_SET_DUNGEON_DIFFICULTY");
+
+    uint32 mode;
+    recv_data >> mode;
+
+    if (mode >= MAX_DIFFICULTY)
+    {
+        sLog.outError("WorldSession::HandleSetDungeonDifficultyOpcode: player %d sent an invalid instance mode %d!", _player->GetGUIDLow(), mode);
+        return;
+    }
+
+    if (Difficulty(mode) == _player->GetDifficulty())
+        return;
+
+    // cannot reset while in an instance
+    Map* map = _player->GetMap();
+    if (map && map->IsDungeon())
+    {
+        sLog.outError("WorldSession::HandleSetDungeonDifficultyOpcode: player %d tried to reset the instance while inside!", _player->GetGUIDLow());
+        return;
+    }
+
+    // Exception to set mode to normal for low-level players
+    if (_player->getLevel() < LEVELREQUIREMENT_HEROIC && mode > REGULAR_DIFFICULTY)
+        return;
+
+    if (Group* pGroup = _player->GetGroup())
+    {
+        if (pGroup->IsLeader(_player->GetObjectGuid()))
+        {
+            // the difficulty is set even if the instances can't be reset
+            //_player->SendDungeonDifficulty(true);
+            pGroup->ResetInstances(INSTANCE_RESET_CHANGE_DIFFICULTY, _player);
+            pGroup->SetDifficulty(Difficulty(mode));
+        }
+    }
+    else
+    {
+        _player->ResetInstances(INSTANCE_RESET_CHANGE_DIFFICULTY);
+        _player->SetDifficulty(Difficulty(mode));
+    }
 }
 
 void WorldSession::HandleCancelMountAuraOpcode(WorldPacket& /*recv_data*/)
@@ -1190,6 +1414,22 @@ void WorldSession::HandleCancelMountAuraOpcode(WorldPacket& /*recv_data*/)
     _player->Unmount();
 }
 
+void WorldSession::HandleMoveSetCanFlyAckOpcode(WorldPacket& recv_data)
+{
+    // fly mode on/off
+    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_SET_CAN_FLY_ACK");
+    // recv_data.hexlike();
+
+    MovementInfo movementInfo;
+
+    recv_data >> Unused<uint64>();                          // guid
+    recv_data >> Unused<uint32>();                          // unk
+    recv_data >> movementInfo;
+    recv_data >> Unused<uint32>();                          // unk2
+
+    _player->m_movementInfo.SetMovementFlags(movementInfo.GetMovementFlags());
+}
+
 void WorldSession::HandleRequestPetInfoOpcode(WorldPacket& /*recv_data */)
 {
     if (_player->GetPet())
@@ -1203,5 +1443,44 @@ void WorldSession::HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data)
     uint8 mode;
     recv_data >> mode;
 
+    if (mode)
+        _player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_TAXI_BENCHMARK);
+    else
+        _player->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_TAXI_BENCHMARK);
+
     DEBUG_LOG("Client used \"/timetest %d\" command", mode);
+}
+
+void WorldSession::HandleCommentatorModeOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: Received opcode CMSG_COMMENTATOR_ENABLE");
+
+    uint32 action;
+    recv_data >> action;
+
+    Player* _player = GetPlayer();
+
+    // Allow commentator mode only for players in GM mode
+    if (!_player->isGameMaster())
+        return;
+
+    // This opcode can be used in three ways:
+    // 0 - Request to turn commentator mode off
+    // 1 - Request to turn commentator mode on
+    // 2 - Request to toggle current commentator mode status
+    switch (action)
+    {
+        case 0:
+            _player->RemoveFlag(PLAYER_FLAGS, (PLAYER_FLAGS_COMMENTATOR | PLAYER_FLAGS_COMMENTATOR_UBER));
+            break;
+        case 1:
+            _player->SetFlag(PLAYER_FLAGS, (PLAYER_FLAGS_COMMENTATOR | PLAYER_FLAGS_COMMENTATOR_UBER));
+            break;
+        case 2:
+            _player->ToggleFlag(PLAYER_FLAGS, (PLAYER_FLAGS_COMMENTATOR | PLAYER_FLAGS_COMMENTATOR_UBER));
+            break;
+        default:
+            sLog.outError("WorldSession::HandleCommentatorModeOpcode: player %d sent an invalid commentator mode action", _player->GetGUIDLow());
+            return;
+    }
 }

@@ -38,7 +38,6 @@ struct ItemSetEffect
     SpellEntry const* spells[8];
 };
 
-// [-ZERO] Need fix, possible uptodate in mangos-0.6
 enum InventoryResult
 {
     EQUIP_ERR_OK                                 = 0,
@@ -108,7 +107,21 @@ enum InventoryResult
     EQUIP_ERR_CANT_EQUIP_REPUTATION              = 64,      // ERR_CANT_EQUIP_REPUTATION
     EQUIP_ERR_TOO_MANY_SPECIAL_BAGS              = 65,      // ERR_TOO_MANY_SPECIAL_BAGS
     EQUIP_ERR_LOOT_CANT_LOOT_THAT_NOW            = 66,      // ERR_LOOT_CANT_LOOT_THAT_NOW
-    // any greater values show as "bag full"
+    EQUIP_ERR_ITEM_UNIQUE_EQUIPABLE              = 67,      // ERR_ITEM_UNIQUE_EQUIPPABLE
+    EQUIP_ERR_VENDOR_MISSING_TURNINS             = 68,      // ERR_VENDOR_MISSING_TURNINS
+    EQUIP_ERR_NOT_ENOUGH_HONOR_POINTS            = 69,      // ERR_NOT_ENOUGH_HONOR_POINTS
+    EQUIP_ERR_NOT_ENOUGH_ARENA_POINTS            = 70,      // ERR_NOT_ENOUGH_ARENA_POINTS
+    EQUIP_ERR_ITEM_MAX_COUNT_SOCKETED            = 71,      // ERR_ITEM_MAX_COUNT_SOCKETED
+    EQUIP_ERR_MAIL_BOUND_ITEM                    = 72,      // ERR_MAIL_BOUND_ITEM
+    EQUIP_ERR_NO_SPLIT_WHILE_PROSPECTING         = 73,      // ERR_INTERNAL_BAG_ERROR
+    EQUIP_ERR_BAG_FULL7                          = 74,      // ERR_BAG_FULL
+    EQUIP_ERR_ITEM_MAX_COUNT_EQUIPPED_SOCKETED   = 75,      // ERR_ITEM_MAX_COUNT_EQUIPPED_SOCKETED
+    EQUIP_ERR_ITEM_UNIQUE_EQUIPPABLE_SOCKETED    = 76,      // ERR_ITEM_UNIQUE_EQUIPPABLE_SOCKETED
+    EQUIP_ERR_TOO_MUCH_GOLD                      = 77,      // ERR_TOO_MUCH_GOLD
+    EQUIP_ERR_NOT_DURING_ARENA_MATCH             = 78,      // ERR_NOT_DURING_ARENA_MATCH
+    EQUIP_ERR_CANNOT_TRADE_THAT                  = 79,      // ERR_TRADE_BOUND_ITEM
+    EQUIP_ERR_PERSONAL_ARENA_RATING_TOO_LOW      = 80,      // ERR_CANT_EQUIP_RATING
+    // probably exist more
 };
 
 enum BuyResult
@@ -137,18 +150,25 @@ enum SellResult
 // -1 from client enchantment slot number
 enum EnchantmentSlot
 {
-    PERM_ENCHANTMENT_SLOT       = 0,
-    TEMP_ENCHANTMENT_SLOT       = 1,
-    MAX_INSPECTED_ENCHANTMENT_SLOT = 2,
+    PERM_ENCHANTMENT_SLOT           = 0,
+    TEMP_ENCHANTMENT_SLOT           = 1,
+    SOCK_ENCHANTMENT_SLOT           = 2,
+    SOCK_ENCHANTMENT_SLOT_2         = 3,
+    SOCK_ENCHANTMENT_SLOT_3         = 4,
+    BONUS_ENCHANTMENT_SLOT          = 5,
+    MAX_INSPECTED_ENCHANTMENT_SLOT  = 6,
 
-    PROP_ENCHANTMENT_SLOT_0     = 3,                        // used with RandomSuffix
-    PROP_ENCHANTMENT_SLOT_1     = 4,                        // used with RandomSuffix
-    PROP_ENCHANTMENT_SLOT_2     = 5,                        // used with RandomSuffix
-    PROP_ENCHANTMENT_SLOT_3     = 6,
-    MAX_ENCHANTMENT_SLOT        = 7
+    PROP_ENCHANTMENT_SLOT_0         = 6,                    // used with RandomSuffix
+    PROP_ENCHANTMENT_SLOT_1         = 7,                    // used with RandomSuffix
+    PROP_ENCHANTMENT_SLOT_2         = 8,                    // used with RandomSuffix and RandomProperty
+    PROP_ENCHANTMENT_SLOT_3         = 9,                    // used with RandomProperty
+    PROP_ENCHANTMENT_SLOT_4         = 10,                   // used with RandomProperty
+    MAX_ENCHANTMENT_SLOT            = 11
 };
 
-#define MAX_VISIBLE_ITEM_OFFSET       12
+#define MAX_VISIBLE_ITEM_OFFSET       16                    // 16 fields per visible item (creator(2) + enchantments(12) + properties(1) + pad(1))
+
+#define MAX_GEM_SOCKETS               MAX_ITEM_PROTO_SOCKETS// (BONUS_ENCHANTMENT_SLOT-SOCK_ENCHANTMENT_SLOT) and item proto size, equal value expected
 
 enum EnchantmentOffset
 {
@@ -206,6 +226,16 @@ enum ItemDynFlags
     ITEM_DYNFLAG_UNK15                        = 0x00008000,
     ITEM_DYNFLAG_UNK16                        = 0x00010000,
     ITEM_DYNFLAG_UNK17                        = 0x00020000,
+    ITEM_DYNFLAG_UNK18                        = 0x00040000,
+    ITEM_DYNFLAG_UNK19                        = 0x00080000,
+    ITEM_DYNFLAG_UNK20                        = 0x00100000,
+    ITEM_DYNFLAG_UNK21                        = 0x00200000,
+    ITEM_DYNFLAG_UNK22                        = 0x00400000,
+    ITEM_DYNFLAG_UNK23                        = 0x00800000,
+    ITEM_DYNFLAG_UNK24                        = 0x01000000,
+    ITEM_DYNFLAG_UNK25                        = 0x02000000,
+    ITEM_DYNFLAG_UNK26                        = 0x04000000,
+    ITEM_DYNFLAG_UNK27                        = 0x08000000,
 };
 
 enum ItemRequiredTargetType
@@ -264,10 +294,12 @@ class Item : public Object
         bool IsFitToSpellRequirements(SpellEntry const* spellInfo) const;
         bool IsTargetValidForItemUse(Unit* pUnitTarget) const;
         bool IsLimitedToAnotherMapOrZone(uint32 cur_mapId, uint32 cur_zoneId) const;
+        bool GemsFitSockets() const;
 
         uint32 GetCount() const { return GetUInt32Value(ITEM_FIELD_STACK_COUNT); }
         void SetCount(uint32 value) { SetUInt32Value(ITEM_FIELD_STACK_COUNT, value); }
         uint32 GetMaxStackCount() const { return GetProto()->GetMaxStackSize(); }
+        uint8 GetGemCountWithID(uint32 GemID) const;
         InventoryResult CanBeMergedPartlyWith(ItemPrototype const* proto) const;
 
         uint8 GetSlot() const {return m_slot;}
@@ -287,14 +319,15 @@ class Item : public Object
         int32 GetItemRandomPropertyId() const { return GetInt32Value(ITEM_FIELD_RANDOM_PROPERTIES_ID); }
         uint32 GetItemSuffixFactor() const { return GetUInt32Value(ITEM_FIELD_PROPERTY_SEED); }
         void SetItemRandomProperties(int32 randomPropId);
+        bool UpdateItemSuffixFactor();
         static int32 GenerateItemRandomPropertyId(uint32 item_id);
         void SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint32 charges, ObjectGuid caster = ObjectGuid());
         void SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration);
         void SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges);
         void ClearEnchantment(EnchantmentSlot slot);
-        uint32 GetEnchantmentId(EnchantmentSlot slot)       const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET);}
-        uint32 GetEnchantmentDuration(EnchantmentSlot slot) const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET);}
-        uint32 GetEnchantmentCharges(EnchantmentSlot slot)  const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET);}
+        uint32 GetEnchantmentId(EnchantmentSlot slot)       const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET);}
+        uint32 GetEnchantmentDuration(EnchantmentSlot slot) const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET);}
+        uint32 GetEnchantmentCharges(EnchantmentSlot slot)  const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET);}
 
         uint32 GetEnchantmentModifier() { return m_enchantmentModifier; }
         void SetEnchantmentModifier(uint32 value) { m_enchantmentModifier = value; }

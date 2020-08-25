@@ -23,7 +23,6 @@
 #include "Entities/GameObject.h"
 #include "Entities/DynamicObject.h"
 #include "Globals/ObjectMgr.h"
-#include "Globals/ObjectAccessor.h"
 #include "Tools/Formulas.h"
 
 /////////////////////////////////////////////////
@@ -76,13 +75,21 @@ Player const* Unit::GetControllingPlayer(bool ignoreCharms/* = false*/) const
 
     // Original logic begins
 
-    // Pre-TBC variant
+    // TBC+: up to master's master
     if (ObjectGuid const& masterGuid = (this->*getter)())
     {
         if (Unit const* master = ObjectAccessor::GetUnit(*this, masterGuid))
         {
             if (master->GetTypeId() == TYPEID_PLAYER)
                 return static_cast<Player const*>(master);
+            if (ObjectGuid const& masterMasterGuid = (master->*getter)())
+            {
+                if (Unit const* masterMaster = ObjectAccessor::GetUnit(*this, masterMasterGuid))
+                {
+                    if (masterMaster->GetTypeId() == TYPEID_PLAYER)
+                        return static_cast<Player const*>(masterMaster);
+                }
+            }
         }
     }
     else if (GetTypeId() == TYPEID_PLAYER)
@@ -171,11 +178,14 @@ static ReputationRank GetFactionReaction(FactionTemplateEntry const* thisTemplat
                     if (const ReputationRank* rank = unitPlayer->GetReputationMgr().GetForcedRankIfAny(thisTemplate))
                         return (*rank);
 
-                    const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry(thisTemplate->faction);
-                    if (thisFactionEntry && thisFactionEntry->HasReputation())
+                    if (!unit->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_IGNORE_REPUTATION))
                     {
-                        const ReputationMgr& reputationMgr = unitPlayer->GetReputationMgr();
-                        return reputationMgr.GetRank(thisFactionEntry);
+                        const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry<FactionEntry>(thisTemplate->faction);
+                        if (thisFactionEntry && thisFactionEntry->HasReputation())
+                        {
+                            const ReputationMgr& reputationMgr = unitPlayer->GetReputationMgr();
+                            return reputationMgr.GetRank(thisFactionEntry);
+                        }
                     }
                 }
 
@@ -214,7 +224,6 @@ ReputationRank Unit::GetReactionTo(Unit const* unit) const
             if (!thisPlayer || !unitPlayer)
                 return REP_NEUTRAL;
 
-            // Pre-TBC same player check: not present clientside in this order, but in for optimization (same result achieved through same group check below)
             if (thisPlayer == unitPlayer)
                 return REP_FRIENDLY;
 
@@ -241,12 +250,11 @@ ReputationRank Unit::GetReactionTo(Unit const* unit) const
                 if (const ReputationRank* rank = thisPlayer->GetReputationMgr().GetForcedRankIfAny(unitFactionTemplate))
                     return (*rank);
 
-                const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry(unitFactionTemplate->faction);
+                const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry<FactionEntry>(unitFactionTemplate->faction);
 
                 // If the faction has reputation ranks available, "at war" and contested PVP flags decide outcome
-                if (unitFactionEntry && unitFactionEntry->HasReputation())
+                if (!this->HasFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_IGNORE_REPUTATION) && unitFactionEntry && unitFactionEntry->HasReputation())
                 {
-                    // Pre-TBC contested check: not present clientside in this order, but in for optimization (same result achieved through faction to unit check below)
                     if (thisPlayer->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_CONTESTED_PVP) && unitFactionTemplate->IsContestedGuardFaction())
                         return REP_HOSTILE;
 
@@ -263,7 +271,7 @@ ReputationRank Unit::GetReactionTo(Unit const* unit) const
     {
         if (const FactionTemplateEntry* unitFactionTemplate = unit->GetFactionTemplateEntry())
         {
-            const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry(unitFactionTemplate->faction);
+            const FactionEntry* unitFactionEntry = sFactionStore.LookupEntry<FactionEntry>(unitFactionTemplate->faction);
             if (unitFactionEntry && unitFactionEntry->HasReputation())
                 reaction = ReputationRank(int32(reaction) + 1);
         }
@@ -351,12 +359,17 @@ bool Unit::IsFriend(Unit const* unit) const
 ///
 /// Client-side counterpart: <tt>CGUnit_C::CanAttack(const CGUnit_C *this, const CGUnit_C *unit)</tt>
 /// Backbone of all spells which can target hostile units.
+/// Dependent 2.0+ macro API condition: <tt>[harm]</tt>
 /////////////////////////////////////////////////
 bool Unit::CanAttack(const Unit* unit) const
 {
     MANGOS_ASSERT(unit)
 
     // Original logic
+
+    // TBC+: Arena Tournament commenatator
+    if (GetTypeId() == TYPEID_PLAYER && static_cast<const Player*>(this)->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_COMMENTATOR))
+        return false;
 
     // Creatures cannot attack player ghosts, unless it is a specially flagged ghost creature
     if (GetTypeId() == TYPEID_UNIT && unit->GetTypeId() == TYPEID_PLAYER && static_cast<const Player*>(unit)->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
@@ -376,6 +389,10 @@ bool Unit::CanAttack(const Unit* unit) const
     {
         if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
             return false;
+
+        // TBC: Sanctuary check
+        if (unit->IsPvPSanctuary())
+            return false;
     }
     else if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
         return false;
@@ -384,6 +401,10 @@ bool Unit::CanAttack(const Unit* unit) const
     if (unitPlayerControlled)
     {
         if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
+            return false;
+
+        // TBC: Sanctuary check
+        if (IsPvPSanctuary())
             return false;
     }
     else if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
@@ -425,9 +446,8 @@ bool Unit::CanAttack(const Unit* unit) const
 ///
 /// @note Relations API Tier 1
 ///
-/// Backported from TBC+ client-side counterpart: <tt>CGUnit_C::CanAttackNow(const CGUnit_C *this, const CGUnit_C *unit)</tt>
+/// Client-side counterpart: <tt>CGUnit_C::CanAttackNow(const CGUnit_C *this, const CGUnit_C *unit)</tt>
 /// Intended usage is to verify direct requests to attack something.
-/// First appeared in TBC+ clients, backported for API unification between expansions.
 /////////////////////////////////////////////////
 bool Unit::CanAttackNow(const Unit* unit) const
 {
@@ -439,9 +459,13 @@ bool Unit::CanAttackNow(const Unit* unit) const
     if (!IsAlive())
         return false;
 
-    // We can't initiate attack while mounted
+    // We can't initiate attack while mounted ...
     if (IsMounted())
-        return false;
+    {
+        // ... unless we are a creature with a special flag
+        if (GetTypeId() != TYPEID_UNIT || !(static_cast<const Creature*>(this)->GetCreatureInfo()->CreatureTypeFlags & CREATURE_TYPEFLAGS_MOUNTED_COMBAT))
+            return false;
+    }
 
     // We can't initiate attack on dead units
     if (!unit->IsAlive())
@@ -455,11 +479,11 @@ bool Unit::CanAttackNow(const Unit* unit) const
 ///
 /// @note Relations API Tier 1
 ///
-/// Client-side counterpart: <tt>CGUnit_C::CanAssist(const CGUnit_C *this, const CGUnit_C *unit)</tt>
+/// Client-side counterpart: <tt>CGUnit_C::CanAssist(const CGUnit_C *this, const CGUnit_C *unit, bool ignoreFlags)</tt>
 /// Backbone of all spells which can target friendly units.
-/// Optional ignoreFlags parameter first appeared in TBC+ clients, backported for API unification between expansions.
+/// Dependent 2.0+ macro API condition: <tt>[help]</tt>
 /////////////////////////////////////////////////
-bool Unit::CanAssist(const Unit* unit, bool /*ignoreFlags*/) const
+bool Unit::CanAssist(const Unit* unit, bool ignoreFlags) const
 {
     MANGOS_ASSERT(unit)
 
@@ -468,6 +492,18 @@ bool Unit::CanAssist(const Unit* unit, bool /*ignoreFlags*/) const
     // We can't assist unselectable unit
     if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))
         return false;
+
+    // Check immunity flags
+    if (!ignoreFlags)
+    {
+        if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED))
+        {
+            if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
+                return false;
+        }
+        else if (unit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
+            return false;
+    }
 
     // Exclude non-friendlies at this point
     if (GetReactionTo(unit) < REP_FRIENDLY)
@@ -498,6 +534,13 @@ bool Unit::CanAssist(const Unit* unit, bool /*ignoreFlags*/) const
 
             if (unitPlayer->IsPvPFreeForAll() && !thisPlayer->IsPvPFreeForAll())
                 return false;
+
+            // TBC+: Cannot help a player outside of the sanctuary zone from within
+            if (thisPlayer->IsPvPSanctuary() && !unitPlayer->IsPvPSanctuary())
+            {
+                if (isPvPUI(unitPlayer))
+                    return false;
+            }
         }
         return true;
     }
@@ -506,10 +549,21 @@ bool Unit::CanAssist(const Unit* unit, bool /*ignoreFlags*/) const
     if (!HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED))
         return true;
 
-    // Pre-TBC: We are left with player assisting an npc case here: can assist friendly NPCs with PVP flag
+    // We are left with player assisting an npc case here: can assist if we ignore flags during the check, or friendly NPCs with PVP flag or special assist flag
+    if (ignoreFlags)
+        return true;
+
     if (isPvPUI(unit))
         return true;
 
+    if (unit->GetTypeId() == TYPEID_UNIT)
+    {
+        if (const uint32 flags = static_cast<const Creature*>(unit)->GetCreatureInfo()->CreatureTypeFlags)
+        {
+            if (flags & CREATURE_TYPEFLAGS_CAN_ASSIST)
+                return true;
+        }
+    }
     return false;
 }
 
@@ -520,6 +574,7 @@ bool Unit::CanAssist(const Unit* unit, bool /*ignoreFlags*/) const
 ///
 /// Client-side counterpart: <tt>CGUnit_C::CanAssist(const CGUnit_C *this, const CGCorpse_C *corpse)</tt>
 /// Backbone of all spells which can target friendly corpses.
+/// Dependent 2.0+ macro API condition: <tt>[help]</tt> (mouseover only for obvious reasons)
 /////////////////////////////////////////////////
 bool Unit::CanAssist(Corpse const* corpse) const
 {
@@ -552,7 +607,6 @@ bool Unit::CanCooperate(const Unit* unit) const
         if (const FactionTemplateEntry* unitFactionTemplate = unit->GetFactionTemplateEntry())
         {
             if (thisFactionTemplate->factionGroupMask == unitFactionTemplate->factionGroupMask)
-                // Pre-TBC: CanAttack check is not present clientside (always true), but potentially can be useful serverside to resolve some corner cases (e.g. duels). TODO: research needed
                 return (!CanAttack(unit));
         }
     }
@@ -690,7 +744,9 @@ bool Unit::IsTrivialForTarget(Unit const* pov) const
 ///
 /// @note Relations API Tier 1
 ///
-/// Client-side counterpart: <tt>static function (original symbol name unknown)</tt>
+/// Forwardported from classic client-side counterpart: <tt>static function (original symbol name unknown)</tt>
+/// Gameplay concept of dishonorable kill was removed in 2.0.1, all API related to it was removed in 2.0.3.
+/// First appeared in 1.5.0, lasted until 2.0.3, forwardported for API unification and potential alternative usecases.
 /////////////////////////////////////////////////
 bool Unit::IsCivilianForTarget(Unit const* pov) const
 {
@@ -1105,7 +1161,7 @@ bool Unit::CanAttackSpell(Unit const* target, SpellEntry const* spellInfo, bool 
                     {
                         if (const FactionTemplateEntry* thisFactionTemplate = GetFactionTemplateEntry())
                         {
-                            const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry(thisFactionTemplate->faction);
+                            const FactionEntry* thisFactionEntry = sFactionStore.LookupEntry<FactionEntry>(thisFactionTemplate->faction);
                             if (thisFactionEntry && thisFactionEntry->HasReputation())
                                 return unitPlayer->GetReputationMgr().IsAtWar(thisFactionEntry);
                         }
@@ -1128,7 +1184,7 @@ bool Unit::CanAttackSpell(Unit const* target, SpellEntry const* spellInfo, bool 
 /////////////////////////////////////////////////
 bool Unit::CanAssistSpell(Unit const* target, SpellEntry const* spellInfo) const
 {
-    return CanAssist(target);
+    return CanAssist(target, (spellInfo && spellInfo->HasAttribute(SPELL_ATTR_EX6_ASSIST_IGNORE_IMMUNE_FLAG)));
 }
 
 /////////////////////////////////////////////////

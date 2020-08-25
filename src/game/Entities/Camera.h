@@ -51,7 +51,7 @@ class Camera
         void UpdateVisibilityOf(T* target, UpdateData& data, WorldObjectSet& vis);
         void UpdateVisibilityOf(WorldObject* target) const;
 
-        void ReceivePacket(WorldPacket& data);
+        void ReceivePacket(WorldPacket const& data) const;
 
         // updates visibility of worldobjects around viewpoint for camera's owner
         void UpdateVisibilityForOwner();

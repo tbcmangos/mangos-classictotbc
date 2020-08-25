@@ -282,7 +282,6 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
     // DEBUG_LOG("WORLD: CMSG_ITEM_QUERY_SINGLE");
     uint32 item;
     recv_data >> item;
-    recv_data.read_skip<uint64>();                          // guid
 
     DETAIL_LOG("STORAGE: Item Query = %u", item);
 
@@ -295,13 +294,12 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
         std::string description = pProto->Description;
         sObjectMgr.GetItemLocaleStrings(pProto->ItemId, loc_idx, &name, &description);
 
-
         // guess size
         WorldPacket data(SMSG_ITEM_QUERY_SINGLE_RESPONSE, 600);
         data << pProto->ItemId;
         data << pProto->Class;
-        // client known only 0 subclass (and 1-2 obsolute subclasses)
-        data << (pProto->Class == ITEM_CLASS_CONSUMABLE ? uint32(0) : pProto->SubClass);
+        data << pProto->SubClass;
+        data << uint32(-1);                                 // new 2.0.3, not exist in wdb cache?
         data << name;
         data << uint8(0x00);                                // pProto->Name2; // blizz not send name there, just uint8(0x00); <-- \0 = empty string = empty name...
         data << uint8(0x00);                                // pProto->Name3; // blizz not send name there, just uint8(0x00);
@@ -322,7 +320,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
         data << pProto->RequiredHonorRank;
         data << pProto->RequiredCityRank;
         data << pProto->RequiredReputationFaction;
-        data << (pProto->RequiredReputationFaction > 0  ? pProto->RequiredReputationRank : 0);   // send value only if reputation faction id setted ( needed for some items)
+        data << pProto->RequiredReputationRank;
         data << pProto->MaxCount;
         data << pProto->Stackable;
         data << pProto->ContainerSlots;
@@ -349,7 +347,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
 
         data << pProto->Delay;
         data << pProto->AmmoType;
-        data << (float)pProto->RangedModRange;
+        data << pProto->RangedModRange;
 
         for (const auto& Spell : pProto->Spells)
         {
@@ -399,12 +397,24 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
         data << pProto->Material;
         data << pProto->Sheath;
         data << pProto->RandomProperty;
+        data << pProto->RandomSuffix;
         data << pProto->Block;
         data << pProto->ItemSet;
         data << pProto->MaxDurability;
         data << pProto->Area;
         data << pProto->Map;                                // Added in 1.12.x & 2.0.1 client branch
         data << pProto->BagFamily;
+        data << pProto->TotemCategory;
+        for (auto s : pProto->Socket)
+        {
+            data << s.Color;
+            data << s.Content;
+        }
+        data << uint32(pProto->socketBonus);
+        data << uint32(pProto->GemProperties);
+        data << int32(pProto->RequiredDisenchantSkill);
+        data << float(pProto->ArmorDamageModifier);
+        data << uint32(pProto->Duration);                   // added in 2.4.2.8209, duration (seconds)
         SendPacket(data);
     }
     else
@@ -729,7 +739,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid) const
 
     uint8 count = 0;
 
-    WorldPacket data(SMSG_LIST_INVENTORY, (8 + 1 + numitems * 7 * 4));
+    WorldPacket data(SMSG_LIST_INVENTORY, (8 + 1 + numitems * 8 * 4));
     data << ObjectGuid(vendorguid);
 
     size_t count_pos = data.wpos();
@@ -757,11 +767,6 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid) const
                     if ((pProto->AllowableRace & _player->getRaceMask()) == 0)
                         continue;
 
-                    // when no faction required but rank > 0 will be used faction id from the vendor faction template to compare the rank
-                    if (!pProto->RequiredReputationFaction && pProto->RequiredReputationRank > 0 &&
-                            ReputationRank(pProto->RequiredReputationRank) > _player->GetReputationRank(pCreature->GetFactionTemplateEntry()->faction))
-                        continue;
-
                     if (crItem->conditionId && !sObjectMgr.IsConditionSatisfied(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
                         continue;
                 }
@@ -778,6 +783,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid) const
                 data << uint32(price);
                 data << uint32(pProto->MaxDurability);
                 data << uint32(pProto->BuyCount);
+                data << uint32(crItem->ExtendedCost);
             }
         }
     }
@@ -1029,7 +1035,6 @@ void WorldSession::HandleItemNameQueryOpcode(WorldPacket& recv_data)
 
         std::string name = pProto->Name1;
         sObjectMgr.GetItemLocaleStrings(pProto->ItemId, loc_idx, &name);
-
         // guess size
         WorldPacket data(SMSG_ITEM_NAME_QUERY_RESPONSE, (4 + 10));
         data << uint32(pProto->ItemId);
@@ -1038,7 +1043,13 @@ void WorldSession::HandleItemNameQueryOpcode(WorldPacket& recv_data)
         SendPacket(data);
     }
     else
-        sLog.outError("WORLD: CMSG_ITEM_NAME_QUERY for item %u failed (unknown item)", itemid);
+    {
+        // listed in dbc or not expected to exist unknown item
+        if (sItemStore.LookupEntry(itemid))
+            sLog.outErrorDb("WORLD: CMSG_ITEM_NAME_QUERY for item %u failed (item listed in Item.dbc but not exist in DB)", itemid);
+        else
+            sLog.outError("WORLD: CMSG_ITEM_NAME_QUERY for item %u failed (unknown item, not listed in Item.dbc)", itemid);
+    }
 }
 
 void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)
@@ -1145,6 +1156,164 @@ void WorldSession::HandleWrapItemOpcode(WorldPacket& recv_data)
 
     uint32 count = 1;
     _player->DestroyItemCount(gift, count, true);
+}
+
+void WorldSession::HandleSocketOpcode(WorldPacket& recv_data)
+{
+    DEBUG_LOG("WORLD: CMSG_SOCKET_GEMS");
+
+    ObjectGuid itemGuid;
+    ObjectGuid gemGuids[MAX_GEM_SOCKETS];
+
+    recv_data >> itemGuid;
+    if (!itemGuid.IsItem())
+        return;
+
+    for (auto& gemGuid : gemGuids)
+        recv_data >> gemGuid;
+
+    // cheat -> tried to socket same gem multiple times
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
+    {
+        ObjectGuid gemGuid = gemGuids[i];
+        if (!gemGuid)
+            continue;
+
+        if (!gemGuid.IsItem())
+            return;
+
+        for (int j = i + 1; j < MAX_GEM_SOCKETS; ++j)
+            if (gemGuids[j] == gemGuid)
+                return;
+    }
+
+    Item* itemTarget = _player->GetItemByGuid(itemGuid);
+    if (!itemTarget)                                        // missing item to socket
+        return;
+
+    ItemPrototype const* itemProto = itemTarget->GetProto();
+    if (!itemProto)
+        return;
+
+    // this slot is excepted when applying / removing meta gem bonus
+    uint8 slot = itemTarget->IsEquipped() ? itemTarget->GetSlot() : uint8(NULL_SLOT);
+
+    Item* Gems[MAX_GEM_SOCKETS];
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
+        Gems[i] = gemGuids[i] ? _player->GetItemByGuid(gemGuids[i]) : nullptr;
+
+    GemPropertiesEntry const* GemProps[MAX_GEM_SOCKETS];
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)               // get geminfo from dbc storage
+        GemProps[i] = (Gems[i]) ? sGemPropertiesStore.LookupEntry(Gems[i]->GetProto()->GemProperties) : nullptr;
+
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)               // check for hack maybe
+    {
+        if (!GemProps[i])
+            continue;
+
+        // tried to put gem in socket where no socket exists
+        if (!itemProto->Socket[i].Color)
+            return;
+
+        // tried to put normal gem in meta socket
+        if (itemProto->Socket[i].Color == SOCKET_COLOR_META && GemProps[i]->color != SOCKET_COLOR_META)
+            return;
+
+        // tried to put meta gem in normal socket
+        if (itemProto->Socket[i].Color != SOCKET_COLOR_META && GemProps[i]->color == SOCKET_COLOR_META)
+            return;
+    }
+
+    uint32 GemEnchants[MAX_GEM_SOCKETS];
+    uint32 OldEnchants[MAX_GEM_SOCKETS];
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)               // get new and old enchantments
+    {
+        GemEnchants[i] = (GemProps[i]) ? GemProps[i]->spellitemenchantement : 0;
+        OldEnchants[i] = itemTarget->GetEnchantmentId(EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + i));
+    }
+
+    // check unique-equipped conditions
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
+    {
+        if (!Gems[i])
+            continue;
+
+        // continue check for case when attempt add 2 similar unique equipped gems in one item.
+        ItemPrototype const* iGemProto = Gems[i]->GetProto();
+
+        // unique item (for new and already placed bit removed enchantments
+        if (iGemProto->Flags & ITEM_FLAG_UNIQUE_EQUIPPABLE)
+        {
+            for (int j = 0; j < MAX_GEM_SOCKETS; ++j)
+            {
+                if (i == j)                                 // skip self
+                    continue;
+
+                if (Gems[j])
+                {
+                    if (iGemProto->ItemId == Gems[j]->GetEntry())
+                    {
+                        _player->SendEquipError(EQUIP_ERR_ITEM_UNIQUE_EQUIPPABLE_SOCKETED, itemTarget, nullptr);
+                        return;
+                    }
+                }
+                else if (OldEnchants[j])
+                {
+                    if (SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(OldEnchants[j]))
+                    {
+                        if (iGemProto->ItemId == enchantEntry->GemID)
+                        {
+                            _player->SendEquipError(EQUIP_ERR_ITEM_UNIQUE_EQUIPPABLE_SOCKETED, itemTarget, nullptr);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // for equipped item check all equipment for duplicate equipped gems
+        if (itemTarget->IsEquipped())
+        {
+            if (InventoryResult res = _player->CanEquipUniqueItem(Gems[i], slot))
+            {
+                _player->SendEquipError(res, itemTarget, nullptr);
+                return;
+            }
+        }
+    }
+
+    bool SocketBonusActivated = itemTarget->GemsFitSockets();    // save state of socketbonus
+    _player->ToggleMetaGemsActive(slot, false);             // turn off all metagems (except for the target item)
+
+    // if a meta gem is being equipped, all information has to be written to the item before testing if the conditions for the gem are met
+
+    // remove ALL enchants
+    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS; ++enchant_slot)
+        _player->ApplyEnchantment(itemTarget, EnchantmentSlot(enchant_slot), false);
+
+    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
+    {
+        if (GemEnchants[i])
+        {
+            itemTarget->SetEnchantment(EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + i), GemEnchants[i], 0, 0, _player->GetObjectGuid());
+            if (Item* guidItem = gemGuids[i] ? _player->GetItemByGuid(gemGuids[i]) : nullptr)
+                _player->DestroyItem(guidItem->GetBagSlot(), guidItem->GetSlot(), true);
+        }
+    }
+
+    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS; ++enchant_slot)
+        _player->ApplyEnchantment(itemTarget, EnchantmentSlot(enchant_slot), true);
+
+    bool SocketBonusToBeActivated = itemTarget->GemsFitSockets();// current socketbonus state
+    if (SocketBonusActivated != SocketBonusToBeActivated)   // if there was a change...
+    {
+        _player->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, false);
+        itemTarget->SetEnchantment(BONUS_ENCHANTMENT_SLOT, (SocketBonusToBeActivated ? itemTarget->GetProto()->socketBonus : 0), 0, 0, _player->GetObjectGuid());
+        _player->ApplyEnchantment(itemTarget, BONUS_ENCHANTMENT_SLOT, true);
+        // it is not displayed, client has an inbuilt system to determine if the bonus is activated
+    }
+
+    _player->ToggleMetaGemsActive(slot, true);              // turn on all metagems (except for target item)
 }
 
 void WorldSession::HandleCancelTempEnchantmentOpcode(WorldPacket& recv_data)

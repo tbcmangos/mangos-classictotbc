@@ -21,8 +21,7 @@
 #include "Groups/Group.h"
 #include "Entities/Player.h"
 #include "Globals/ObjectMgr.h"
-#include "Globals/ObjectAccessor.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Server/DBCStores.h"
 #include "AI/BaseAI/CreatureAI.h"
 #include "Maps/InstanceData.h"
@@ -41,9 +40,9 @@ bool Totem::Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo const* 
         return false;
 
     // special model selection case for totems
-    if (owner->GetTypeId() == TYPEID_PLAYER && static_cast<Player*>(owner)->GetTeam() == ALLIANCE)
-        if (uint32 modelid_team = sObjectMgr.GetCreatureModelOtherTeamModel(GetDisplayId()))
-            SetDisplayId(modelid_team);
+    if (owner->GetTypeId() == TYPEID_PLAYER)
+        if (uint32 modelid_race = sObjectMgr.GetModelForRace(GetNativeDisplayId(), owner->getRaceMask()))
+            SetDisplayId(modelid_race);
 
     cPos.SelectFinalPoint(this);
 
@@ -254,7 +253,9 @@ bool Totem::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex 
         case SPELL_EFFECT_HEAL:
         case SPELL_EFFECT_HEAL_MAX_HEALTH:
         case SPELL_EFFECT_HEAL_MECHANICAL:
+        case SPELL_EFFECT_HEAL_PCT:
         case SPELL_EFFECT_ENERGIZE:
+        case SPELL_EFFECT_ENERGIZE_PCT:
             return true;
         default:
             break;

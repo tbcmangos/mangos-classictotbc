@@ -27,7 +27,7 @@
 #include "Globals/ObjectMgr.h"
 #include "Entities/ObjectGuid.h"
 #include "Entities/UpdateData.h"
-#include "Entities/UpdateMask.h"
+#include "UpdateMask.h"
 #include "Util.h"
 #include "Grids/CellImpl.h"
 #include "Grids/GridNotifiers.h"
@@ -163,6 +163,12 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
         }
     }
 
+    if (isType(TYPEMASK_UNIT))
+    {
+        if (((Unit*) this)->GetVictim())
+            updateFlags |= UPDATEFLAG_HAS_ATTACKING_TARGET;
+    }
+
     // DEBUG_LOG("BuildCreateUpdate: update-type: %u, object-type: %u got updateFlags: %X", updatetype, m_objectTypeId, updateFlags);
 
     ByteBuffer buf(500);
@@ -171,6 +177,7 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target) c
     buf << uint8(m_objectTypeId);
 
     BuildMovementUpdate(&buf, updateFlags);
+
     UpdateMask updateMask;
     updateMask.SetCount(m_valuesCount);
     _SetCreateBits(&updateMask, target);
@@ -239,84 +246,122 @@ void Object::DestroyForPlayer(Player* target) const
 
 void Object::BuildMovementUpdate(ByteBuffer* data, uint8 updateFlags) const
 {
-    Unit const* unit = nullptr;
-    uint32 highGuid = 0;
-    MovementFlags moveflags = MOVEFLAG_NONE;
+    *data << uint8(updateFlags);                            // update flags
 
-    switch (m_objectTypeId)
-    {
-        case TYPEID_OBJECT:
-        case TYPEID_ITEM:
-        case TYPEID_CONTAINER:
-        case TYPEID_GAMEOBJECT:
-        case TYPEID_DYNAMICOBJECT:
-        case TYPEID_CORPSE:
-            highGuid = uint32(GetObjectGuid().GetHigh());
-            break;
-
-        case TYPEID_PLAYER:
-            // TODO: this code must not be here
-            if (static_cast<Player const*>(this)->GetTransport())
-                ((Unit*)this)->m_movementInfo.AddMovementFlag(MOVEFLAG_ONTRANSPORT);
-            else
-                ((Unit*)this)->m_movementInfo.RemoveMovementFlag(MOVEFLAG_ONTRANSPORT);
-
-        case TYPEID_UNIT:
-            unit = static_cast<Unit const*>(this);
-            moveflags = unit->m_movementInfo.GetMovementFlags();
-            break;
-
-        default:
-            break;
-    }
-
-    *data << uint8(updateFlags);
-
+    // 0x20
     if (updateFlags & UPDATEFLAG_LIVING)
     {
-        MANGOS_ASSERT(unit);
-        if (unit->IsStopped() && unit->m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ENABLED))
+        Unit* unit = ((Unit*)this);
+
+        if (GetTypeId() == TYPEID_PLAYER)
         {
-            sLog.outError("%s is not moving but have spline movement enabled!", GetGuidStr().c_str());
-            ((Unit*)this)->m_movementInfo.RemoveMovementFlag(MovementFlags(MOVEFLAG_SPLINE_ENABLED | MOVEFLAG_FORWARD));
+            Player* player = ((Player*)unit);
+            if (player->GetTransport())
+                player->m_movementInfo.AddMovementFlag(MOVEFLAG_ONTRANSPORT);
+            else
+                player->m_movementInfo.RemoveMovementFlag(MOVEFLAG_ONTRANSPORT);
         }
 
-        *data << unit->m_movementInfo;
+        // Update movement info time
+        unit->m_movementInfo.UpdateTime(WorldTimer::getMSTime());
+        // Write movement info
+        unit->m_movementInfo.Write(*data);
+
         // Unit speeds
         *data << float(unit->GetSpeed(MOVE_WALK));
         *data << float(unit->GetSpeed(MOVE_RUN));
         *data << float(unit->GetSpeed(MOVE_RUN_BACK));
         *data << float(unit->GetSpeed(MOVE_SWIM));
         *data << float(unit->GetSpeed(MOVE_SWIM_BACK));
+        *data << float(unit->GetSpeed(MOVE_FLIGHT));
+        *data << float(unit->GetSpeed(MOVE_FLIGHT_BACK));
         *data << float(unit->GetSpeed(MOVE_TURN_RATE));
 
-        if (unit->m_movementInfo.HasMovementFlag(MOVEFLAG_SPLINE_ENABLED))
+        // 0x08000000
+        if (unit->m_movementInfo.GetMovementFlags() & MOVEFLAG_SPLINE_ENABLED)
             Movement::PacketBuilder::WriteCreate(*unit->movespline, *data);
     }
+    // 0x40
     else if (updateFlags & UPDATEFLAG_HAS_POSITION)
     {
-        *data << ((WorldObject*)this)->GetPositionX();
-        *data << ((WorldObject*)this)->GetPositionY();
-        *data << ((WorldObject*)this)->GetPositionZ();
-        *data << ((WorldObject*)this)->GetOrientation();
+        // 0x02
+        if (updateFlags & UPDATEFLAG_TRANSPORT && ((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_MO_TRANSPORT)
+        {
+            *data << float(0);
+            *data << float(0);
+            *data << float(0);
+            *data << float(((WorldObject*)this)->GetOrientation());
+        }
+        else
+        {
+            *data << float(((WorldObject*)this)->GetPositionX());
+            *data << float(((WorldObject*)this)->GetPositionY());
+            *data << float(((WorldObject*)this)->GetPositionZ());
+            *data << float(((WorldObject*)this)->GetOrientation());
+        }
     }
 
-    if (updateFlags & UPDATEFLAG_HIGHGUID)
-        *data << highGuid;
-
-    if (updateFlags & UPDATEFLAG_ALL)
-        *data << (uint32)0x1;
-
-    if (updateFlags & UPDATEFLAG_FULLGUID)
+    // 0x8
+    if (updateFlags & UPDATEFLAG_LOWGUID)
     {
-        if (unit && unit->GetVictim())
-            *data << unit->GetVictim()->GetPackGUID();
+        switch (GetTypeId())
+        {
+            case TYPEID_OBJECT:
+            case TYPEID_ITEM:
+            case TYPEID_CONTAINER:
+            case TYPEID_GAMEOBJECT:
+            case TYPEID_DYNAMICOBJECT:
+            case TYPEID_CORPSE:
+                *data << uint32(GetGUIDLow());              // GetGUIDLow()
+                break;
+            case TYPEID_UNIT:
+                *data << uint32(0x0000000B);                // unk, can be 0xB or 0xC
+                break;
+            case TYPEID_PLAYER:
+                if (updateFlags & UPDATEFLAG_SELF)
+                    *data << uint32(0x00000015);            // unk, can be 0x15 or 0x22
+                else
+                    *data << uint32(0x00000008);            // unk, can be 0x7 or 0x8
+                break;
+            default:
+                *data << uint32(0x00000000);                // unk
+                break;
+        }
+    }
+
+    // 0x10
+    if (updateFlags & UPDATEFLAG_HIGHGUID)
+    {
+        switch (GetTypeId())
+        {
+            case TYPEID_OBJECT:
+            case TYPEID_ITEM:
+            case TYPEID_CONTAINER:
+            case TYPEID_GAMEOBJECT:
+            case TYPEID_DYNAMICOBJECT:
+            case TYPEID_CORPSE:
+                *data << uint32(GetObjectGuid().GetHigh()); // GetGUIDHigh()
+                break;
+            default:
+                *data << uint32(0x00000000);                // unk
+                break;
+        }
+    }
+
+    // 0x4
+    if (updateFlags & UPDATEFLAG_HAS_ATTACKING_TARGET)      // packed guid (current target guid)
+    {
+        if (((Unit*) this)->GetVictim())
+            *data << ((Unit*) this)->GetVictim()->GetPackGUID();
         else
             data->appendPackGUID(0);
     }
 
+    // 0x2
     if (updateFlags & UPDATEFLAG_TRANSPORT)
-        *data << uint32(WorldTimer::getMSTime());
+    {
+        *data << uint32(WorldTimer::getMSTime());           // ms time
+    }
 }
 
 void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* updateMask, Player* target) const
@@ -336,6 +381,14 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
 
             updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);
         }
+        else if (isType(TYPEMASK_UNIT))
+        {
+            if (((Unit*)this)->HasAuraState(AURA_STATE_CONFLAGRATE))
+            {
+                IsPerCasterAuraState = true;
+                updateMask->SetBit(UNIT_FIELD_AURASTATE);
+            }
+        }
     }
     else                                                    // case UPDATETYPE_VALUES
     {
@@ -346,6 +399,14 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
 
             updateMask->SetBit(GAMEOBJECT_DYN_FLAGS);
             updateMask->SetBit(GAMEOBJECT_ANIMPROGRESS);
+        }
+        else if (isType(TYPEMASK_UNIT))
+        {
+            if (((Unit*)this)->HasAuraState(AURA_STATE_CONFLAGRATE))
+            {
+                IsPerCasterAuraState = true;
+                updateMask->SetBit(UNIT_FIELD_AURASTATE);
+            }
         }
     }
 
@@ -370,7 +431,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                         if (appendValue & UNIT_NPC_FLAG_TRAINER)
                         {
                             if (!((Creature*)this)->IsTrainerOf(target, false))
-                                appendValue &= ~UNIT_NPC_FLAG_TRAINER;
+                                appendValue &= ~(UNIT_NPC_FLAG_TRAINER | UNIT_NPC_FLAG_TRAINER_CLASS | UNIT_NPC_FLAG_TRAINER_PROFESSION);
                         }
 
                         if (appendValue & UNIT_NPC_FLAG_STABLEMASTER)
@@ -407,6 +468,19 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
 
                     *data << uint32(appendValue);
                 }
+                else if (index == UNIT_FIELD_AURASTATE)
+                {
+                    if (IsPerCasterAuraState)
+                    {
+                        // IsPerCasterAuraState set if related pet caster aura state set already
+                        if (((Unit*)this)->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE, target->GetObjectGuid()))
+                            *data << m_uint32Values[index];
+                        else
+                            *data << (m_uint32Values[index] & ~(1 << (AURA_STATE_CONFLAGRATE - 1)));
+                    }
+                    else
+                        *data << m_uint32Values[index];
+                }
                 // FIXME: Some values at server stored in float format but must be sent to client in uint32 format
                 else if (index >= UNIT_FIELD_BASEATTACKTIME && index <= UNIT_FIELD_RANGEDATTACKTIME)
                 {
@@ -415,10 +489,10 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 }
 
                 // there are some float values which may be negative or can't get negative due to other checks
-                else if ((index >= PLAYER_FIELD_NEGSTAT0    && index <= PLAYER_FIELD_NEGSTAT4) ||
-                         (index >= PLAYER_FIELD_RESISTANCEBUFFMODSPOSITIVE  && index <= (PLAYER_FIELD_RESISTANCEBUFFMODSPOSITIVE + 6)) ||
-                         (index >= PLAYER_FIELD_RESISTANCEBUFFMODSNEGATIVE  && index <= (PLAYER_FIELD_RESISTANCEBUFFMODSNEGATIVE + 6)) ||
-                         (index >= PLAYER_FIELD_POSSTAT0    && index <= PLAYER_FIELD_POSSTAT4))
+                else if ((index >= UNIT_FIELD_NEGSTAT0 && index <= UNIT_FIELD_NEGSTAT4) ||
+                         (index >= UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE  && index <= (UNIT_FIELD_RESISTANCEBUFFMODSPOSITIVE + 6)) ||
+                         (index >= UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE  && index <= (UNIT_FIELD_RESISTANCEBUFFMODSNEGATIVE + 6)) ||
+                         (index >= UNIT_FIELD_POSSTAT0 && index <= UNIT_FIELD_POSSTAT4))
                 {
                     *data << uint32(m_floatValues[index]);
                 }
@@ -447,7 +521,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                           index == UNIT_FIELD_ATTACK_POWER_MODS || index == UNIT_FIELD_ATTACK_POWER_MULTIPLIER ||
                           index == UNIT_FIELD_RANGED_ATTACK_POWER || index == UNIT_FIELD_RANGED_ATTACK_POWER_MODS ||
                           index == UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER || index == UNIT_FIELD_MINRANGEDDAMAGE ||
-                          index == UNIT_FIELD_MAXRANGEDDAMAGE || (index >= UNIT_FIELD_POWER_COST_MODIFIER && index <= UNIT_FIELD_POWER_COST_MULTIPLIER_06)) &&
+                          index == UNIT_FIELD_MAXRANGEDDAMAGE || (index >= UNIT_FIELD_POWER_COST_MODIFIER && index <= UNIT_FIELD_MAXHEALTHMODIFIER)) &&
                           !static_cast<const Unit*>(this)->IsFogOfWarVisibleStats(target))
                 {
                     *data << uint32(0);
@@ -481,63 +555,86 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 }
                 // Hide lootable animation for unallowed players
                 // Handle tapped flag
-                else if (index == UNIT_DYNAMIC_FLAGS && GetTypeId() == TYPEID_UNIT)
+                // Hide special-info for non empathy-casters,
+                else if (index == UNIT_DYNAMIC_FLAGS)
                 {
-                    Creature* creature = (Creature*)this;
                     uint32 dynflagsValue = m_uint32Values[index];
-                    bool setTapFlags = false;
 
-                    if (creature->IsAlive())
+                    // Checking SPELL_AURA_EMPATHY and caster
+                    if (dynflagsValue & UNIT_DYNFLAG_SPECIALINFO && ((Unit*) this)->IsAlive())
                     {
-                        // creature is alive so, not lootable
-                        dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_LOOTABLE;
-
-                        if (creature->IsInCombat())
+                        bool bIsEmpathy = false;
+                        bool bIsCaster = false;
+                        Unit::AuraList const& mAuraEmpathy = ((Unit*)this)->GetAurasByType(SPELL_AURA_EMPATHY);
+                        for (Unit::AuraList::const_iterator itr = mAuraEmpathy.begin(); !bIsCaster && itr != mAuraEmpathy.end(); ++itr)
                         {
-                            // as creature is in combat we have to manage tap flags
+                            bIsEmpathy = true;              // Empathy by aura set
+                            if ((*itr)->GetCasterGuid() == target->GetObjectGuid())
+                                bIsCaster = true;           // target is the caster of an empathy aura
+                        }
+                        if (bIsEmpathy && !bIsCaster)       // Empathy by aura, but target is not the caster
+                            dynflagsValue &= ~UNIT_DYNFLAG_SPECIALINFO;
+                    }
+
+                    // Hide lootable animation for unallowed players
+                    // Handle tapped flag
+                    if (GetTypeId() == TYPEID_UNIT)
+                    {
+                        Creature* creature = (Creature*)this;
+                        bool setTapFlags = false;
+
+                        if (creature->IsAlive())
+                        {
+                            // creature is alive so, not lootable
+                            dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_LOOTABLE;
+
+                            if (creature->IsInCombat())
+                            {
+                                // as creature is in combat we have to manage tap flags
+                                setTapFlags = true;
+                            }
+                            else
+                            {
+                                // creature is not in combat so its not tapped
+                                dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_TAPPED;
+                                //sLog.outString(">> %s is not in combat so not tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            }
+                        }
+                        else
+                        {
+                            // check m_loot flag
+                            if (creature->m_loot && creature->m_loot->CanLoot(target))
+                            {
+                                // creature is dead and this player can loot it
+                                dynflagsValue = dynflagsValue | UNIT_DYNFLAG_LOOTABLE;
+                                //sLog.outString(">> %s is lootable for %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            }
+                            else
+                            {
+                                // creature is dead but this player cannot loot it
+                                dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_LOOTABLE;
+                                //sLog.outString(">> %s is not lootable for %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            }
+
+                            // as creature is died we have to manage tap flags
                             setTapFlags = true;
                         }
-                        else
-                        {
-                            // creature is not in combat so its not tapped
-                            dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_TAPPED;
-                            //sLog.outString(">> %s is not in combat so not tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
-                        }
-                    }
-                    else
-                    {
-                        // check loot flag
-                        if (creature->m_loot && creature->m_loot->CanLoot(target))
-                        {
-                            // creature is dead and this player can loot it
-                            dynflagsValue = dynflagsValue | UNIT_DYNFLAG_LOOTABLE;
-                            //sLog.outString(">> %s is lootable for %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
-                        }
-                        else
-                        {
-                            // creature is dead but this player cannot loot it
-                            dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_LOOTABLE;
-                            //sLog.outString(">> %s is not lootable for %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
-                        }
 
-                        // as creature is died we have to manage tap flags
-                        setTapFlags = true;
-                    }
-
-                    // check tap flags
-                    if (setTapFlags)
-                    {
-                        if (creature->IsTappedBy(target))
+                        // check tap flags
+                        if (setTapFlags)
                         {
-                            // creature is in combat or died and tapped by this player
-                            dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_TAPPED;
-                            //sLog.outString(">> %s is tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
-                        }
-                        else
-                        {
-                            // creature is in combat or died but not tapped by this player
-                            dynflagsValue = dynflagsValue | UNIT_DYNFLAG_TAPPED;
-                            //sLog.outString(">> %s is not tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            if (creature->IsTappedBy(target))
+                            {
+                                // creature is in combat or died and tapped by this player
+                                dynflagsValue = dynflagsValue & ~UNIT_DYNFLAG_TAPPED;
+                                //sLog.outString(">> %s is tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            }
+                            else
+                            {
+                                // creature is in combat or died but not tapped by this player
+                                dynflagsValue = dynflagsValue | UNIT_DYNFLAG_TAPPED;
+                                //sLog.outString(">> %s is not tapped by %s", this->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+                            }
                         }
                     }
 
@@ -626,12 +723,18 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 // send in current format (float as float, uint32 as uint32)
                 if (index == GAMEOBJECT_DYN_FLAGS)
                 {
+                    // GAMEOBJECT_TYPE_DUNGEON_DIFFICULTY can have lo flag = 2
+                    //      most likely related to "can enter map" and then should be 0 if can not enter
+
                     if (IsActivateToQuest)
                     {
                         GameObject const* gameObject = static_cast<GameObject const*>(this);
                         switch (((GameObject*)this)->GetGoType())
                         {
                             case GAMEOBJECT_TYPE_QUESTGIVER:
+                                *data << uint16(GO_DYNFLAG_LO_ACTIVATE);
+                                *data << uint16(0);
+                                break;
                             case GAMEOBJECT_TYPE_CHEST:
                                 if (gameObject->GetLootState() == GO_READY || gameObject->GetLootState() == GO_ACTIVATED)
                                     *data << uint16(GO_DYNFLAG_LO_ACTIVATE | GO_DYNFLAG_LO_SPARKLE);
@@ -642,7 +745,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                             case GAMEOBJECT_TYPE_GENERIC:
                             case GAMEOBJECT_TYPE_SPELL_FOCUS:
                             case GAMEOBJECT_TYPE_GOOBER:
-                                *data << uint16(GO_DYNFLAG_LO_ACTIVATE);
+                                *data << uint16(GO_DYNFLAG_LO_ACTIVATE | GO_DYNFLAG_LO_SPARKLE);
                                 *data << uint16(0);
                                 break;
                             default:
@@ -1015,10 +1118,9 @@ void Object::ForceValuesUpdateAtIndex(uint16 index)
 }
 
 WorldObject::WorldObject() :
-    m_isOnEventNotified(false),
+    m_transportInfo(nullptr), m_isOnEventNotified(false),
     m_currMap(nullptr), m_mapId(0),
-    m_InstanceId(0), m_isActiveObject(false),
-    m_visibilityData(this),
+    m_InstanceId(0), m_isActiveObject(false), m_visibilityData(this),
     m_debugFlags(0)
 {
 }
@@ -1221,6 +1323,13 @@ bool WorldObject::IsWithinLOS(float ox, float oy, float oz, bool ignoreM2Model) 
     float x, y, z;
     GetPosition(x, y, z);
     return GetMap()->IsInLineOfSight(x, y, z + GetCollisionHeight(), ox, oy, oz, ignoreM2Model);
+}
+
+bool WorldObject::IsWithinLOSForMe(float ox, float oy, float oz, float collisionHeight, bool ignoreM2Model) const
+{
+    float x, y, z;
+    GetPosition(x, y, z);
+    return GetMap()->IsInLineOfSight(x, y, z + collisionHeight, ox, oy, oz + collisionHeight, ignoreM2Model);
 }
 
 bool WorldObject::GetDistanceOrder(WorldObject const* obj1, WorldObject const* obj2, bool is3D /* = true */, DistanceCalculation distcalc /* = NONE */) const
@@ -1676,7 +1785,7 @@ void WorldObject::SendMessageToSetInRange(WorldPacket const& data, float dist, b
         GetMap()->MessageDistBroadcast(this, data, dist);
 }
 
-void WorldObject::SendMessageToSetExcept(WorldPacket& data, Player const* skipped_receiver) const
+void WorldObject::SendMessageToSetExcept(WorldPacket const& data, Player const* skipped_receiver) const
 {
     // if object is in world, map for it already created!
     if (IsInWorld())
@@ -1931,6 +2040,7 @@ void WorldObject::GetNearPointAt(const float posX, const float posY, const float
     //}
 
     // maybe can just place in primary position
+    float collisionHeight = GetCollisionHeight();
     if (selector.CheckOriginalAngle())
     {
         if (searcher)
@@ -1938,7 +2048,7 @@ void WorldObject::GetNearPointAt(const float posX, const float posY, const float
         else if (!isInWater)
             UpdateGroundPositionZ(x, y, z);
 
-        if (std::abs(init_z - z) < dist && IsWithinLOS(x, y, z))
+        if (fabs(init_z - z) < dist && IsWithinLOSForMe(x, y, z, collisionHeight))
             return;
 
         first_los_conflict = true;                          // first point have LOS problems
@@ -1960,7 +2070,7 @@ void WorldObject::GetNearPointAt(const float posX, const float posY, const float
         else if (!isInWater)
             UpdateGroundPositionZ(x, y, z);
 
-        if (std::abs(init_z - z) < dist && IsWithinLOS(x, y, z))
+        if (fabs(init_z - z) < dist && IsWithinLOSForMe(x, y, z, collisionHeight))
             return;
     }
 
@@ -1992,7 +2102,7 @@ void WorldObject::GetNearPointAt(const float posX, const float posY, const float
         else if (!isInWater)
             UpdateGroundPositionZ(x, y, z);
 
-        if (std::abs(init_z - z) < dist && IsWithinLOS(x, y, z))
+        if (fabs(init_z - z) < dist && IsWithinLOSForMe(x, y, z, collisionHeight))
             return;
     }
 
@@ -2469,7 +2579,7 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
     if (unitCaster && basePointsPerLevel != 0.f)
     {
         int32 level = int32(unitCaster->getLevel());
-        if (level > (int32)spellProto->maxLevel&& spellProto->maxLevel > 0)
+        if (level > (int32)spellProto->maxLevel && spellProto->maxLevel > 0)
             level = (int32)spellProto->maxLevel;
         else if (level < (int32)spellProto->baseLevel)
             level = (int32)spellProto->baseLevel;
@@ -2501,8 +2611,25 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
         value += (int32)(comboDamage * comboPoints);
 
     if (unitCaster)
-        if (Player* modOwner = unitCaster->GetSpellModOwner())
+    {
+        if (Player * modOwner = unitCaster->GetSpellModOwner())
+        {
             modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_ALL_EFFECTS, value);
+
+            switch (effect_index)
+            {
+                case EFFECT_INDEX_0:
+                    modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT1, value);
+                    break;
+                case EFFECT_INDEX_1:
+                    modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT2, value);
+                    break;
+                case EFFECT_INDEX_2:
+                    modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT3, value);
+                    break;
+            }
+        }
+    }
 
     if (unitCaster && spellProto->HasAttribute(SPELL_ATTR_LEVEL_DAMAGE_CALCULATION) && spellProto->spellLevel)
     {
@@ -2537,14 +2664,19 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
                 case SPELL_EFFECT_WEAPON_DAMAGE:
                 case SPELL_EFFECT_POWER_BURN:
                 case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                case SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE:
                     damage = true;
             }
         }
 
         if (damage)
         {
-            value = int32(value * 0.25f * exp(unitCaster->getLevel() * (70 - spellProto->spellLevel) / 1000.0f));
+            GtNPCManaCostScalerEntry const* spellScaler = sGtNPCManaCostScalerStore.LookupEntry(spellProto->spellLevel - 1);
+            GtNPCManaCostScalerEntry const* casterScaler = sGtNPCManaCostScalerStore.LookupEntry(unitCaster->getLevel() - 1);
+            if (spellScaler && casterScaler)
+                value *= casterScaler->ratio / spellScaler->ratio;
         }
     }
+
     return value;
 }

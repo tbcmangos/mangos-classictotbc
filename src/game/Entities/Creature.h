@@ -40,7 +40,7 @@ class WorldSession;
 struct GameEventCreatureData;
 enum class VisibilityDistanceType : uint32;
 
-enum CreatureFlagsExtra
+enum CreatureExtraFlags
 {
     CREATURE_EXTRA_FLAG_INSTANCE_BIND          = 0x00000001,       // 1 creature kill bind instance with killer and killer's group
     CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT      = 0x00000002,       // 2 no aggro (ignore faction/reputation hostility)
@@ -76,8 +76,8 @@ enum CreatureFlagsExtra
 #endif
 
 #define MAX_KILL_CREDIT 2
-#define MAX_CREATURE_MODEL 4                                // only single send to client in static data
-#define USE_DEFAULT_DATABASE_LEVEL  0                       // just used to show we don't want to force the new creature level and use the level stored in db
+#define MAX_CREATURE_MODEL 4
+#define USE_DEFAULT_DATABASE_LEVEL  0                   // just used to show we don't want to force the new creature level and use the level stored in db
 #define MINIMUM_LOOTING_TIME (2 * MINUTE * IN_MILLISECONDS) // give player enough time to pick loot
 
 // from `creature_template` table
@@ -86,30 +86,33 @@ struct CreatureInfo
     uint32  Entry;
     char*   Name;
     char*   SubName;
+    char*   IconName;
     uint32  MinLevel;
     uint32  MaxLevel;
+    uint32  HeroicEntry;
     uint32  ModelId[MAX_CREATURE_MODEL];
     uint32  Faction;
     float   Scale;
-    uint32  Family;                                         // enum CreatureFamily values (optional)
-    uint32  CreatureType;                                   // enum CreatureType values
+    uint32  Family;                                        // enum CreatureFamily values (optional)
+    uint32  CreatureType;                                  // enum CreatureType values
     uint32  InhabitType;
     uint32  RegenerateStats;
     bool    RacialLeader;
     uint32  NpcFlags;
-    uint32  UnitFlags;                                      // enum UnitFlags mask values
+    uint32  UnitFlags;                                     // enum UnitFlags mask values
     uint32  DynamicFlags;
     uint32  ExtraFlags;
-    uint32  CreatureTypeFlags;                              // enum CreatureTypeFlags mask values
+    uint32  CreatureTypeFlags;                             // enum CreatureTypeFlags mask values
     float   SpeedWalk;
     float   SpeedRun;
-    uint32  Detection;                                      // Detection Range for Line of Sight aggro
+    uint32  Detection;                                     // Detection Range for Line of Sight aggro
     uint32  CallForHelp;
     uint32  Pursuit;
     uint32  Leash;
     uint32  Timeout;
-    uint32  UnitClass;                                      // enum Classes. Note only 4 classes are known for creatures.
+    uint32  UnitClass;                                     // enum Classes. Note only 4 classes are known for creatures.
     uint32  Rank;
+    int32   Expansion;                                     // creature expansion, important for stats, CAN BE -1 as marker for some invalid cases.
     float   HealthMultiplier;
     float   PowerMultiplier;
     float   DamageMultiplier;
@@ -152,10 +155,9 @@ struct CreatureInfo
     uint32  TrainerRace;
     uint32  TrainerTemplateId;
     uint32  VendorTemplateId;
+    uint32  EquipmentTemplateId;
     uint32  GossipMenuId;
     VisibilityDistanceType visibilityDistanceType;
-    uint32  EquipmentTemplateId;
-    uint32  civilian;
     char const* AIName;
     uint32  ScriptID;
 
@@ -232,6 +234,7 @@ struct CreatureData
     uint32 curmana;
     bool  is_dead;
     uint8 movementType;
+    uint8 spawnMask;
     uint16 gameEvent;
     uint16 GuidPoolId;
     uint16 EntryPoolId;
@@ -284,7 +287,15 @@ struct CreatureModelInfo
     float SpeedRun;
     uint8 gender;
     uint32 modelid_other_gender;                            // The oposite gender for this modelid (male/female)
-    uint32 modelid_other_team;                              // The oposite team. Generally for alliance totem
+    uint32 modelid_alternative;                             // An alternative model. Generally same gender(2)
+};
+
+struct CreatureModelRace
+{
+    uint32 modelid;                                         // Native model/base model the selection is for
+    uint32 racemask;                                        // Races it applies to (and then a player source must exist for selection)
+    uint32 creature_entry;                                  // Modelid from creature_template.entry will be selected
+    uint32 modelid_racial;                                  // Explicit modelid. Used if creature_template entry is not defined
 };
 
 struct CreatureConditionalSpawn
@@ -385,12 +396,13 @@ enum RegenStatsFlags
 // Vendors
 struct VendorItem
 {
-    VendorItem(uint32 _item, uint32 _maxcount, uint32 _incrtime, uint16 _conditionId)
-        : item(_item), maxcount(_maxcount), incrtime(_incrtime), conditionId(_conditionId) {}
+    VendorItem(uint32 _item, uint32 _maxcount, uint32 _incrtime, uint32 _ExtendedCost, uint16 _conditionId)
+        : item(_item), maxcount(_maxcount), incrtime(_incrtime), ExtendedCost(_ExtendedCost), conditionId(_conditionId) {}
 
     uint32 item;
     uint32 maxcount;                                        // 0 for infinity item amount
     uint32 incrtime;                                        // time for restore items amount if maxcount != 0
+    uint32 ExtendedCost;                                    // index in ItemExtendedCost.dbc
     uint16 conditionId;                                     // condition to check for this item
 };
 typedef std::vector<VendorItem*> VendorItemList;
@@ -406,9 +418,9 @@ struct VendorItemData
     }
     bool Empty() const { return m_items.empty(); }
     uint8 GetItemCount() const { return m_items.size(); }
-    void AddItem(uint32 item, uint32 maxcount, uint32 ptime, uint16 conditonId)
+    void AddItem(uint32 item, uint32 maxcount, uint32 ptime, uint32 ExtendedCost, uint16 conditonId)
     {
-        m_items.push_back(new VendorItem(item, maxcount, ptime, conditonId));
+        m_items.push_back(new VendorItem(item, maxcount, ptime, ExtendedCost, conditonId));
     }
     bool RemoveItem(uint32 item_id);
     VendorItem const* FindItem(uint32 item_id) const;
@@ -436,24 +448,6 @@ typedef std::list<VendorItemCount> VendorItemCounts;
 
 struct TrainerSpell
 {
-#ifdef BUILD_PLAYERBOT
-    TrainerSpell() : spell(0), spellCost(0), reqSkill(0), reqSkillValue(0), reqLevel(0), learnedSpell(0), isProvidedReqLevel(false), conditionId(0) {}
-
-    TrainerSpell(uint32 _spell, uint32 _spellCost, uint32 _reqSkill, uint32 _reqSkillValue, uint32 _reqLevel, uint32 _learnedspell, bool _isProvidedReqLevel, uint32 _conditionId)
-        : spell(_spell), spellCost(_spellCost), reqSkill(_reqSkill), reqSkillValue(_reqSkillValue), reqLevel(_reqLevel), learnedSpell(_learnedspell), isProvidedReqLevel(_isProvidedReqLevel), conditionId(_conditionId) {}
-
-    uint32 spell;
-    uint32 spellCost;
-    uint32 reqSkill;
-    uint32 reqSkillValue;
-    uint32 reqLevel;
-    uint32 learnedSpell;
-    uint32 conditionId;
-    bool isProvidedReqLevel;
-
-    // helpers
-    bool IsCastable() const { return learnedSpell != spell; }
-#else
     TrainerSpell() : spell(0), spellCost(0), reqSkill(0), reqSkillValue(0), reqLevel(0), learnedSpell(0), conditionId(0), isProvidedReqLevel(false) {}
 
     TrainerSpell(uint32 _spell, uint32 _spellCost, uint32 _reqSkill, uint32 _reqSkillValue, uint32 _reqLevel, uint32 _learnedspell, bool _isProvidedReqLevel, uint32 _conditionId)
@@ -470,7 +464,6 @@ struct TrainerSpell
 
     // helpers
     bool IsCastable() const { return learnedSpell != spell; }
-#endif
 };
 
 typedef std::unordered_map < uint32 /*spellid*/, TrainerSpell > TrainerSpellMap;
@@ -505,10 +498,11 @@ enum VirtualItemInfoByteOffset
 {
     VIRTUAL_ITEM_INFO_0_OFFSET_CLASS         = 0,
     VIRTUAL_ITEM_INFO_0_OFFSET_SUBCLASS      = 1,
-    VIRTUAL_ITEM_INFO_0_OFFSET_MATERIAL      = 2,
-    VIRTUAL_ITEM_INFO_0_OFFSET_INVENTORYTYPE = 3,
+    VIRTUAL_ITEM_INFO_0_OFFSET_UNK0          = 2,
+    VIRTUAL_ITEM_INFO_0_OFFSET_MATERIAL      = 3,
 
-    VIRTUAL_ITEM_INFO_1_OFFSET_SHEATH        = 0,
+    VIRTUAL_ITEM_INFO_1_OFFSET_INVENTORYTYPE = 0,
+    VIRTUAL_ITEM_INFO_1_OFFSET_SHEATH        = 1,
 };
 
 struct CreatureCreatePos
@@ -617,13 +611,13 @@ class Creature : public Unit
 
         bool IsCorpse() const { return GetDeathState() == CORPSE; }
         bool IsDespawned() const { return GetDeathState() == DEAD; }
-        void SetCorpseDelay(uint32 delay) { m_corpseDelay = delay; }
+        void SetCorpseDelay(uint32 delay) { m_corpseDelay = delay; } // in seconds
         void ReduceCorpseDecayTimer();
         TimePoint GetCorpseDecayTimer() const { return m_corpseExpirationTime; }
         bool CanRestockPickpocketLoot() const;
         void StartPickpocketRestockTimer();
         bool IsRacialLeader() const { return GetCreatureInfo()->RacialLeader; }
-        bool IsCivilian() const { return GetCreatureInfo()->civilian != 0; }
+        bool IsCivilian() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_CIVILIAN) != 0; }
         bool IsNoAggroOnSight() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_NO_AGGRO_ON_SIGHT) != 0; }
         bool IsGuard() const { return (GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_GUARD) != 0; }
 
@@ -732,7 +726,7 @@ class Creature : public Unit
         bool LoadFromDB(uint32 guidlow, Map* map);
         virtual void SaveToDB();
         // overwrited in Pet
-        virtual void SaveToDB(uint32 mapid);
+        virtual void SaveToDB(uint32 mapid, uint8 spawnMask);
         virtual void DeleteFromDB();                        // overwrited in Pet
         static void DeleteFromDB(uint32 lowguid, CreatureData const* data);
 
@@ -745,8 +739,10 @@ class Creature : public Unit
         uint32 GetLootGroupRecipientId() const { return m_lootGroupRecipientId; }
         Player* GetLootRecipient() const;                   // use group cases as prefered
         Group* GetGroupLootRecipient() const;
+
         bool HasLootRecipient() const { return m_lootGroupRecipientId || m_lootRecipientGuid; }
         bool IsGroupLootRecipient() const { return m_lootGroupRecipientId != 0; }
+
         void SetLootRecipient(Unit* unit);
         Player* GetOriginalLootRecipient() const;           // ignore group changes/etc, not for looting
 
@@ -829,9 +825,10 @@ class Creature : public Unit
         void ClearTemporaryFaction();
         uint32 GetTemporaryFactionFlags() const { return m_temporaryFactionFlags; }
 
-        void SendAreaSpiritHealerQueryOpcode(Player* pl);
+        void SendAreaSpiritHealerQueryOpcode(Player* pl) const;
 
         void SetVirtualItem(VirtualItemSlot slot, uint32 item_id);
+        void SetVirtualItemRaw(VirtualItemSlot slot, uint32 display_id, uint32 info0, uint32 info1);
 
         bool hasWeapon(WeaponAttackType type) const override;
         bool hasWeaponForAttack(WeaponAttackType type) const override { return (Unit::hasWeaponForAttack(type) && hasWeapon(type)); }
@@ -905,7 +902,7 @@ class Creature : public Unit
         float m_respawnradius;
 
         CreatureSubtype m_subtype;                          // set in Creatures subclasses for fast it detect without dynamic_cast use
-        void RegeneratePower();
+        void RegeneratePower(float timerMultiplier);
         virtual void RegenerateHealth();
         MovementGeneratorType m_defaultMovementType;
         Cell m_currentCell;                                 // store current cell where creature listed
@@ -939,7 +936,7 @@ class Creature : public Unit
 
     private:
         GridReference<Creature> m_gridRef;
-        CreatureInfo const* m_creatureInfo;
+        CreatureInfo const* m_creatureInfo;                 // in heroic mode can different from sObjectMgr::GetCreatureTemplate(GetEntry())
 };
 
 class ForcedDespawnDelayEvent : public BasicEvent

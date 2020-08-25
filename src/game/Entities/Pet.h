@@ -115,8 +115,6 @@ enum PetTalk
     PET_TALK_ATTACK         = 1
 };
 
-
-// [-ZERO] Need recheck and drop not existed cases
 enum PetNameInvalidReason
 {
     // custom, not send
@@ -166,7 +164,7 @@ class Pet : public Creature
 
         bool Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo const* cinfo, uint32 pet_number);
         bool CreateBaseAtCreature(Creature* creature);
-        bool LoadPetFromDB(Player* owner, uint32 petentry = 0, uint32 petnumber = 0, bool current = false, uint32 healthPercentage = 0, bool permanentOnly = false);
+        bool LoadPetFromDB(Player* owner, uint32 petentry = 0, uint32 petnumber = 0, bool current = false, uint32 healthPercentage = 0, bool permanentOnly = false, bool forced = false);
         void SavePetToDB(PetSaveMode mode, Player* owner);
         bool isLoading() const { return m_loading; }
         void SetLoading(bool state) { m_loading = state; }
@@ -215,6 +213,7 @@ class Pet : public Creature
         void GivePetLevel(uint32 level);
         void SynchronizeLevelWithOwner();
         void InitStatsForLevel(uint32 petlevel);
+        void InitPetScalingAuras();
         bool HaveInDiet(ItemPrototype const* item) const;
         uint32 GetCurrentFoodBenefitLevel(uint32 itemlevel) const;
         void SetDuration(int32 dur) { m_duration = dur; }
@@ -282,6 +281,8 @@ class Pet : public Creature
         // overwrite Creature function for name localization back to WorldObject version without localization
         const char* GetNameForLocaleIdx(int32 locale_idx) const { return WorldObject::GetNameForLocaleIdx(locale_idx); }
 
+        DeclinedName const* GetDeclinedNames() const { return m_declinedname; }
+
         void SetRequiredXpForNextLoyaltyLevel();
         void UpdateRequireXpForNextLoyaltyLevel(uint32 xp);
 
@@ -307,12 +308,13 @@ class Pet : public Creature
         int32   m_bonusdamage;
         bool    m_loading;
         uint32  m_xpRequiredForNextLoyaltyLevel;
+        DeclinedName* m_declinedname;
 
     private:
         PetModeFlags m_petModeFlags;
         CharmInfo*   m_originalCharminfo;
 
-        void SaveToDB(uint32) override                      // overwrited of Creature::SaveToDB     - don't must be called
+        void SaveToDB(uint32, uint8) override               // overwrited of Creature::SaveToDB     - don't must be called
         {
             MANGOS_ASSERT(false);
         }

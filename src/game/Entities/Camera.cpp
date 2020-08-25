@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "Entities/Camera.h"
+#include "Camera.h"
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"
 #include "Log.h"
@@ -37,7 +37,7 @@ Camera::~Camera()
     m_source->GetViewPoint().Detach(this);
 }
 
-void Camera::ReceivePacket(WorldPacket& data)
+void Camera::ReceivePacket(WorldPacket const& data) const
 {
     m_owner.SendDirectMessage(data);
 }
@@ -87,7 +87,6 @@ void Camera::SetView(WorldObject* obj, bool update_far_sight_field /*= true*/)
         m_owner.SetGuidValue(PLAYER_FARSIGHT, (m_source == &m_owner ? ObjectGuid() : m_source->GetObjectGuid()));
 
     UpdateForCurrentViewPoint();
-    m_owner.SendForcedObjectUpdate();
 }
 
 void Camera::Event_ViewPointVisibilityChanged()

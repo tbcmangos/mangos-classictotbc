@@ -36,7 +36,7 @@ GossipMenu::~GossipMenu()
     ClearMenu();
 }
 
-void GossipMenu::AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSender, uint32 dtAction, const std::string& BoxMessage, bool Coded)
+void GossipMenu::AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSender, uint32 dtAction, const std::string& BoxMessage, uint32 BoxMoney, bool Coded)
 {
     MANGOS_ASSERT(m_gItems.size() <= GOSSIP_MAX_MENU_ITEMS);
 
@@ -48,6 +48,7 @@ void GossipMenu::AddMenuItem(uint8 Icon, const std::string& Message, uint32 dtSe
     gItem.m_gSender     = dtSender;
     gItem.m_gOptionId   = dtAction;
     gItem.m_gBoxMessage = BoxMessage;
+    gItem.m_gBoxMoney   = BoxMoney;
 
     m_gItems.push_back(gItem);
 }
@@ -65,7 +66,7 @@ void GossipMenu::AddGossipMenuItemData(int32 action_menu, uint32 action_poi, uin
 
 void GossipMenu::AddMenuItem(uint8 Icon, const std::string& Message, bool Coded)
 {
-    AddMenuItem(Icon, Message, 0, 0, "", Coded);
+    AddMenuItem(Icon, Message, 0, 0, "", 0, Coded);
 }
 
 void GossipMenu::AddMenuItem(uint8 Icon, char const* Message, bool Coded)
@@ -73,19 +74,19 @@ void GossipMenu::AddMenuItem(uint8 Icon, char const* Message, bool Coded)
     AddMenuItem(Icon, std::string(Message ? Message : ""), Coded);
 }
 
-void GossipMenu::AddMenuItem(uint8 Icon, char const* Message, uint32 dtSender, uint32 dtAction, char const* BoxMessage, bool Coded)
+void GossipMenu::AddMenuItem(uint8 Icon, char const* Message, uint32 dtSender, uint32 dtAction, char const* BoxMessage, uint32 BoxMoney, bool Coded)
 {
-    AddMenuItem(Icon, std::string(Message ? Message : ""), dtSender, dtAction, std::string(BoxMessage ? BoxMessage : ""), Coded);
+    AddMenuItem(Icon, std::string(Message ? Message : ""), dtSender, dtAction, std::string(BoxMessage ? BoxMessage : ""), BoxMoney, Coded);
 }
 
-void GossipMenu::AddMenuItem(uint8 Icon, int32 itemText, uint32 dtSender, uint32 dtAction, int32 boxText, bool Coded)
+void GossipMenu::AddMenuItem(uint8 Icon, int32 itemText, uint32 dtSender, uint32 dtAction, int32 boxText, uint32 BoxMoney, bool Coded)
 {
     uint32 loc_idx = m_session->GetSessionDbLocaleIndex();
 
     char const* item_text = itemText ? sObjectMgr.GetMangosString(itemText, loc_idx) : "";
     char const* box_text = boxText ? sObjectMgr.GetMangosString(boxText, loc_idx) : "";
 
-    AddMenuItem(Icon, std::string(item_text), dtSender, dtAction, std::string(box_text), Coded);
+    AddMenuItem(Icon, std::string(item_text), dtSender, dtAction, std::string(box_text), BoxMoney, Coded);
 }
 
 uint32 GossipMenu::MenuItemSender(unsigned int ItemId)
@@ -154,6 +155,7 @@ void PlayerMenu::SendGossipMenu(uint32 TitleTextId, ObjectGuid objectGuid)
 {
     WorldPacket data(SMSG_GOSSIP_MESSAGE, (100));           // guess size
     data << ObjectGuid(objectGuid);
+    data << uint32(mGossipMenu.GetMenuId());                // new 2.4.0
     data << uint32(TitleTextId);
     data << uint32(mGossipMenu.MenuItemCount());            // max count 0x20
 
@@ -163,7 +165,9 @@ void PlayerMenu::SendGossipMenu(uint32 TitleTextId, ObjectGuid objectGuid)
         data << uint32(iI);
         data << uint8(gItem.m_gIcon);
         data << uint8(gItem.m_gCoded);                      // makes pop up box password
+        data << uint32(gItem.m_gBoxMoney);                  // money required to open menu, 2.0.3
         data << gItem.m_gMessage;                           // text for gossip item, max 0x800
+        data << gItem.m_gBoxMessage;                        // accept text (related to money) pop up box, 2.0.3, max 0x800
     }
 
     data << uint32(mQuestMenu.MenuItemCount());             // max count 0x20
@@ -309,7 +313,7 @@ void PlayerMenu::SendQuestGiverQuestList(QEmote eEmote, const std::string& Title
 
             data << uint32(questID);
             data << uint32(qmi.m_qIcon);
-            data << uint32(pQuest->GetQuestLevel());
+            data << int32(pQuest->GetQuestLevel());
             data << title;
         }
     }
@@ -320,9 +324,9 @@ void PlayerMenu::SendQuestGiverQuestList(QEmote eEmote, const std::string& Title
 
 void PlayerMenu::SendQuestGiverStatus(uint8 questStatus, ObjectGuid npcGUID) const
 {
-    WorldPacket data(SMSG_QUESTGIVER_STATUS, 12);
-    data << ObjectGuid(npcGUID);
-    data << uint32(questStatus);
+    WorldPacket data(SMSG_QUESTGIVER_STATUS, 9);
+    data << npcGUID;
+    data << uint8(questStatus);
 
     GetMenuSession()->SendPacket(data);
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_STATUS for %s", npcGUID.GetString().c_str());
@@ -355,6 +359,7 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
     data << Details;
     data << Objectives;
     data << uint32(ActivateAccept ? 1 : 0);                 // auto finish
+    data << uint32(pQuest->GetSuggestedPlayers());
 
     if (pQuest->HasQuestFlag(QUEST_FLAGS_HIDDEN_REWARDS))
     {
@@ -371,6 +376,9 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
 
         for (uint32 i = 0; i < rewChocieItemCount; ++i)
         {
+            if (!pQuest->RewChoiceItemId[i])
+                continue;
+
             data << uint32(pQuest->RewChoiceItemId[i]);
             data << uint32(pQuest->RewChoiceItemCount[i]);
 
@@ -387,6 +395,9 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
 
         for (uint32 i = 0; i < rewItemCount; ++i)
         {
+            if (!pQuest->RewItemId[i])
+                continue;
+
             data << uint32(pQuest->RewItemId[i]);
             data << uint32(pQuest->RewItemCount[i]);
 
@@ -395,20 +406,25 @@ void PlayerMenu::SendQuestGiverQuestDetails(Quest const* pQuest, ObjectGuid guid
             if (IProto)
                 data << uint32(IProto->DisplayInfoID);
             else
-                data << uint32(0x00);
+                data << uint32(0);
         }
 
         data << uint32(pQuest->GetRewOrReqMoney());
     }
 
-    data << uint32(pQuest->GetRewSpell());
+    // rewarded honor points. Multiply with 10 to satisfy client
+    data << uint32(10 * MaNGOS::Honor::hk_honor_at_level(GetMenuSession()->GetPlayer()->getLevel(), pQuest->GetRewHonorableKills()));
+    data << uint32(pQuest->GetRewSpell());                  // reward spell, this spell will display (icon) (casted if RewSpellCast==0)
+    data << uint32(pQuest->GetRewSpellCast());              // casted spell
+    data << uint32(pQuest->GetCharTitleBitIndex());         // CharTitle, new 2.4.0, player gets this title (bit index from CharTitles)
 
     uint32 detailsEmotesCount = pQuest->GetDetailsEmoteCount();
     data << uint32(detailsEmotesCount);
+
     for (uint32 i = 0; i < detailsEmotesCount; ++i)
     {
         data << uint32(pQuest->DetailsEmote[i]);
-        data << uint32(pQuest->DetailsEmoteDelay[i]); // delay between emotes in ms
+        data << uint32(pQuest->DetailsEmoteDelay[i]);       // DetailsEmoteDelay (in ms)
     }
 
     GetMenuSession()->SendPacket(data);
@@ -452,11 +468,11 @@ void PlayerMenu::SendQuestQueryResponse(Quest const* pQuest) const
 
     data << uint32(pQuest->GetQuestId());                   // quest id
     data << uint32(pQuest->GetQuestMethod());               // Accepted values: 0, 1 or 2. 0==IsAutoComplete() (skip objectives/details)
-    data << uint32(pQuest->GetQuestLevel());                // may be 0, static data, in other cases must be used dynamic level: Player::GetQuestLevelForPlayer
+    data << int32(pQuest->GetQuestLevel());                 // may be -1, static data, in other cases must be used dynamic level: Player::GetQuestLevelForPlayer (0 is not known, but assuming this is no longer valid for quest intended for client)
     data << uint32(pQuest->GetZoneOrSort());                // zone or sort to display in quest log
 
-    data << uint32(pQuest->GetType());
-    //[-ZERO] data << uint32(pQuest->GetSuggestedPlayers());
+    data << uint32(pQuest->GetType());                      // quest type
+    data << uint32(pQuest->GetSuggestedPlayers());          // suggested players count
 
     data << uint32(pQuest->GetRepObjectiveFaction());       // shown in quest log as part of quest objective
     data << uint32(pQuest->GetRepObjectiveValue());         // shown in quest log as part of quest objective
@@ -469,14 +485,17 @@ void PlayerMenu::SendQuestQueryResponse(Quest const* pQuest) const
     if (pQuest->HasQuestFlag(QUEST_FLAGS_HIDDEN_REWARDS))
         data << uint32(0);                                  // Hide money rewarded
     else
-        data << uint32(pQuest->GetRewOrReqMoney());
+        data << uint32(pQuest->GetRewOrReqMoney());         // reward money (below max lvl)
 
     data << uint32(pQuest->GetRewMoneyMaxLevel());          // used in XP calculation at client
-
     data << uint32(pQuest->GetRewSpell());                  // reward spell, this spell will display (icon) (casted if RewSpellCast==0)
+    data << uint32(pQuest->GetRewSpellCast());              // casted spell
 
+    // rewarded honor points
+    data << uint32(MaNGOS::Honor::hk_honor_at_level(GetMenuSession()->GetPlayer()->getLevel(), pQuest->GetRewHonorableKills()));
     data << uint32(pQuest->GetSrcItemId());                 // source item id
     data << uint32(pQuest->GetQuestFlags());                // quest flags
+    data << uint32(pQuest->GetCharTitleId());               // CharTitleId, new 2.4.0, player gets this title (id from CharTitles)
 
     int iI;
 
@@ -560,6 +579,7 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* pQuest, ObjectGuid npcGU
     data << OfferRewardText;
 
     data << uint32(EnableNext ? 1 : 0);                     // Auto Finish
+    data << uint32(pQuest->GetSuggestedPlayers());          // SuggestedGroupNum
 
     uint32 EmoteCount = 0;
     for (unsigned int i : pQuest->OfferRewardEmote)
@@ -589,7 +609,7 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* pQuest, ObjectGuid npcGU
         if (pItem)
             data << uint32(pItem->DisplayInfoID);
         else
-            data << uint32(0x00);
+            data << uint32(0);
     }
 
     data << uint32(pQuest->GetRewItemsCount());
@@ -602,13 +622,17 @@ void PlayerMenu::SendQuestGiverOfferReward(Quest const* pQuest, ObjectGuid npcGU
         if (pItem)
             data << uint32(pItem->DisplayInfoID);
         else
-            data << uint32(0x00);
+            data << uint32(0);
     }
 
     data << uint32(pQuest->GetRewOrReqMoney());
 
+    // rewarded honor points. Multiply with 10 to satisfy client
+    data << uint32(10 * MaNGOS::Honor::hk_honor_at_level(GetMenuSession()->GetPlayer()->getLevel(), pQuest->GetRewHonorableKills()));
+    data << uint32(0x08);                                   // unused by client?
     data << uint32(pQuest->GetRewSpell());                  // reward spell, this spell will display (icon) (casted if RewSpellCast==0)
-    data << uint32(pQuest->GetRewSpellCast());              // casted spell [-zero] to check
+    data << uint32(pQuest->GetRewSpellCast());              // casted spell
+    data << uint32(pQuest->GetCharTitleBitIndex());         // character title
     GetMenuSession()->SendPacket(data);
     DEBUG_LOG("WORLD: Sent SMSG_QUESTGIVER_OFFER_REWARD NPCGuid = %s, questid = %u", npcGUID.GetString().c_str(), pQuest->GetQuestId());
 }
@@ -660,6 +684,8 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* pQuest, ObjectGuid npcG
     // Close Window after cancel
     data << uint32(CloseOnCancel);                          // auto finish
 
+    data << uint32(pQuest->GetSuggestedPlayers());          // SuggestedGroupNum
+
     // Required Money
     data << uint32(pQuest->GetRewOrReqMoney() < 0 ? -pQuest->GetRewOrReqMoney() : 0);
 
@@ -677,8 +703,6 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* pQuest, ObjectGuid npcG
         else
             data << uint32(0);
     }
-
-    data << uint32(0x02);
 
     if (!Completable)                                       // Completable = flags1 && flags2 && flags3 && flags4
         data << uint32(0x00);                               // flags1

@@ -28,14 +28,12 @@
 #include "Globals/ObjectMgr.h"
 #include "Entities/ObjectGuid.h"
 #include "Entities/Player.h"
-#include "Entities/Corpse.h"
 #include "Entities/NPCHandler.h"
 #include "Server/SQLStorages.h"
 #include "Maps/GridDefines.h"
 
 void WorldSession::SendNameQueryResponse(CharacterNameQueryResponse& response) const
 {
-
     // guess size
     WorldPacket data(SMSG_NAME_QUERY_RESPONSE, (8 + 1 + 4 + 4 + 4 + 10));
     data << response.guid;
@@ -50,15 +48,35 @@ void WorldSession::SendNameQueryResponse(CharacterNameQueryResponse& response) c
     data << response.gender;
     data << response.classid;
 
+    // if the first declined name field is empty, the rest must be too
+    if (response.declined.name[0].empty())
+        data << uint8(0);
+    else
+    {
+        data << uint8(1);
+
+        for (const auto& i : response.declined.name)
+            data << i;
+    }
+
     SendPacket(data, true);
 }
 
 void WorldSession::SendNameQueryResponseFromDB(ObjectGuid guid) const
 {
     CharacterDatabase.AsyncPQuery(&WorldSession::SendNameQueryResponseFromDBCallBack, GetAccountId(),
+                                  !sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) ?
+                                  //   ------- Query Without Declined Names --------
                                   //          0     1     2     3       4
                                   "SELECT guid, name, race, gender, class "
-                                  "FROM characters WHERE guid = '%u'",
+                                  "FROM characters WHERE guid = '%u'"
+                                  :
+                                  //   --------- Query With Declined Names ---------
+                                  //          0                1     2     3       4
+                                  "SELECT characters.guid, name, race, gender, class, "
+                                  //   5         6       7           8             9
+                                  "genitive, dative, accusative, instrumental, prepositional "
+                                  "FROM characters LEFT JOIN character_declinedname ON characters.guid = character_declinedname.guid WHERE characters.guid = '%u'",
                                   guid.GetCounter());
 }
 
@@ -87,6 +105,13 @@ void WorldSession::SendNameQueryResponseFromDBCallBack(QueryResult* result, uint
         response.race = fields[2].GetUInt8();
         response.gender = fields[3].GetUInt8();
         response.classid = fields[4].GetUInt8();
+    }
+
+    // if the first declined name field (5) is empty, the rest must be too
+    if (sWorld.getConfig(CONFIG_BOOL_DECLINED_NAMES_USED) && !fields[5].GetCppString().empty())
+    {
+         for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+            response.declined.name[i] = fields[(5 + i)].GetCppString();
     }
 
     if (session->m_sessionState != WORLD_SESSION_STATE_READY)
@@ -125,6 +150,12 @@ void WorldSession::HandleNameQueryOpcode(WorldPacket& recv_data)
         response.gender = uint32(pChar->getGender());
         response.classid = uint32(pChar->getClass());
 
+        if (DeclinedName const* declined = pChar->GetDeclinedNames())
+        {
+            for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+               response.declined.name[i] = declined->name[i];
+        }
+
         if (m_sessionState != WORLD_SESSION_STATE_READY)
             m_offlineNameResponses.push_back(response);
         else
@@ -143,15 +174,9 @@ void WorldSession::HandleQueryTimeOpcode(WorldPacket& /*recv_data*/)
 void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recv_data)
 {
     uint32 entry;
-    ObjectGuid guid;
-
     recv_data >> entry;
+    ObjectGuid guid;
     recv_data >> guid;
-
-    Creature* unit = _player->GetMap()->GetAnyTypeCreature(guid);
-
-    // if (unit == nullptr)
-    //    sLog.outDebug( "WORLD: HandleCreatureQueryOpcode - (%u) NO SUCH UNIT! (GUID: %u, ENTRY: %u)", uint32(GUID_LOPART(guid)), guid, entry );
 
     CreatureInfo const* ci = ObjectMgr::GetCreatureTemplate(entry);
     if (ci)
@@ -169,18 +194,20 @@ void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recv_data)
         data << name;
         data << uint8(0) << uint8(0) << uint8(0);           // name2, name3, name4, always empty
         data << subName;
+        data << ci->IconName;                               // "Directions" for guard, string for Icons 2.3.0
         data << uint32(ci->CreatureTypeFlags);              // flags
-        data << uint32(ci->CreatureType);                   // CreatureType.dbc   wdbFeild8
+        data << uint32(ci->CreatureType);                   // CreatureType.dbc
         data << uint32(ci->Family);                         // CreatureFamily.dbc
         data << uint32(ci->Rank);                           // Creature Rank (elite, boss, etc)
         data << uint32(0);                                  // unknown        wdbFeild11
         data << uint32(ci->PetSpellDataId);                 // Id from CreatureSpellData.dbc    wdbField12
-        if (unit)
-            data << unit->GetUInt32Value(UNIT_FIELD_DISPLAYID); // DisplayID      wdbFeild13
-        else
-            data << uint32(Creature::ChooseDisplayId(ci));  // workaround, way to manage models must be fixed
 
-        data << uint16(ci->civilian);                       // wdbFeild14
+        for (unsigned int i : ci->ModelId)
+            data << uint32(i);
+
+        data << float(ci->HealthMultiplier);                 // health multiplier
+        data << float(ci->PowerMultiplier);                   // mana multiplier
+        data << uint8(ci->RacialLeader);
         SendPacket(data);
         DEBUG_LOG("WORLD: Sent SMSG_CREATURE_QUERY_RESPONSE");
     }
@@ -207,6 +234,8 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recv_data)
     if (info)
     {
         std::string Name = info->name;
+        std::string IconName = info->IconName;
+        std::string CastBarCaption = info->castBarCaption;
 
         int loc_idx = GetSessionDbLocaleIndex();
         if (loc_idx >= 0)
@@ -216,6 +245,8 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recv_data)
             {
                 if (gl->Name.size() > size_t(loc_idx) && !gl->Name[loc_idx].empty())
                     Name = gl->Name[loc_idx];
+                if (gl->CastBarCaption.size() > size_t(loc_idx) && !gl->CastBarCaption[loc_idx].empty())
+                    CastBarCaption = gl->CastBarCaption[loc_idx];
             }
         }
         DETAIL_LOG("WORLD: CMSG_GAMEOBJECT_QUERY '%s' - Entry: %u. ", info->name, entryID);
@@ -224,9 +255,12 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recv_data)
         data << uint32(info->type);
         data << uint32(info->displayId);
         data << Name;
-        data << uint16(0) << uint8(0) << uint8(0);          // name2, name3, name4
+        data << uint8(0) << uint8(0) << uint8(0);           // name2, name3, name4
+        data << IconName;                                   // 2.0.3, string. Icon name to use instead of default icon for go's (ex: "Attack" makes sword)
+        data << CastBarCaption;                             // 2.0.3, string. Text will appear in Cast Bar when using GO (ex: "Collecting")
+        data << uint8(0);                                   // 2.0.3, string
         data.append(info->raw.data, 24);
-        // data << float(info->size);                       // go size , to check
+        data << float(info->size);                          // go size
         SendPacket(data);
         DEBUG_LOG("WORLD: Sent SMSG_GAMEOBJECT_QUERY_RESPONSE");
     }
@@ -265,16 +299,16 @@ void WorldSession::HandleCorpseQueryOpcode(WorldPacket& /*recv_data*/)
     if (corpsemapid != _player->GetMapId())
     {
         // search entrance map for proper show entrance
-        if (InstanceTemplate const* temp = sObjectMgr.GetInstanceTemplate(mapid))
+        if (MapEntry const* corpseMapEntry = sMapStore.LookupEntry(corpsemapid))
         {
-            if (temp->ghostEntranceMap >= 0)
+            if (corpseMapEntry->IsDungeon() && corpseMapEntry->ghost_entrance_map >= 0)
             {
                 // if corpse map have entrance
-                if (TerrainInfo const* entranceMap = sTerrainMgr.LoadTerrain(temp->ghostEntranceMap))
+                if (TerrainInfo const* entranceMap = sTerrainMgr.LoadTerrain(corpseMapEntry->ghost_entrance_map))
                 {
-                    mapid = temp->ghostEntranceMap;
-                    x = temp->ghostEntranceX;
-                    y = temp->ghostEntranceY;
+                    mapid = corpseMapEntry->ghost_entrance_map;
+                    x = corpseMapEntry->ghost_entrance_x;
+                    y = corpseMapEntry->ghost_entrance_y;
                     z = entranceMap->GetHeightStatic(x, y, MAX_HEIGHT);
                 }
             }
@@ -421,7 +455,8 @@ void WorldSession::HandlePageTextQueryOpcode(WorldPacket& recv_data)
 
 void WorldSession::SendQueryTimeResponse() const
 {
-    WorldPacket data(SMSG_QUERY_TIME_RESPONSE, 4);
+    WorldPacket data(SMSG_QUERY_TIME_RESPONSE, 4 + 4);
     data << uint32(time(nullptr));
+    data << uint32(sWorld.GetNextDailyQuestsResetTime() - time(nullptr));
     SendPacket(data);
 }

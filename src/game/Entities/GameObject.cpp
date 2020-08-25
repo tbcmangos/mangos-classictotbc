@@ -19,9 +19,8 @@
 #include "Entities/GameObject.h"
 #include "Quests/QuestDef.h"
 #include "Globals/ObjectMgr.h"
-#include "Globals/ObjectAccessor.h"
 #include "Pools/PoolManager.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Spells/Spell.h"
 #include "Server/Opcodes.h"
 #include "WorldPacket.h"
@@ -42,15 +41,38 @@
 #include "vmap/GameObjectModel.h"
 #include "Server/SQLStorages.h"
 #include "World/WorldState.h"
+#include <G3D/Box.h>
+#include <G3D/CoordinateFrame.h>
+#include <G3D/Quat.h>
+
+bool QuaternionData::isUnit() const
+{
+    return fabs(x * x + y * y + z * z + w * w - 1.0f) < 1e-5f;
+}
+
+void QuaternionData::toEulerAnglesZYX(float& Z, float& Y, float& X) const
+{
+    G3D::Matrix3(G3D::Quat(x, y, z, w)).toEulerAnglesZYX(Z, Y, X);
+}
+
+QuaternionData QuaternionData::fromEulerAnglesZYX(float Z, float Y, float X)
+{
+    G3D::Quat quat(G3D::Matrix3::fromEulerAnglesZYX(Z, Y, X));
+    return QuaternionData(quat.x, quat.y, quat.z, quat.w);
+}
 
 GameObject::GameObject() : WorldObject(),
     m_model(nullptr),
+    m_captureSlider(0),
+    m_captureState(),
     m_goInfo(nullptr),
+    m_displayInfo(nullptr),
     m_AI(nullptr)
 {
     m_objectType |= TYPEMASK_GAMEOBJECT;
     m_objectTypeId = TYPEID_GAMEOBJECT;
-    m_updateFlag = (UPDATEFLAG_ALL | UPDATEFLAG_HAS_POSITION);
+    // 2.3.2 - 0x58
+    m_updateFlag = (UPDATEFLAG_LOWGUID | UPDATEFLAG_HIGHGUID | UPDATEFLAG_HAS_POSITION);
 
     m_valuesCount = GAMEOBJECT_END;
 
@@ -216,7 +238,7 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, float x, float
     }
 
     // Notify the battleground or outdoor pvp script
-    if (map->IsBattleGround())
+    if (map->IsBattleGroundOrArena())
         ((BattleGroundMap*)map)->GetBG()->HandleGameObjectCreate(this);
     else if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(GetZoneId()))
         outdoorPvP->HandleGameObjectCreate(this);
@@ -378,7 +400,7 @@ void GameObject::Update(const uint32 diff)
                             {
                                 if (m_respawnTime > 0)
                                     valid = false;
-                                else // battlegrounds gameobjects has data2 == 0 && data5 == 3
+                                else // battlegrounds gameobjects has data2 == 0 && data5 == 3                                
                                     radius = float(goInfo->trap.cooldown);
                             }
                         }
@@ -693,10 +715,10 @@ void GameObject::SaveToDB() const
         return;
     }
 
-    SaveToDB(GetMapId());
+    SaveToDB(GetMapId(), data->spawnMask);
 }
 
-void GameObject::SaveToDB(uint32 mapid) const
+void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask) const
 {
     const GameObjectInfo* goI = GetGOInfo();
 
@@ -721,6 +743,7 @@ void GameObject::SaveToDB(uint32 mapid) const
     data.spawntimesecsmax = m_spawnedByDefault ? (int32)m_respawnDelay : -(int32)m_respawnDelay;
     data.animprogress = GetGoAnimProgress();
     data.go_state = GetGoState();
+    data.spawnMask = spawnMask;
 
     // updated in DB
     std::ostringstream ss;
@@ -728,6 +751,7 @@ void GameObject::SaveToDB(uint32 mapid) const
        << GetGUIDLow() << ", "
        << GetEntry() << ", "
        << mapid << ", "
+       << uint32(spawnMask) << ","                         // cast to prevent save as symbol
        << GetFloatValue(GAMEOBJECT_POS_X) << ", "
        << GetFloatValue(GAMEOBJECT_POS_Y) << ", "
        << GetFloatValue(GAMEOBJECT_POS_Z) << ", "
@@ -932,7 +956,7 @@ bool GameObject::isVisibleForInState(Player const* u, WorldObject const* viewPoi
                     if (owner->GetTypeId() == TYPEID_PLAYER)
                     {
                         Player* ownerPlayer = (Player*)owner;
-                        if ((GetMap()->IsBattleGround() && ownerPlayer->GetBGTeam() != u->GetBGTeam()) ||
+                        if ((GetMap()->IsBattleGroundOrArena() && ownerPlayer->GetBGTeam() != u->GetBGTeam()) ||
                             (ownerPlayer->IsInDuelWith(u)) ||
                             (!ownerPlayer->IsInGroup(u)))
                             trapNotVisible = true;
@@ -1155,6 +1179,7 @@ bool GameObject::IsCollisionEnabled() const
     switch (GetGoType())
     {
         case GAMEOBJECT_TYPE_DOOR:
+        case GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING:
             return GetGoState() == GO_STATE_READY;
         default:
             return true;
@@ -1451,7 +1476,13 @@ void GameObject::Use(Unit* user)
                 if (info->goober.eventId)
                 {
                     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "Goober ScriptStart id %u for %s (Used by %s).", info->goober.eventId, GetGuidStr().c_str(), player->GetGuidStr().c_str());
-                    StartEvents_Event(GetMap(), info->goober.eventId, player, this);
+
+                    // for battleground events we need to allow the event id to be forwarded
+                    // Note: this exception is required in order not to change the legacy even handling in DB scripts
+                    if (GetMap()->IsBattleGround())
+                        StartEvents_Event(GetMap(), info->goober.eventId, this, player, true, player);
+                    else
+                        StartEvents_Event(GetMap(), info->goober.eventId, player, this);
                 }
 
                 // possible quest objective for active quests
@@ -1744,7 +1775,7 @@ void GameObject::Use(Unit* user)
                 return;
 
             Player* player = (Player*)user;
-
+            
             delete m_loot;
             m_loot = new Loot(player, this, LOOT_FISHINGHOLE);
             m_loot->ShowContentTo(player);
@@ -1768,6 +1799,8 @@ void GameObject::Use(Unit* user)
                 // WS:
                 // 179785 - Silverwing Flag
                 // 179786 - Warsong Flag
+                // EotS:
+                // 184142 - Netherstorm Flag
                 GameObjectInfo const* info = GetGOInfo();
                 if (info)
                 {
@@ -1777,6 +1810,10 @@ void GameObject::Use(Unit* user)
                         case 179786:                        // Warsong Flag
                             // check if it's correct bg
                             if (bg->GetTypeID() == BATTLEGROUND_WS)
+                                bg->EventPlayerClickedOnFlag(player, this);
+                            break;
+                        case 184142:                        // Netherstorm Flag
+                            if (bg->GetTypeID() == BATTLEGROUND_EY)
                                 bg->EventPlayerClickedOnFlag(player, this);
                             break;
                     }
@@ -1860,6 +1897,7 @@ void GameObject::SetGoState(GOState state)
 void GameObject::SetDisplayId(uint32 modelId)
 {
     SetUInt32Value(GAMEOBJECT_DISPLAYID, modelId);
+    m_displayInfo = sGameObjectDisplayInfoStore.LookupEntry(modelId);
     UpdateModel();
 }
 
@@ -1947,12 +1985,6 @@ void GameObject::SetLootRecipient(Unit* pUnit)
 GameObject* GameObject::GetLinkedTrap()
 {
     return GetMap()->GetGameObject(m_linkedTrap);
-}
-
-float GameObject::GetObjectBoundingRadius() const
-{
-    // 1.12.1 GameObjectDisplayInfo.dbc not have any info related to size
-    return DEFAULT_WORLD_OBJECT_SIZE;
 }
 
 bool GameObject::IsInSkillupList(Player* player) const
@@ -2235,13 +2267,35 @@ float GameObject::GetInteractionDistance() const
 {
     switch (GetGoType())
     {
-        // TODO: find out how the client calculates the maximal usage distance to spellless working
-        // gameobjects like mailboxes - 10.0 is a just an abitrary chosen number
-        case GAMEOBJECT_TYPE_MAILBOX:
+        case GAMEOBJECT_TYPE_AREADAMAGE:
+            return 0.0f;
+        case GAMEOBJECT_TYPE_QUESTGIVER:
+        case GAMEOBJECT_TYPE_TEXT:
+        case GAMEOBJECT_TYPE_FLAGSTAND:
+        case GAMEOBJECT_TYPE_FLAGDROP:
+        case GAMEOBJECT_TYPE_MINI_GAME:
+            return 5.5555553f;
+        case GAMEOBJECT_TYPE_BINDER:
             return 10.0f;
-        case GAMEOBJECT_TYPE_FISHINGHOLE:
+        case GAMEOBJECT_TYPE_CHAIR:
+        case GAMEOBJECT_TYPE_BARBER_CHAIR:
+            return 3.0f;
         case GAMEOBJECT_TYPE_FISHINGNODE:
+            return 100.0f;
+        case GAMEOBJECT_TYPE_FISHINGHOLE:
             return 20.0f + CONTACT_DISTANCE; // max spell range
+        case GAMEOBJECT_TYPE_CAMERA:
+        case GAMEOBJECT_TYPE_MAP_OBJECT:
+        case GAMEOBJECT_TYPE_DUNGEON_DIFFICULTY:
+        case GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING:
+        case GAMEOBJECT_TYPE_DOOR:
+            return 5.0f;
+            // Following values are not blizzlike
+        case GAMEOBJECT_TYPE_GUILD_BANK:
+        case GAMEOBJECT_TYPE_MAILBOX:
+            // Successful mailbox interaction is rather critical to the client, failing it will start a minute-long cooldown until the next mail query may be executed.
+            // And since movement info update is not sent with mailbox interaction query, server may find the player outside of interaction range. Thus we increase it.
+            return 10.0f; // 5.0f is blizzlike
         default:
             return INTERACTION_DISTANCE;
     }
@@ -2315,4 +2369,107 @@ uint32 GameObject::GetScriptId() const
 void GameObject::AIM_Initialize()
 {
     m_AI.reset(sScriptDevAIMgr.GetGameObjectAI(this));
+}
+
+bool GameObject::IsAtInteractDistance(Player const* player, uint32 maxRange) const
+{
+    SpellEntry const* spellInfo;
+    if (maxRange || (spellInfo = GetSpellForLock(player)))
+    {
+        if (maxRange == 0.f)
+        {
+            SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(spellInfo->rangeIndex);
+            maxRange = GetSpellMaxRange(srange);
+        }
+
+        if (GetGoType() == GAMEOBJECT_TYPE_SPELL_FOCUS)
+            return maxRange * maxRange >= GetDistance(player, true, DIST_CALC_NONE);
+
+        if (sGameObjectDisplayInfoStore.LookupEntry(GetGOInfo()->displayId))
+            return IsAtInteractDistance(player->GetPosition(), maxRange);
+    }
+
+    return IsAtInteractDistance(player->GetPosition(), GetInteractionDistance());
+}
+
+bool GameObject::IsAtInteractDistance(Position const& pos, float radius) const
+{
+    if (GameObjectDisplayInfoEntry const* displayInfo = m_displayInfo)
+    {
+        float scale = GetObjectScale();
+
+        float minX = displayInfo->minX * scale - radius;
+        float minY = displayInfo->minY * scale - radius;
+        float minZ = displayInfo->minZ * scale - radius;
+        float maxX = displayInfo->maxX * scale + radius;
+        float maxY = displayInfo->maxY * scale + radius;
+        float maxZ = displayInfo->maxZ * scale + radius;
+
+        QuaternionData worldRotation = GetWorldRotation();
+        G3D::Quat worldRotationQuat(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w);
+
+        return G3D::CoordinateFrame{ { worldRotationQuat }, { GetPositionX(), GetPositionY(), GetPositionZ() } }
+            .toWorldSpace(G3D::Box{ { minX, minY, minZ }, { maxX, maxY, maxZ } })
+            .contains({ pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ() });
+    }
+
+    return GetDistance(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), DIST_CALC_NONE) <= (radius * radius);
+}
+
+SpellEntry const* GameObject::GetSpellForLock(Player const* player) const
+{
+    if (!player)
+        return nullptr;
+
+    uint32 lockId = GetGOInfo()->GetLockId();
+    if (!lockId)
+        return nullptr;
+
+    LockEntry const* lock = sLockStore.LookupEntry(lockId);
+    if (!lock)
+        return nullptr;
+
+    for (uint8 i = 0; i < MAX_LOCK_CASE; ++i)
+    {
+        if (!lock->Type[i])
+            continue;
+
+        if (lock->Type[i] == LOCK_KEY_SPELL)
+            if (SpellEntry const* spell = sSpellTemplate.LookupEntry<SpellEntry>(lock->Index[i]))
+                return spell;
+
+        if (lock->Type[i] != LOCK_KEY_SKILL)
+            break;
+
+        for (auto&& playerSpell : player->GetSpellMap())
+            if (SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(playerSpell.first))
+                for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+                    if (spellInfo->Effect[i] == SPELL_EFFECT_OPEN_LOCK && ((uint32)spellInfo->EffectMiscValue[i]) == lock->Index[i])
+                        if (player->CalculateSpellEffectValue(nullptr, spellInfo, SpellEffectIndex(i), nullptr) >= int32(lock->Skill[i]))
+                            return spellInfo;
+    }
+
+    return nullptr;
+}
+
+QuaternionData GameObject::GetWorldRotation() const
+{
+    QuaternionData localRotation = GetLocalRotation();
+    //if (Transport * transport = GetTransport()) - for wotlk
+    //{
+    //    QuaternionData worldRotation = transport->GetWorldRotation();
+
+    //    G3D::Quat worldRotationQuat(worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w);
+    //    G3D::Quat localRotationQuat(localRotation.x, localRotation.y, localRotation.z, localRotation.w);
+
+    //    G3D::Quat resultRotation = localRotationQuat * worldRotationQuat;
+
+    //    return QuaternionData(resultRotation.x, resultRotation.y, resultRotation.z, resultRotation.w);
+    //}
+    return localRotation;
+}
+
+const QuaternionData GameObject::GetLocalRotation() const
+{
+    return QuaternionData(GetFloatValue(GAMEOBJECT_ROTATION), GetFloatValue(GAMEOBJECT_ROTATION + 1), GetFloatValue(GAMEOBJECT_ROTATION + 2), GetFloatValue(GAMEOBJECT_ROTATION + 3));
 }

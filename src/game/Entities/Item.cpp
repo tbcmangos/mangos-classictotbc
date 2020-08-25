@@ -180,19 +180,31 @@ bool ItemCanGoIntoBag(ItemPrototype const* pProto, ItemPrototype const* pBagProt
                 case ITEM_SUBCLASS_CONTAINER:
                     return true;
                 case ITEM_SUBCLASS_SOUL_CONTAINER:
-                    if (pProto->BagFamily != BAG_FAMILY_SOUL_SHARDS)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_SOUL_SHARDS))
                         return false;
                     return true;
                 case ITEM_SUBCLASS_HERB_CONTAINER:
-                    if (pProto->BagFamily != BAG_FAMILY_HERBS)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_HERBS))
                         return false;
                     return true;
                 case ITEM_SUBCLASS_ENCHANTING_CONTAINER:
-                    if (pProto->BagFamily != BAG_FAMILY_ENCHANTING_SUPP)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_ENCHANTING_SUPP))
+                        return false;
+                    return true;
+                case ITEM_SUBCLASS_MINING_CONTAINER:
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_MINING_SUPP))
                         return false;
                     return true;
                 case ITEM_SUBCLASS_ENGINEERING_CONTAINER:
-                    if (pProto->BagFamily != BAG_FAMILY_ENGINEERING_SUPP)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_ENGINEERING_SUPP))
+                        return false;
+                    return true;
+                case ITEM_SUBCLASS_GEM_CONTAINER:
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_GEMS))
+                        return false;
+                    return true;
+                case ITEM_SUBCLASS_LEATHERWORKING_CONTAINER:
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_LEATHERWORKING_SUPP))
                         return false;
                     return true;
                 default:
@@ -202,11 +214,11 @@ bool ItemCanGoIntoBag(ItemPrototype const* pProto, ItemPrototype const* pBagProt
             switch (pBagProto->SubClass)
             {
                 case ITEM_SUBCLASS_QUIVER:
-                    if (pProto->BagFamily != BAG_FAMILY_ARROWS)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_ARROWS))
                         return false;
                     return true;
                 case ITEM_SUBCLASS_AMMO_POUCH:
-                    if (pProto->BagFamily != BAG_FAMILY_BULLETS)
+                    if (!(pProto->BagFamily & BAG_FAMILY_MASK_BULLETS))
                         return false;
                     return true;
                 default:
@@ -220,7 +232,8 @@ Item::Item()
 {
     m_objectType |= TYPEMASK_ITEM;
     m_objectTypeId = TYPEID_ITEM;
-    m_updateFlag = UPDATEFLAG_ALL;
+    // 2.3.2 - 0x18
+    m_updateFlag = (UPDATEFLAG_LOWGUID | UPDATEFLAG_HIGHGUID);
 
     m_valuesCount = ITEM_END;
     m_slot = 0;
@@ -372,11 +385,11 @@ void Item::SaveToDB()
             // save money as 0 itemid data
             if (m_loot->GetGoldAmount())
             {
-                SqlStatement stmt = CharacterDatabase.CreateStatement(saveGold, "INSERT INTO item_loot (guid,owner_guid,itemid,amount,property) VALUES (?, ?, 0, ?, 0)");
+                SqlStatement stmt = CharacterDatabase.CreateStatement(saveGold, "INSERT INTO item_loot (guid,owner_guid,itemid,amount,suffix,property) VALUES (?, ?, 0, ?, 0, 0)");
                 stmt.PExecute(GetGUIDLow(), owner->GetGUIDLow(), m_loot->GetGoldAmount());
             }
 
-            SqlStatement stmt = CharacterDatabase.CreateStatement(saveLoot, "INSERT INTO item_loot (guid,owner_guid,itemid,amount,property) VALUES (?, ?, ?, ?, ?)");
+            SqlStatement stmt = CharacterDatabase.CreateStatement(saveLoot, "INSERT INTO item_loot (guid,owner_guid,itemid,amount,suffix,property) VALUES (?, ?, ?, ?, ?, ?)");
 
             // save items and quest items (at load its all will added as normal, but this not important for item loot case)
             LootItemList lootList;
@@ -388,6 +401,7 @@ void Item::SaveToDB()
                 stmt.addUInt32(owner->GetGUIDLow());
                 stmt.addUInt32(lootItem->itemId);
                 stmt.addUInt8(lootItem->count);
+                stmt.addUInt32(lootItem->randomSuffix);
                 stmt.addInt32(lootItem->randomPropertyId);
 
                 stmt.Execute();
@@ -435,6 +449,13 @@ bool Item::LoadFromDB(uint32 guidLow, Field* fields, ObjectGuid ownerGuid)
             SetUInt32Value(ITEM_FIELD_DURABILITY, proto->MaxDurability);
 
         need_save = true;
+    }
+
+    // recalculate suffix factor
+    if (GetItemRandomPropertyId() < 0)
+    {
+        if (UpdateItemSuffixFactor())
+            need_save = true;
     }
 
     // Remove bind flag for items vs NO_BIND set
@@ -498,7 +519,8 @@ void Item::LoadLootFromDB(Field* fields)
 {
     uint32 item_id     = fields[1].GetUInt32();
     uint32 item_amount = fields[2].GetUInt32();
-    int32  item_propid = fields[3].GetInt32();
+    uint32 item_suffix = fields[3].GetUInt32();
+    int32  item_propid = fields[4].GetInt32();
 
     // money value special case
     if (item_id == 0)
@@ -518,7 +540,7 @@ void Item::LoadLootFromDB(Field* fields)
         return;
     }
 
-    m_loot->AddItem(item_id, item_amount, 0, item_propid);
+    m_loot->AddItem(item_id, item_amount, item_suffix, item_propid);
 
     SetLootState(ITEM_LOOT_UNCHANGED);
 }
@@ -635,6 +657,10 @@ int32 Item::GenerateItemRandomPropertyId(uint32 item_id)
     if (!itemProto)
         return 0;
 
+    // item must have one from this field values not null if it can have random enchantments
+    if ((!itemProto->RandomProperty) && (!itemProto->RandomSuffix))
+        return 0;
+
     // Random Property case
     if (itemProto->RandomProperty)
     {
@@ -648,8 +674,16 @@ int32 Item::GenerateItemRandomPropertyId(uint32 item_id)
 
         return random_id->ID;
     }
+    // Random Suffix case
+    uint32 randomPropId = GetItemEnchantMod(itemProto->RandomSuffix);
+    ItemRandomSuffixEntry const* random_id = sItemRandomSuffixStore.LookupEntry(randomPropId);
+    if (!random_id)
+    {
+        sLog.outErrorDb("Enchantment id #%u used but it doesn't have records in sItemRandomSuffixStore.", randomPropId);
+        return 0;
+    }
 
-    return 0;
+    return -int32(random_id->ID);
 }
 
 void Item::SetItemRandomProperties(int32 randomPropId)
@@ -667,10 +701,36 @@ void Item::SetItemRandomProperties(int32 randomPropId)
                 SetInt32Value(ITEM_FIELD_RANDOM_PROPERTIES_ID, item_rand->ID);
                 SetState(ITEM_CHANGED);
             }
+            for (uint32 i = PROP_ENCHANTMENT_SLOT_2; i < PROP_ENCHANTMENT_SLOT_2 + 3; ++i)
+                SetEnchantment(EnchantmentSlot(i), item_rand->enchant_id[i - PROP_ENCHANTMENT_SLOT_2], 0, 0);
+        }
+    }
+    else
+    {
+        ItemRandomSuffixEntry const* item_rand = sItemRandomSuffixStore.LookupEntry(-randomPropId);
+        if (item_rand)
+        {
+            if (GetInt32Value(ITEM_FIELD_RANDOM_PROPERTIES_ID) != -int32(item_rand->ID) ||
+                    !GetItemSuffixFactor())
+            {
+                SetInt32Value(ITEM_FIELD_RANDOM_PROPERTIES_ID, -int32(item_rand->ID));
+                UpdateItemSuffixFactor();
+                SetState(ITEM_CHANGED);
+            }
+
             for (uint32 i = PROP_ENCHANTMENT_SLOT_0; i < PROP_ENCHANTMENT_SLOT_0 + 3; ++i)
                 SetEnchantment(EnchantmentSlot(i), item_rand->enchant_id[i - PROP_ENCHANTMENT_SLOT_0], 0, 0);
         }
     }
+}
+
+bool Item::UpdateItemSuffixFactor()
+{
+    uint32 suffixFactor = GenerateEnchSuffixFactor(GetEntry());
+    if (GetItemSuffixFactor() == suffixFactor)
+        return false;
+    SetUInt32Value(ITEM_FIELD_PROPERTY_SEED, suffixFactor);
+    return true;
 }
 
 void Item::SetState(ItemUpdateState state, Player* forplayer)
@@ -818,18 +878,15 @@ bool Item::IsFitToSpellRequirements(SpellEntry const* spellInfo) const
 {
     ItemPrototype const* proto = GetProto();
 
-    if (spellInfo->EquippedItemClass != -1)                          // -1 == any item class
+    if (spellInfo->EquippedItemClass != -1)                 // -1 == any item class
     {
-        if (spellInfo->Id == 13419 && int32(proto->Class) == 4)      // Special case for Enchant cloak minor Agility dbc file is wrong
-            return true;                                             // Field58 int EquippedItemClass ; Weapon(2) instead of Armor(4)
-
         if (spellInfo->EquippedItemClass != int32(proto->Class))
-            return false;                                            //  wrong item class
+            return false;                                   //  wrong item class
 
-        if (spellInfo->EquippedItemSubClassMask != 0)                // 0 == any subclass
+        if (spellInfo->EquippedItemSubClassMask != 0)       // 0 == any subclass
         {
             if ((spellInfo->EquippedItemSubClassMask & (1 << proto->SubClass)) == 0)
-                return false;                                        // subclass not present in mask
+                return false;                               // subclass not present in mask
         }
     }
 
@@ -878,9 +935,9 @@ void Item::SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint
             owner->SendEnchantmentLog(caster, GetEntry(), id);
     }
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET, id);
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
+    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET, id);
+    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
+    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
     SetState(ITEM_CHANGED);
 }
 
@@ -889,7 +946,7 @@ void Item::SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration)
     if (GetEnchantmentDuration(slot) == duration)
         return;
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
+    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
     SetState(ITEM_CHANGED);
 }
 
@@ -898,7 +955,7 @@ void Item::SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges)
     if (GetEnchantmentCharges(slot) == charges)
         return;
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
+    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
     SetState(ITEM_CHANGED);
 }
 
@@ -908,8 +965,67 @@ void Item::ClearEnchantment(EnchantmentSlot slot)
         return;
 
     for (uint8 x = 0; x < 3; ++x)
-        SetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot * MAX_ENCHANTMENT_OFFSET + x, 0);
+        SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + x, 0);
     SetState(ITEM_CHANGED);
+}
+
+bool Item::GemsFitSockets() const
+{
+    bool fits = true;
+    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS; ++enchant_slot)
+    {
+        uint8 SocketColor = GetProto()->Socket[enchant_slot - SOCK_ENCHANTMENT_SLOT].Color;
+
+        uint32 enchant_id = GetEnchantmentId(EnchantmentSlot(enchant_slot));
+        if (!enchant_id)
+        {
+            if (SocketColor) fits &= false;
+            continue;
+        }
+
+        SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
+        if (!enchantEntry)
+        {
+            if (SocketColor) fits &= false;
+            continue;
+        }
+
+        uint8 GemColor = 0;
+
+        uint32 gemid = enchantEntry->GemID;
+        if (gemid)
+        {
+            ItemPrototype const* gemProto = sItemStorage.LookupEntry<ItemPrototype>(gemid);
+            if (gemProto)
+            {
+                GemPropertiesEntry const* gemProperty = sGemPropertiesStore.LookupEntry(gemProto->GemProperties);
+                if (gemProperty)
+                    GemColor = gemProperty->color;
+            }
+        }
+
+        fits &= (GemColor & SocketColor) != 0;
+    }
+    return fits;
+}
+
+uint8 Item::GetGemCountWithID(uint32 GemID) const
+{
+    uint8 count = 0;
+    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS; ++enchant_slot)
+    {
+        uint32 enchant_id = GetEnchantmentId(EnchantmentSlot(enchant_slot));
+        if (!enchant_id)
+            continue;
+
+        SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
+        if (!enchantEntry)
+            continue;
+
+        if (GemID == enchantEntry->GemID)
+            ++count;
+    }
+    return count;
 }
 
 bool Item::IsLimitedToAnotherMapOrZone(uint32 cur_mapId, uint32 cur_zoneId) const

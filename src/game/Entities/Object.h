@@ -29,6 +29,7 @@
 #include "Globals/SharedDefines.h"
 #include "Entities/Camera.h"
 #include "Server/DBCStructure.h"
+#include "PlayerDefines.h"
 #include "Entities/ObjectVisibility.h"
 
 #include <set>
@@ -101,11 +102,13 @@ class Map;
 class UpdateMask;
 class InstanceData;
 class TerrainInfo;
+class TransportInfo;
 struct MangosStringLocale;
 class Loot;
 struct ItemPrototype;
 class ChatHandler;
 struct SpellEntry;
+class Spell;
 
 typedef std::unordered_map<Player*, UpdateData> UpdateDataMapType;
 
@@ -276,6 +279,10 @@ struct Position
     Position() : x(0.0f), y(0.0f), z(0.0f), o(0.0f) {}
     Position(float _x, float _y, float _z, float _o) : x(_x), y(_y), z(_z), o(_o) {}
     float x, y, z, o;
+    float GetPositionX() const { return x; }
+    float GetPositionY() const { return y; }
+    float GetPositionZ() const { return z; }
+    float GetPositionO() const { return o; }
 };
 
 struct WorldLocation
@@ -339,7 +346,6 @@ class Object
         }
 
         ObjectGuid const& GetObjectGuid() const { return GetGuidValue(OBJECT_FIELD_GUID); }
-        const uint64& GetGUID() const { return GetUInt64Value(OBJECT_FIELD_GUID); } // DEPRECATED, not use, will removed soon
         uint32 GetGUIDLow() const { return GetObjectGuid().GetCounter(); }
         PackedGuid const& GetPackGUID() const { return m_PackGUID; }
         std::string GetGuidStr() const { return GetObjectGuid().GetString(); }
@@ -650,6 +656,10 @@ class WorldObject : public Object
 
         void _Create(uint32 guidlow, HighGuid guidhigh);
 
+        TransportInfo* GetTransportInfo() const { return m_transportInfo; }
+        bool IsBoarded() const { return m_transportInfo != nullptr; }
+        void SetTransportInfo(TransportInfo* transportInfo) { m_transportInfo = transportInfo; }
+
         void Relocate(float x, float y, float z, float orientation);
         void Relocate(float x, float y, float z);
 
@@ -662,6 +672,7 @@ class WorldObject : public Object
         { x = m_position.x; y = m_position.y; z = m_position.z; }
         void GetPosition(WorldLocation& loc) const
         { loc.mapid = m_mapId; GetPosition(loc.coord_x, loc.coord_y, loc.coord_z); loc.orientation = GetOrientation(); }
+        Position const& GetPosition() const { return m_position; }
         float GetOrientation() const { return m_position.o; }
 
         /// Gives a 2d-point in distance distance2d in direction absAngle around the current position (point-to-point)
@@ -774,6 +785,7 @@ class WorldObject : public Object
             return obj && IsInMap(obj) && _IsWithinDist(obj, dist2compare, is3D);
         }
         bool IsWithinLOS(float ox, float oy, float oz, bool ignoreM2Model = false) const;
+        bool IsWithinLOSForMe(float x, float y, float z, float collisionHeight, bool ignoreM2Model = false) const;
         bool IsWithinLOSInMap(const WorldObject* obj, bool ignoreM2Model = false) const;
         bool GetDistanceOrder(WorldObject const* obj1, WorldObject const* obj2, bool is3D = true, DistanceCalculation distcalc = DIST_CALC_NONE) const;
         bool IsInRange(WorldObject const* obj, float minRange, float maxRange, bool is3D = true, bool combat = false) const;
@@ -799,7 +811,7 @@ class WorldObject : public Object
 
         virtual void SendMessageToSet(WorldPacket const& data, bool self) const;
         virtual void SendMessageToSetInRange(WorldPacket const& data, float dist, bool self) const;
-        void SendMessageToSetExcept(WorldPacket& data, Player const* skipped_receiver) const;
+        void SendMessageToSetExcept(WorldPacket const& data, Player const* skipped_receiver) const;
 
         void MonsterSay(const char* text, uint32 language, Unit const* target = nullptr) const;
         void MonsterYell(const char* text, uint32 language, Unit const* target = nullptr) const;
@@ -914,6 +926,8 @@ class WorldObject : public Object
         CooldownContainer m_cooldownMap;
 
         std::string m_name;
+
+        TransportInfo* m_transportInfo;
 
         bool m_isOnEventNotified;
 

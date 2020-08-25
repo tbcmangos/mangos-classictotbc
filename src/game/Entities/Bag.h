@@ -22,14 +22,14 @@
 #include "Common.h"
 #include "Entities/Item.h"
 
-// Maximum 36 Slots ( (CONTAINER_END - CONTAINER_FIELD_SLOT_1)/2
-#define MAX_BAG_SIZE 36
-
 enum InventorySlot
 {
     NULL_BAG = 0,
     NULL_SLOT = 255
 };
+
+// Maximum 36 Slots ( (CONTAINER_END - CONTAINER_FIELD_SLOT_1)/2
+#define MAX_BAG_SIZE 36                                     // 2.0.12
 
 class Bag : public Item
 {

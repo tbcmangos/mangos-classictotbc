@@ -27,6 +27,7 @@
 #include "WorldPacket.h"
 #include "Server/DBCStores.h"
 #include "ProgressBar.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 
 void MapManager::LoadTransports()
 {
@@ -140,7 +141,8 @@ void MapManager::LoadTransports()
 
 Transport::Transport() : GameObject(), m_pathTime(0), m_timer(0), m_nextNodeTime(0), m_period(0)
 {
-    m_updateFlag = (UPDATEFLAG_TRANSPORT | UPDATEFLAG_ALL | UPDATEFLAG_HAS_POSITION);
+    // 2.3.2 - 0x5A
+    m_updateFlag = (UPDATEFLAG_TRANSPORT | UPDATEFLAG_LOWGUID | UPDATEFLAG_HIGHGUID | UPDATEFLAG_HAS_POSITION);
 }
 
 bool Transport::Create(uint32 guidlow, uint32 mapid, float x, float y, float z, float ang, uint32 animprogress)
@@ -176,6 +178,7 @@ bool Transport::Create(uint32 guidlow, uint32 mapid, float x, float y, float z, 
     //SetDisplayId(goinfo->displayId);
     // Use SetDisplayId only if we have the GO assigned to a proper map!
     SetUInt32Value(GAMEOBJECT_DISPLAYID, goinfo->displayId);
+    m_displayInfo = sGameObjectDisplayInfoStore.LookupEntry(goinfo->displayId);
 
     SetGoState(GO_STATE_READY);
     SetGoType(GameobjectTypes(goinfo->type));
@@ -314,7 +317,8 @@ bool Transport::GenerateWaypoints(uint32 pathid, std::set<uint32>& mapids)
     if (keyFrames[keyFrames.size() - 1].node->mapid != keyFrames[0].node->mapid || keyFrames[keyFrames.size() - 1].node->actionFlag == 1)
         teleport = true;
 
-    WayPoint pos(keyFrames[0].node->mapid, keyFrames[0].node->x, keyFrames[0].node->y, keyFrames[0].node->z, teleport);
+    WayPoint pos(keyFrames[0].node->mapid, keyFrames[0].node->x, keyFrames[0].node->y, keyFrames[0].node->z, teleport,
+                 keyFrames[0].node->arrivalEventID, keyFrames[0].node->departureEventID);
     m_WayPoints[0] = pos;
     t += keyFrames[0].node->delay * 1000;
 
@@ -393,7 +397,9 @@ bool Transport::GenerateWaypoints(uint32 pathid, std::set<uint32>& mapids)
             cM = keyFrames[i + 1].node->mapid;
         }
 
-        WayPoint pos(keyFrames[i + 1].node->mapid, keyFrames[i + 1].node->x, keyFrames[i + 1].node->y, keyFrames[i + 1].node->z, teleport);
+        pos = WayPoint(keyFrames[i + 1].node->mapid, keyFrames[i + 1].node->x, keyFrames[i + 1].node->y, keyFrames[i + 1].node->z, teleport3,
+                       keyFrames[i + 1].node->arrivalEventID, keyFrames[i + 1].node->departureEventID);
+
         //        sLog.outString("T: %d, x: %f, y: %f, z: %f, t:%d", t, pos.x, pos.y, pos.z, teleport);
 
         // if (teleport)
@@ -493,7 +499,11 @@ void Transport::Update(const uint32 /*diff*/)
     m_timer = WorldTimer::getMSTime() % m_period;
     while (((m_timer - m_curr->first) % m_pathTime) > ((m_next->first - m_curr->first) % m_pathTime))
     {
+        DoEventIfAny(*m_curr, true);
+
         MoveToNextWayPoint();
+
+        DoEventIfAny(*m_curr, false);
 
         // first check help in case client-server transport coordinates de-synchronization
         if (m_curr->second.mapid != GetMapId() || m_curr->second.teleport)
@@ -550,5 +560,15 @@ void Transport::UpdateForMap(Map const* targetMap)
         for (const auto& itr : pl)
             if (this != itr.getSource()->GetTransport())
                 itr.getSource()->SendDirectMessage(packet);
+    }
+}
+
+void Transport::DoEventIfAny(WayPointMap::value_type const& node, bool departure)
+{
+    if (uint32 eventid = departure ? node.second.departureEventID : node.second.arrivalEventID)
+    {
+        DEBUG_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "Taxi %s event %u of node %u of %s \"%s\") path", departure ? "departure" : "arrival", eventid, node.first, GetGuidStr().c_str(), GetName());
+
+        StartEvents_Event(GetMap(), eventid, this, this, departure);
     }
 }

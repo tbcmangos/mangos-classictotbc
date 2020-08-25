@@ -191,6 +191,12 @@ uint32 Bag::GetItemCount(uint32 item, Item* eItem) const
             if (m_bagslot[i] != eItem && m_bagslot[i]->GetEntry() == item)
                 count += m_bagslot[i]->GetCount();
 
+    if (eItem && eItem->GetProto()->GemProperties)
+        for (uint32 i = 0; i < GetBagSize(); ++i)
+            if (m_bagslot[i])
+                if (m_bagslot[i] != eItem && m_bagslot[i]->GetProto()->Socket[0].Color)
+                    count += m_bagslot[i]->GetGemCountWithID(item);
+
     return count;
 }
 

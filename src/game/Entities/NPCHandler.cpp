@@ -24,14 +24,13 @@
 #include "Server/Opcodes.h"
 #include "Log.h"
 #include "Globals/ObjectMgr.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Entities/Player.h"
 #include "Entities/GossipDef.h"
-#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
+#include "DBScripts/ScriptMgr.h"
 #include "Entities/Creature.h"
 #include "Entities/Pet.h"
 #include "Guilds/Guild.h"
-#include "Spells/Spell.h"
 #include "Guilds/GuildMgr.h"
 #include "Chat/Chat.h"
 
@@ -97,11 +96,11 @@ void WorldSession::HandleTrainerListOpcode(WorldPacket& recv_data)
 }
 
 
-static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell, uint32 triggerSpell, TrainerSpellState state, float fDiscountMod, bool can_learn_primary_prof, uint32 reqLevel)
+static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell, TrainerSpellState state, float fDiscountMod, bool /*can_learn_primary_prof*/, uint32 reqLevel)
 {
-    bool primary_prof_first_rank = sSpellMgr.IsPrimaryProfessionFirstRankSpell(triggerSpell);
+    bool primary_prof_first_rank = sSpellMgr.IsPrimaryProfessionFirstRankSpell(tSpell->learnedSpell);
 
-    SpellChainNode const* chain_node = sSpellMgr.GetSpellChainNode(triggerSpell);
+    SpellChainNode const* chain_node = sSpellMgr.GetSpellChainNode(tSpell->learnedSpell);
 
     data << uint32(tSpell->spell);                      // learned spell (or cast-spell in profession case)
     data << uint8(state == TRAINER_SPELL_GREEN_DISABLED ? TRAINER_SPELL_GREEN : state);
@@ -177,8 +176,6 @@ void WorldSession::SendTrainerList(ObjectGuid guid) const
         {
             TrainerSpell const* tSpell = &itr.second;
 
-            uint32 triggerSpell = sSpellTemplate.LookupEntry<SpellEntry>(tSpell->spell)->EffectTriggerSpell[0];
-
             uint32 reqLevel = 0;
             if (!_player->IsSpellFitByClassAndRace(tSpell->learnedSpell, &reqLevel))
                 continue;
@@ -190,7 +187,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid) const
 
             TrainerSpellState state = _player->GetTrainerSpellState(tSpell, reqLevel);
 
-            SendTrainerSpellHelper(data, tSpell, triggerSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
+            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
 
             ++count;
         }
@@ -202,8 +199,6 @@ void WorldSession::SendTrainerList(ObjectGuid guid) const
         {
             TrainerSpell const* tSpell = &itr.second;
 
-            uint32 triggerSpell = sSpellTemplate.LookupEntry<SpellEntry>(tSpell->spell)->EffectTriggerSpell[0];
-
             uint32 reqLevel = 0;
             if (!_player->IsSpellFitByClassAndRace(tSpell->learnedSpell, &reqLevel))
                 continue;
@@ -215,7 +210,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid) const
 
             TrainerSpellState state = _player->GetTrainerSpellState(tSpell, reqLevel);
 
-            SendTrainerSpellHelper(data, tSpell, triggerSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
+            SendTrainerSpellHelper(data, tSpell, state, fDiscountMod, can_learn_primary_prof, reqLevel);
 
             ++count;
         }
@@ -272,9 +267,6 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket& recv_data)
     if (_player->GetTrainerSpellState(trainer_spell, reqLevel) != TRAINER_SPELL_GREEN)
         return;
 
-    SpellEntry const* proto = sSpellTemplate.LookupEntry<SpellEntry>(trainer_spell->spell);
-    SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(proto->EffectTriggerSpell[0]);
-
     // apply reputation discount
     uint32 nSpellCost = uint32(floor(trainer_spell->spellCost * _player->GetReputationPriceDiscount(unit)));
 
@@ -291,24 +283,17 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket& recv_data)
     data << uint32(0x016A);                                 // index from SpellVisualKit.dbc
     SendPacket(data);
 
-    // learn explicitly to prevent lost money at lags, learning spell will be only show spell animation
-    //[-ZERO] _player->learnSpell(trainer_spell->spell, false);
+    // learn explicitly or cast explicitly
+    // TODO - Are these spells really cast correctly this way?
+    if (trainer_spell->IsCastable())
+        _player->CastSpell(_player, trainer_spell->spell, TRIGGERED_OLD_TRIGGERED);
+    else
+        _player->learnSpell(spellId, false);
 
     data.Initialize(SMSG_TRAINER_BUY_SUCCEEDED, 12);
     data << ObjectGuid(guid);
     data << uint32(spellId);                                // should be same as in packet from client
     SendPacket(data);
-
-    Spell* spell;
-    if (proto->SpellVisual == 222)
-        spell = new Spell(_player, proto, false);
-    else
-        spell = new Spell(unit, proto, false);
-
-    SpellCastTargets targets;
-    targets.setUnitTarget(_player);
-
-    spell->SpellStart(&targets);
 }
 
 void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
@@ -342,10 +327,11 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: CMSG_GOSSIP_SELECT_OPTION");
 
     uint32 gossipListId;
+    uint32 menuId;
     ObjectGuid guid;
     std::string code;
 
-    recv_data >> guid >> gossipListId;
+    recv_data >> guid >> menuId >> gossipListId;
 
     if (_player->PlayerTalkClass->GossipOptionCoded(gossipListId))
     {
@@ -367,7 +353,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
         }
 
         if (!sScriptDevAIMgr.OnGossipSelect(_player, pCreature, sender, action, code.empty() ? nullptr : code.c_str()))
-            _player->OnGossipSelect(pCreature, gossipListId);
+            _player->OnGossipSelect(pCreature, gossipListId, menuId);
     }
     else if (guid.IsGameObject())
     {
@@ -380,7 +366,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
         }
 
         if (!sScriptDevAIMgr.OnGossipSelect(_player, pGo, sender, action, code.empty() ? nullptr : code.c_str()))
-            _player->OnGossipSelect(pGo, gossipListId);
+            _player->OnGossipSelect(pGo, gossipListId, menuId);
     }
 }
 
@@ -989,8 +975,9 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
 
     ObjectGuid npcGuid;
     ObjectGuid itemGuid;
+    uint8 guildBank;                                        // new in 2.3.2, bool that means from guild bank money
 
-    recv_data >> npcGuid >> itemGuid;
+    recv_data >> npcGuid >> itemGuid >> guildBank;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGuid, UNIT_NPC_FLAG_REPAIR);
     if (!unit)
@@ -1010,12 +997,23 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
         Item* item = _player->GetItemByGuid(itemGuid);
 
         if (item)
-            TotalCost = _player->DurabilityRepair(item->GetPos(), true, discountMod);
+            TotalCost = _player->DurabilityRepair(item->GetPos(), true, discountMod, (guildBank > 0));
     }
     else
     {
         DEBUG_LOG("ITEM: %s repair all items", npcGuid.GetString().c_str());
 
-        TotalCost = _player->DurabilityRepairAll(true, discountMod);
+        TotalCost = _player->DurabilityRepairAll(true, discountMod, (guildBank > 0));
+    }
+    if (guildBank)
+    {
+        uint32 GuildId = _player->GetGuildId();
+        if (!GuildId)
+            return;
+        Guild* pGuild = sGuildMgr.GetGuildById(GuildId);
+        if (!pGuild)
+            return;
+        pGuild->LogBankEvent(GUILD_BANK_LOG_REPAIR_MONEY, 0, _player->GetGUIDLow(), TotalCost);
+        pGuild->SendMoneyInfo(this, _player->GetGUIDLow());
     }
 }
