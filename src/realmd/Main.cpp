@@ -312,6 +312,7 @@ int main(int argc, char* argv[])
 #endif
     }
 
+
     ///- Wait for the delay thread to exit
     LoginDatabase.HaltDelayThread();
 
