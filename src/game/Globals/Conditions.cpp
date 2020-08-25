@@ -28,6 +28,8 @@
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"
 #include "Spells/SpellMgr.h"
+#include "OutdoorPvP/OutdoorPvPMgr.h"
+#include "OutdoorPvP/OutdoorPvP.h"
 
 // Attention: make sure to keep this list in sync with ConditionSource to avoid array
 //            out of bounds access! It is accessed with ConditionSource as index!
@@ -93,7 +95,7 @@ uint8 const ConditionTargetsInternal[] =
     CONDITION_REQ_TARGET_UNIT,        //  35
     CONDITION_REQ_NONE,               //  36
     CONDITION_REQ_TARGET_WORLDOBJECT, //  37
-    CONDITION_REQ_NONE,               //  38
+    CONDITION_REQ_TARGET_PLAYER,      //  38
     CONDITION_REQ_MAP_OR_WORLDOBJECT, //  39
     CONDITION_REQ_NONE,               //  40
     CONDITION_REQ_NONE,               //  41
@@ -171,7 +173,7 @@ bool inline ConditionEntry::Evaluate(WorldObject const* target, Map const* map, 
         }
         case CONDITION_ITEM_EQUIPPED:
         {
-            return static_cast<Player const*>(target)->HasItemWithIdEquipped(m_value1, 1);
+            return static_cast<Player const*>(target)->HasItemOrGemWithIdEquipped(m_value1, 1);
         }
         case CONDITION_AREAID:
         {
@@ -182,7 +184,7 @@ bool inline ConditionEntry::Evaluate(WorldObject const* target, Map const* map, 
         }
         case CONDITION_REPUTATION_RANK_MIN:
         {
-            FactionEntry const* faction = sFactionStore.LookupEntry(m_value1);
+            FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(m_value1);
             return faction && static_cast<Player const*>(target)->GetReputationMgr().GetRank(faction) >= ReputationRank(m_value2);
         }
         case CONDITION_TEAM:
@@ -355,7 +357,7 @@ bool inline ConditionEntry::Evaluate(WorldObject const* target, Map const* map, 
         }
         case CONDITION_REPUTATION_RANK_MAX:
         {
-            FactionEntry const* faction = sFactionStore.LookupEntry(m_value1);
+            FactionEntry const* faction = sFactionStore.LookupEntry<FactionEntry>(m_value1);;
             Player const* player = static_cast<Player const*>(target);
             return faction && player->GetReputationMgr().GetRank(faction) <= ReputationRank(m_value2);
         }
@@ -433,6 +435,24 @@ bool inline ConditionEntry::Evaluate(WorldObject const* target, Map const* map, 
                     return !source || source->GetTypeId() != TYPEID_UNIT || !((Unit*)source)->IsAlive();
             }
             break;
+        }
+        case CONDITION_PVP_SCRIPT:
+        {
+            if (target->GetTypeId() != TYPEID_PLAYER)
+            {
+                sLog.outErrorDb("CONDITION_PVP_SCRIPT (entry %u) is used on non player target. Target is %s", m_entry, target->GetGuidStr().c_str());
+                return false;
+            }
+            Player const* player = static_cast<Player const*>(target);
+            if (OutdoorPvP* outdoorPvP = sOutdoorPvPMgr.GetScript(m_value1))
+                return outdoorPvP->IsConditionFulfilled(player, m_value2, source, conditionSourceType);
+            else if (player->InBattleGround() && player->GetZoneId() == m_value1)
+            {
+                if (BattleGround* bg = player->GetBattleGround())
+                    return bg->IsConditionFulfilled(player, m_value2, source, conditionSourceType);
+            }
+
+            return false;
         }
         case CONDITION_SPAWN_COUNT:
         {
@@ -661,7 +681,7 @@ bool ConditionEntry::IsValid() const
         case CONDITION_REPUTATION_RANK_MIN:
         case CONDITION_REPUTATION_RANK_MAX:
         {
-            FactionEntry const* factionEntry = sFactionStore.LookupEntry(m_value1);
+            FactionEntry const* factionEntry = sFactionStore.LookupEntry<FactionEntry>(m_value1);;
             if (!factionEntry)
             {
                 sLog.outErrorDb("Reputation condition (entry %u, type %u) requires to have reputation non existing faction (%u), skipped", m_entry, m_condition, m_value1);
@@ -891,6 +911,7 @@ bool ConditionEntry::IsValid() const
         case CONDITION_NONE:
         case CONDITION_INSTANCE_SCRIPT:
         case CONDITION_ACTIVE_HOLIDAY:
+        case CONDITION_PVP_SCRIPT:
         case CONDITION_WORLD_SCRIPT:
             break;
         default:

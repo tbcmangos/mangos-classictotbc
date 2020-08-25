@@ -122,13 +122,20 @@ Player* ObjectAccessor::FindPlayerByName(const char* name)
     return nullptr;
 }
 
-void
-ObjectAccessor::SaveAllPlayers() const
+void ObjectAccessor::SaveAllPlayers() const
 {
     HashMapHolder<Player>::ReadGuard g(HashMapHolder<Player>::GetLock());
     HashMapHolder<Player>::MapType& m = sObjectAccessor.GetPlayers();
     for (auto& itr : m)
         itr.second->SaveToDB();
+}
+
+void ObjectAccessor::ExecuteOnAllPlayers(std::function<void(Player*)> executor)
+{
+    HashMapHolder<Player>::ReadGuard g(HashMapHolder<Player>::GetLock());
+    HashMapHolder<Player>::MapType& m = sObjectAccessor.GetPlayers();
+    for (HashMapHolder<Player>::MapType::iterator itr = m.begin(); itr != m.end(); ++itr)
+        executor(itr->second);
 }
 
 void ObjectAccessor::KickPlayer(ObjectGuid guid)
@@ -242,7 +249,7 @@ ObjectAccessor::ConvertCorpseForPlayer(ObjectGuid player_guid, bool insignia)
     // create the bones only if the map and the grid is loaded at the corpse's location
     // ignore bones creating option in case insignia
     if (map && (insignia ||
-                (map->IsBattleGround() ? sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_BG) : sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_WORLD))) &&
+                (map->IsBattleGroundOrArena() ? sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_BG_OR_ARENA) : sWorld.getConfig(CONFIG_BOOL_DEATH_BONES_WORLD))) &&
             !map->IsRemovalGrid(corpse->GetPositionX(), corpse->GetPositionY()))
     {
         // Create bones, don't change Corpse
