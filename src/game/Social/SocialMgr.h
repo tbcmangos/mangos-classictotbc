@@ -50,6 +50,7 @@ struct FriendInfo
     uint32 Area;
     uint32 Level;
     uint32 Class;
+    std::string Note;
 
     FriendInfo() :
         Status(FRIEND_STATUS_OFFLINE),
@@ -59,12 +60,13 @@ struct FriendInfo
         Class(0)
     {}
 
-    explicit FriendInfo(uint32 flags) :
+    FriendInfo(uint32 flags, const std::string& note) :
         Status(FRIEND_STATUS_OFFLINE),
         Flags(flags),
         Area(0),
         Level(0),
-        Class(0)
+        Class(0),
+        Note(note)
     {}
 };
 
@@ -104,7 +106,7 @@ enum FriendsResult
 };
 
 #define SOCIALMGR_FRIEND_LIMIT  50
-#define SOCIALMGR_IGNORE_LIMIT  25                          // checked max for 1.12.1, list tail not show if more
+#define SOCIALMGR_IGNORE_LIMIT  25                          // checked max for 2.4.3, list tail not show if more
 
 class PlayerSocial
 {
@@ -117,8 +119,7 @@ class PlayerSocial
         void RemoveFromSocialList(ObjectGuid friend_guid, bool ignore);
         void SetFriendNote(ObjectGuid friend_guid, std::string note);
         // Packet send's
-        void SendFriendList();
-        void SendIgnoreList();
+        void SendSocialList();
         // Misc
         bool HasFriend(ObjectGuid friend_guid);
         bool HasIgnore(ObjectGuid ignore_guid);
