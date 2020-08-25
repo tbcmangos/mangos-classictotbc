@@ -32,7 +32,7 @@
 #include <mutex>
 
 char const* MAP_MAGIC         = "MAPS";
-char const* MAP_VERSION_MAGIC = "z1.4";
+char const* MAP_VERSION_MAGIC = "s1.4";
 char const* MAP_AREA_MAGIC    = "AREA";
 char const* MAP_HEIGHT_MAGIC  = "MHGT";
 char const* MAP_LIQUID_MAGIC  = "MLIQ";
@@ -567,12 +567,12 @@ GridMapLiquidStatus GridMap::getLiquidStatus(float x, float y, float z, uint8 Re
         {
             if (AreaTableEntry const* area = sAreaStore.LookupEntry(getArea(x, y)))
             {
-                uint32 overrideLiquid = area->LiquidTypeOverride;
+                uint32 overrideLiquid = area->LiquidTypeOverride[entry - 1];
                 if (!overrideLiquid && area->zone)
                 {
                     area = GetAreaEntryByAreaID(area->zone);
                     if (area)
-                        overrideLiquid = area->LiquidTypeOverride;
+                        overrideLiquid = area->LiquidTypeOverride[entry - 1];
                 }
 
                 if (LiquidTypeEntry const* liq = sLiquidTypeStore.LookupEntry(overrideLiquid))
@@ -865,8 +865,12 @@ float TerrainInfo::GetHeightStatic(float x, float y, float z, bool useVmaps/*=tr
     return mapHeight;
 }
 
-inline bool IsOutdoorWMO(uint32 mogpFlags)
+inline bool IsOutdoorWMO(uint32 mogpFlags, uint32 mapId)
 {
+    // in flyable areas mounting up is also allowed if 0x0008 flag is set
+    if (mapId == 530)
+        return (mogpFlags & 0x8008) != 0;
+
     return (mogpFlags & 0x8000) != 0;
 }
 
@@ -879,7 +883,7 @@ bool TerrainInfo::IsOutdoors(float x, float y, float z) const
     if (!GetAreaInfo(x, y, z, mogpFlags, adtId, rootId, groupId))
         return true;
 
-    return IsOutdoorWMO(mogpFlags);
+    return IsOutdoorWMO(mogpFlags, GetMapId());
 }
 
 bool TerrainInfo::GetAreaInfo(float x, float y, float z, uint32& flags, int32& adtId, int32& rootId, int32& groupId) const
@@ -932,7 +936,7 @@ uint16 TerrainInfo::GetAreaFlag(float x, float y, float z, bool* isOutdoors) con
     if (isOutdoors)
     {
         if (haveAreaInfo)
-            *isOutdoors = IsOutdoorWMO(mogpFlags);
+            *isOutdoors = IsOutdoorWMO(mogpFlags, GetMapId());
         else
             *isOutdoors = true;
     }
@@ -986,12 +990,12 @@ GridMapLiquidStatus TerrainInfo::getLiquidStatus(float x, float y, float z, uint
                 {
                     if (AreaTableEntry const* area = GetAreaEntryByAreaFlagAndMap(GetAreaFlag(x, y, z), GetMapId()))
                     {
-                        uint32 overrideLiquid = area->LiquidTypeOverride;
+                        uint32 overrideLiquid = area->LiquidTypeOverride[liquid_type - 1];
                         if (!overrideLiquid && area->zone)
                         {
                             area = GetAreaEntryByAreaID(area->zone);
                             if (area)
-                                overrideLiquid = area->LiquidTypeOverride;
+                                overrideLiquid = area->LiquidTypeOverride[liquid_type - 1];
                         }
 
                         if (LiquidTypeEntry const* liq = sLiquidTypeStore.LookupEntry(overrideLiquid))
@@ -1118,7 +1122,7 @@ float TerrainInfo::GetWaterOrGroundLevel(float x, float y, float z, float* pGrou
                 // its shallow water so return ground under it
                 return ground_z;
             }
-
+            
             return liquid_status.level;
         }
 

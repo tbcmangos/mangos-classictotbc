@@ -23,7 +23,7 @@
 void InstanceData::SaveToDB() const
 {
     // no reason to save BGs/Arenas
-    if (instance->IsBattleGround())
+    if (instance->IsBattleGroundOrArena())
         return;
 
     if (!Save())

@@ -88,8 +88,8 @@ void Map::LoadMapAndVMap(int gx, int gy)
         m_bLoadedGrids[gx][gy] = true;
 }
 
-Map::Map(uint32 id, time_t expiry, uint32 InstanceId)
-    : i_mapEntry(sMapStore.LookupEntry(id)),
+Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
+    : i_mapEntry(sMapStore.LookupEntry(id)), i_spawnMode(SpawnMode),
       i_id(id), i_InstanceId(InstanceId), m_unloadTimer(0),
       m_VisibleDistance(DEFAULT_VISIBILITY_DISTANCE), m_persistentState(nullptr),
       m_activeNonPlayersIter(m_activeNonPlayers.end()), m_onEventNotifiedIter(m_onEventNotifiedObjects.end()),
@@ -120,9 +120,10 @@ void Map::Initialize(bool loadInstanceData /*= true*/)
 
     // add reference for TerrainData object
     m_TerrainData->AddRef();
+
     CreateInstanceData(loadInstanceData);
 
-    m_persistentState = sMapPersistentStateMgr.AddPersistentState(i_mapEntry, GetInstanceId(), 0, IsDungeon(), false);
+    m_persistentState = sMapPersistentStateMgr.AddPersistentState(i_mapEntry, GetInstanceId(), GetDifficulty(), 0, IsDungeon(), false);
     m_persistentState->SetUsedByMapState(this);
     m_persistentState->InitPools();
 
@@ -596,7 +597,7 @@ void Map::Update(const uint32& t_diff)
             WorldSession* pSession = plr->GetSession();
             MapSessionFilter updater(pSession);
 
-            pSession->Update(updater);
+            pSession->Update(t_diff, updater);
         }
     }
 
@@ -687,7 +688,7 @@ void Map::Update(const uint32& t_diff)
 
     // Don't unload grids if it's battleground, since we may have manually added GOs,creatures, those doesn't load from DB at grid re-load !
     // This isn't really bother us, since as soon as we have instanced BG-s, the whole map unloads as the BG gets ended
-    if (!IsBattleGround())
+    if (!IsBattleGroundOrArena())
     {
         for (GridRefManager<NGridType>::iterator i = GridRefManager<NGridType>::begin(); i != GridRefManager<NGridType>::end();)
         {
@@ -973,6 +974,19 @@ void Map::UnloadAll(bool pForce)
         ++i;
         UnloadGrid(grid.getX(), grid.getY(), pForce);       // deletes the grid and removes it from the GridRefManager
     }
+}
+
+uint32 Map::GetMaxPlayers() const
+{
+    InstanceTemplate const* iTemplate = ObjectMgr::GetInstanceTemplate(GetId());
+    if (!iTemplate)
+        return 0;
+    return iTemplate->maxPlayers;
+}
+
+uint32 Map::GetMaxResetDelay() const
+{
+    return DungeonResetScheduler::GetMaxResetTimeFor(ObjectMgr::GetInstanceTemplate(GetId()));
 }
 
 const char* Map::GetMapName() const
@@ -1400,8 +1414,8 @@ WorldPersistentState* WorldMap::GetPersistanceState() const
 
 /* ******* Dungeon Instance Maps ******* */
 
-DungeonMap::DungeonMap(uint32 id, time_t expiry, uint32 InstanceId)
-    : Map(id, expiry, InstanceId),
+DungeonMap::DungeonMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
+    : Map(id, expiry, InstanceId, SpawnMode),
       m_resetAfterUnload(false), m_unloadWhenEmpty(false), m_team(TEAM_NONE)
 {
     MANGOS_ASSERT(i_mapEntry->IsDungeon());
@@ -1434,19 +1448,19 @@ bool DungeonMap::Add(Player* player)
         return false;
 
     // check for existing instance binds
-    InstancePlayerBind* playerBind = player->GetBoundInstance(GetId());
+    InstancePlayerBind* playerBind = player->GetBoundInstance(GetId(), GetDifficulty());
     if (playerBind && playerBind->perm)
     {
         // cannot enter other instances if bound permanently
         if (playerBind->state != GetPersistanceState())
         {
-            sLog.outError("InstanceMap::Add: player %s(%d) is permanently bound to instance %d,%d,%d,%d,%d but he is being put in instance %d,%d,%d,%d,%d",
+            sLog.outError("DungeonMap::Add: player %s(%d) is permanently bound to instance %d,%d,%d,%d,%d,%d but he is being put in instance %d,%d,%d,%d,%d,%d",
                           player->GetName(), player->GetGUIDLow(), playerBind->state->GetMapId(),
-                          playerBind->state->GetInstanceId(),
+                          playerBind->state->GetInstanceId(), playerBind->state->GetDifficulty(),
                           playerBind->state->GetPlayerCount(), playerBind->state->GetGroupCount(),
                           playerBind->state->CanReset(),
                           GetPersistanceState()->GetMapId(), GetPersistanceState()->GetInstanceId(),
-                          GetPersistanceState()->GetPlayerCount(),
+                          GetPersistanceState()->GetDifficulty(), GetPersistanceState()->GetPlayerCount(),
                           GetPersistanceState()->GetGroupCount(), GetPersistanceState()->CanReset());
             MANGOS_ASSERT(false);
         }
@@ -1457,24 +1471,24 @@ bool DungeonMap::Add(Player* player)
         if (pGroup)
         {
             // solo saves should be reset when entering a group
-            InstanceGroupBind* groupBind = pGroup->GetBoundInstance(GetId());
+            InstanceGroupBind* groupBind = pGroup->GetBoundInstance(this, GetDifficulty());
             if (playerBind)
             {
-                sLog.outError("InstanceMap::Add: %s is being put in instance %d,%d,%d,%d,%d but he is in group (Id: %d) and is bound to instance %d,%d,%d,%d,%d!",
-                              player->GetGuidStr().c_str(), playerBind->state->GetMapId(), playerBind->state->GetInstanceId(),
-                              playerBind->state->GetPlayerCount(), playerBind->state->GetGroupCount(),
-                              playerBind->state->CanReset(), pGroup->GetId(),
-                              playerBind->state->GetMapId(), playerBind->state->GetInstanceId(),
+                sLog.outError("DungeonMap::Add: %s is being put in instance %d,%d,%d,%d,%d,%d but he is in group (Id: %d) and is bound to instance %d,%d,%d,%d,%d,%d!",
+                              player->GetGuidStr().c_str(), GetPersistentState()->GetMapId(), GetPersistentState()->GetInstanceId(),
+                              GetPersistanceState()->GetDifficulty(), GetPersistanceState()->GetPlayerCount(), GetPersistanceState()->GetGroupCount(),
+                              GetPersistanceState()->CanReset(), pGroup->GetId(),
+                              playerBind->state->GetMapId(), playerBind->state->GetInstanceId(), playerBind->state->GetDifficulty(),
                               playerBind->state->GetPlayerCount(), playerBind->state->GetGroupCount(), playerBind->state->CanReset());
 
                 if (groupBind)
-                    sLog.outError("InstanceMap::Add: the group (Id: %d) is bound to instance %d,%d,%d,%d,%d",
+                    sLog.outError("DungeonMap::Add: the group (Id: %d) is bound to instance %d,%d,%d,%d,%d,%d",
                                   pGroup->GetId(),
-                                  groupBind->state->GetMapId(), groupBind->state->GetInstanceId(),
+                                  groupBind->state->GetMapId(), groupBind->state->GetInstanceId(), groupBind->state->GetDifficulty(),
                                   groupBind->state->GetPlayerCount(), groupBind->state->GetGroupCount(), groupBind->state->CanReset());
 
                 // no reason crash if we can fix state
-                player->UnbindInstance(GetId());
+                player->UnbindInstance(GetId(), GetDifficulty());
             }
 
             // bind to the group or keep using the group save
@@ -1485,11 +1499,11 @@ bool DungeonMap::Add(Player* player)
                 // cannot jump to a different instance without resetting it
                 if (groupBind->state != GetPersistentState())
                 {
-                    sLog.outError("InstanceMap::Add: %s is being put in instance %d,%d but he is in group (Id: %d) which is bound to instance %d,%d!",
+                    sLog.outError("DungeonMap::Add: %s is being put in instance %d,%d,%d but he is in group (Id: %d) which is bound to instance %d,%d,%d!",
                                   player->GetGuidStr().c_str(), GetPersistentState()->GetMapId(),
-                                  GetPersistentState()->GetInstanceId(),
+                                  GetPersistentState()->GetInstanceId(), GetPersistentState()->GetDifficulty(),
                                   pGroup->GetId(), groupBind->state->GetMapId(),
-                                  groupBind->state->GetInstanceId());
+                                  groupBind->state->GetInstanceId(), groupBind->state->GetDifficulty());
 
                     sLog.outError("MapSave players: %d, group count: %d",
                                   GetPersistanceState()->GetPlayerCount(), GetPersistanceState()->GetGroupCount());
@@ -1535,7 +1549,7 @@ bool DungeonMap::Add(Player* player)
     if (!m_team)
         m_team = player->GetTeam();
 
-    if (i_mapEntry->IsNonRaidDungeon())
+    if (i_mapEntry->IsNonRaidDungeon() && GetDifficulty() == DUNGEON_DIFFICULTY_NORMAL)
         player->AddNewInstanceId(GetInstanceId());
 
     // this will acquire the same mutex so it cannot be in the previous block
@@ -1613,7 +1627,7 @@ void DungeonMap::PermBindAllPlayers(Player* player)
         Player* plr = itr.getSource();
         // players inside an instance cannot be bound to other instances
         // some players may already be permanently bound, in this case nothing happens
-        InstancePlayerBind* bind = plr->GetBoundInstance(GetId());
+        InstancePlayerBind* bind = plr->GetBoundInstance(GetId(), GetDifficulty());
         if (!bind || !bind->perm)
         {
             plr->BindToInstance(GetPersistanceState(), true);
@@ -1649,7 +1663,7 @@ void DungeonMap::SetResetSchedule(bool on)
     // only for normal instances
     // the reset time is only scheduled when there are no payers inside
     // it is assumed that the reset time will rarely (if ever) change while the reset is scheduled
-    if (!HavePlayers() && !IsRaid())
+    if (!HavePlayers() && !IsRaidOrHeroicDungeon())
     {
         time_t resetTime;
         if (on)
@@ -1664,23 +1678,16 @@ void DungeonMap::SetResetSchedule(bool on)
     }
 }
 
-uint32 DungeonMap::GetMaxPlayers() const
-{
-    InstanceTemplate const* iTemplate = ObjectMgr::GetInstanceTemplate(GetId());
-    if (!iTemplate)
-        return 0;
-    return iTemplate->maxPlayers;
-}
-
 DungeonPersistentState* DungeonMap::GetPersistanceState() const
 {
     return (DungeonPersistentState*)Map::GetPersistentState();
 }
 
+
 /* ******* Battleground Instance Maps ******* */
 
 BattleGroundMap::BattleGroundMap(uint32 id, time_t expiry, uint32 InstanceId)
-    : Map(id, expiry, InstanceId)
+    : Map(id, expiry, InstanceId, REGULAR_DIFFICULTY)
 {
 }
 
@@ -1708,8 +1715,8 @@ BattleGroundPersistentState* BattleGroundMap::GetPersistanceState() const
 
 void BattleGroundMap::InitVisibilityDistance()
 {
-    // init visibility distance for BG
-    m_VisibleDistance = World::GetMaxVisibleDistanceInBG();
+    // init visibility distance for BG/Arenas
+    m_VisibleDistance = World::GetMaxVisibleDistanceInBGArenas();
 }
 
 bool BattleGroundMap::CanEnter(Player* player)

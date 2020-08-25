@@ -95,7 +95,7 @@ void MapManager::InitializeVisibilityDistanceInfo()
 void MapManager::CreateContinents()
 {
     std::vector<std::future<void>> futures;
-    uint32 continents[] = { 0, 1 };
+    uint32 continents[] = { 0, 1, 530 };
     for (auto id : continents)
     {
         Map* m = new WorldMap(id, i_gridCleanUpDelay);
@@ -336,7 +336,7 @@ Map* MapManager::CreateInstance(uint32 id, Player* player)
     uint32 NewInstanceId = 0;                               // instanceId of the resulting map
     const MapEntry* entry = sMapStore.LookupEntry(id);
 
-    if (entry->IsBattleGround())
+    if (entry->IsBattleGroundOrArena())
     {
         // find existing bg map for player
         NewInstanceId = player->GetBattleGroundId();
@@ -351,7 +351,7 @@ Map* MapManager::CreateInstance(uint32 id, Player* player)
         map = FindMap(id, NewInstanceId);
         // it is possible that the save exists but the map doesn't
         if (!map)
-            pNewMap = CreateDungeonMap(id, NewInstanceId, pSave);
+            pNewMap = CreateDungeonMap(id, NewInstanceId, pSave->GetDifficulty(), pSave);
     }
     else
     {
@@ -359,7 +359,8 @@ Map* MapManager::CreateInstance(uint32 id, Player* player)
         // the instance will be created for the first time
         NewInstanceId = GenerateInstanceId();
 
-        pNewMap = CreateDungeonMap(id, NewInstanceId);
+        Difficulty diff = player->GetGroup() ? player->GetGroup()->GetDifficulty() : player->GetDifficulty();
+        pNewMap = CreateDungeonMap(id, NewInstanceId, diff);
     }
 
     // add a new map object into the registry
@@ -372,7 +373,7 @@ Map* MapManager::CreateInstance(uint32 id, Player* player)
     return map;
 }
 
-DungeonMap* MapManager::CreateDungeonMap(uint32 id, uint32 InstanceId, DungeonPersistentState* save)
+DungeonMap* MapManager::CreateDungeonMap(uint32 id, uint32 InstanceId, Difficulty difficulty, DungeonPersistentState* save)
 {
     // make sure we have a valid map id
     const MapEntry* entry = sMapStore.LookupEntry(id);
@@ -387,9 +388,13 @@ DungeonMap* MapManager::CreateDungeonMap(uint32 id, uint32 InstanceId, DungeonPe
         MANGOS_ASSERT(false);
     }
 
-    DEBUG_LOG("MapInstanced::CreateInstanceMap: %s map instance %d for %d created", save ? "" : "new ", InstanceId, id);
+    // some instances only have one difficulty
+    if (entry && !entry->SupportsHeroicMode())
+        difficulty = DUNGEON_DIFFICULTY_NORMAL;
 
-    DungeonMap* map = new DungeonMap(id, i_gridCleanUpDelay, InstanceId);
+    DEBUG_LOG("MapInstanced::CreateDungeonMap: %s map instance %d for %d created with difficulty %d", save ? "" : "new ", InstanceId, id, difficulty);
+
+    DungeonMap* map = new DungeonMap(id, i_gridCleanUpDelay, InstanceId, difficulty);
 
     // Dungeons can have saved instance data
     bool load_data = save != nullptr;
@@ -403,7 +408,7 @@ BattleGroundMap* MapManager::CreateBattleGroundMap(uint32 id, uint32 InstanceId,
     DEBUG_LOG("MapInstanced::CreateBattleGroundMap: instance:%d for map:%d and bgType:%d created.", InstanceId, id, bg->GetTypeID());
 
     BattleGroundMap* map = new BattleGroundMap(id, i_gridCleanUpDelay, InstanceId);
-    MANGOS_ASSERT(map->IsBattleGround());
+    MANGOS_ASSERT(map->IsBattleGroundOrArena());
     map->SetBG(bg);
     bg->SetBgMap(map);
 

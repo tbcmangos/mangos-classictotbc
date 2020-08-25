@@ -72,9 +72,6 @@ struct InstanceTemplate
     uint32 levelMax;
     uint32 maxPlayers;
     uint32 reset_delay;                                     // in days
-    int32 ghostEntranceMap;                                 // < 0 if not entrance coordinates
-    float ghostEntranceX;
-    float ghostEntranceY;
     uint32 script_id;
     bool   mountAllowed;
 };
@@ -83,6 +80,11 @@ struct WorldTemplate
 {
     uint32 map;                                             // non-instance map
     uint32 script_id;
+};
+
+enum LevelRequirementVsMode
+{
+    LEVELREQUIREMENT_HEROIC = 70
 };
 
 #if defined( __GNUC__ )
@@ -100,7 +102,8 @@ class Map : public GridRefManager<NGridType>
         friend class ObjectWorldLoader;
 
     protected:
-        Map(uint32 id, time_t, uint32 InstanceId);
+        Map(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode);
+
     public:
         virtual ~Map();
 
@@ -184,11 +187,23 @@ class Map : public GridRefManager<NGridType>
         virtual bool CanEnter(Player* player);
         const char* GetMapName() const;
 
+        // _currently_ spawnmode == difficulty, but this can be changes later, so use appropriate spawnmode/difficult functions
+        // for simplify later code support
+        // regular difficulty = continent/dungeon normal/raid normal difficulty
+        uint8 GetSpawnMode() const { return (i_spawnMode); }
+        Difficulty GetDifficulty() const { return Difficulty(GetSpawnMode()); }
+        bool IsRegularDifficulty() const { return GetDifficulty() == REGULAR_DIFFICULTY; }
+        uint32 GetMaxPlayers() const;
+        uint32 GetMaxResetDelay() const;
+
         bool Instanceable() const { return i_mapEntry && i_mapEntry->Instanceable(); }
         bool IsDungeon() const { return i_mapEntry && i_mapEntry->IsDungeon(); }
         bool IsRaid() const { return i_mapEntry && i_mapEntry->IsRaid(); }
         bool IsNoRaid() const { return i_mapEntry && i_mapEntry->IsNonRaidDungeon(); }
+        bool IsRaidOrHeroicDungeon() const { return IsRaid() || GetDifficulty() > DUNGEON_DIFFICULTY_NORMAL; }
         bool IsBattleGround() const { return i_mapEntry && i_mapEntry->IsBattleGround(); }
+        bool IsBattleArena() const { return i_mapEntry && i_mapEntry->IsBattleArena(); }
+        bool IsBattleGroundOrArena() const { return i_mapEntry && i_mapEntry->IsBattleGroundOrArena(); }
         bool IsContinent() const { return i_mapEntry && i_mapEntry->IsContinent(); }
         bool IsMountAllowed() const;
 
@@ -364,6 +379,7 @@ class Map : public GridRefManager<NGridType>
 
     protected:
         MapEntry const* i_mapEntry;
+        uint8 i_spawnMode;
         uint32 i_id;
         uint32 i_InstanceId;
         uint32 m_unloadTimer;
@@ -440,7 +456,7 @@ class WorldMap : public Map
     private:
         using Map::GetPersistentState;                      // hide in subclass for overwrite
     public:
-        WorldMap(uint32 id, time_t expiry) : Map(id, expiry, 0) {}
+        WorldMap(uint32 id, time_t expiry) : Map(id, expiry, 0, REGULAR_DIFFICULTY) {}
         ~WorldMap() {}
 
         // can't be nullptr for loaded map
@@ -452,7 +468,7 @@ class DungeonMap : public Map
     private:
         using Map::GetPersistentState;                      // hide in subclass for overwrite
     public:
-        DungeonMap(uint32 id, time_t, uint32 InstanceId);
+        DungeonMap(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode);
         ~DungeonMap();
         bool Add(Player*) override;
         void Remove(Player*, bool) override;
@@ -462,7 +478,6 @@ class DungeonMap : public Map
         void UnloadAll(bool pForce) override;
         void SendResetWarnings(uint32 timeLeft) const;
         void SetResetSchedule(bool on);
-        uint32 GetMaxPlayers() const;
 
         Team GetInstanceTeam() { return m_team; };
 
