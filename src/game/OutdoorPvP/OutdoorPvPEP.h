@@ -22,6 +22,7 @@
 #include "Common.h"
 #include "OutdoorPvP.h"
 #include "Tools/Language.h"
+
 #include "World/WorldStateDefines.h"
 
 enum
@@ -48,7 +49,7 @@ enum
     GRAVEYARD_ID_EASTERN_PLAGUE                     = 927,
 
     // misc
-    HONOR_REWARD_PLAGUELANDS                        = 189, // guessed, same factor as silithus
+    HONOR_REWARD_PLAGUELANDS                        = 18,
 
     // npcs
     NPC_SPECTRAL_FLIGHT_MASTER                      = 17209,
@@ -80,8 +81,8 @@ enum
     GO_TOWER_FLAG                                   = 182106,
 
     // possible shrine auras - not used
-    // GO_ALLIANCE_BANNER_AURA                       = 180100,
-    // GO_HORDE_BANNER_AURA                          = 180101,
+    //GO_ALLIANCE_BANNER_AURA                       = 180100,
+    //GO_HORDE_BANNER_AURA                          = 180101,
 
     // capture points
     GO_TOWER_BANNER_NORTHPASS                       = 181899,
@@ -92,37 +93,37 @@ enum
     GO_TOWER_BANNER                                 = 182106,   // tower banners around
 
     // events
-    // EVENT_NORTHPASS_WIN_ALLIANCE                  = 10568,
-    // EVENT_NORTHPASS_WIN_HORDE                     = 10556,
-    // EVENT_NORTHPASS_CONTEST_ALLIANCE              = 10697,
-    // EVENT_NORTHPASS_CONTEST_HORDE                 = 10696,
+    //EVENT_NORTHPASS_WIN_ALLIANCE                  = 10568,
+    //EVENT_NORTHPASS_WIN_HORDE                     = 10556,
+    //EVENT_NORTHPASS_CONTEST_ALLIANCE              = 10697,
+    //EVENT_NORTHPASS_CONTEST_HORDE                 = 10696,
     EVENT_NORTHPASS_PROGRESS_ALLIANCE               = 10699,
     EVENT_NORTHPASS_PROGRESS_HORDE                  = 10698,
     EVENT_NORTHPASS_NEUTRAL_ALLIANCE                = 11151,
     EVENT_NORTHPASS_NEUTRAL_HORDE                   = 11150,
 
-    // EVENT_CROWNGUARD_WIN_ALLIANCE                 = 10570,
-    // EVENT_CROWNGUARD_WIN_HORDE                    = 10566,
-    // EVENT_CROWNGUARD_CONTEST_ALLIANCE             = 10703,
-    // EVENT_CROWNGUARD_CONTEST_HORDE                = 10702,
+    //EVENT_CROWNGUARD_WIN_ALLIANCE                 = 10570,
+    //EVENT_CROWNGUARD_WIN_HORDE                    = 10566,
+    //EVENT_CROWNGUARD_CONTEST_ALLIANCE             = 10703,
+    //EVENT_CROWNGUARD_CONTEST_HORDE                = 10702,
     EVENT_CROWNGUARD_PROGRESS_ALLIANCE              = 10705,
     EVENT_CROWNGUARD_PROGRESS_HORDE                 = 10704,
     EVENT_CROWNGUARD_NEUTRAL_ALLIANCE               = 11155,
     EVENT_CROWNGUARD_NEUTRAL_HORDE                  = 11154,
 
-    // EVENT_EASTWALL_WIN_ALLIANCE                   = 10569,
-    // EVENT_EASTWALL_WIN_HORDE                      = 10565,
-    // EVENT_EASTWALL_CONTEST_ALLIANCE               = 10689,
-    // EVENT_EASTWALL_CONTEST_HORDE                  = 10690,
+    //EVENT_EASTWALL_WIN_ALLIANCE                   = 10569,
+    //EVENT_EASTWALL_WIN_HORDE                      = 10565,
+    //EVENT_EASTWALL_CONTEST_ALLIANCE               = 10689,
+    //EVENT_EASTWALL_CONTEST_HORDE                  = 10690,
     EVENT_EASTWALL_PROGRESS_ALLIANCE                = 10691,
     EVENT_EASTWALL_PROGRESS_HORDE                   = 10692,
     EVENT_EASTWALL_NEUTRAL_ALLIANCE                 = 11149,
     EVENT_EASTWALL_NEUTRAL_HORDE                    = 11148,
 
-    // EVENT_PLAGUEWOOD_WIN_ALLIANCE                 = 10567,
-    // EVENT_PLAGUEWOOD_WIN_HORDE                    = 10564,
-    // EVENT_PLAGUEWOOD_CONTEST_ALLIANCE             = 10687,
-    // EVENT_PLAGUEWOOD_CONTEST_HORDE                = 10688,
+    //EVENT_PLAGUEWOOD_WIN_ALLIANCE                 = 10567,
+    //EVENT_PLAGUEWOOD_WIN_HORDE                    = 10564,
+    //EVENT_PLAGUEWOOD_CONTEST_ALLIANCE             = 10687,
+    //EVENT_PLAGUEWOOD_CONTEST_HORDE                = 10688,
     EVENT_PLAGUEWOOD_PROGRESS_ALLIANCE              = 10701,
     EVENT_PLAGUEWOOD_PROGRESS_HORDE                 = 10700,
     EVENT_PLAGUEWOOD_NEUTRAL_ALLIANCE               = 11153,
@@ -210,7 +211,7 @@ class OutdoorPvPEP : public OutdoorPvP
         void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
         void SendRemoveWorldStates(Player* player) override;
 
-        bool HandleEvent(uint32 eventId, GameObject* go) override;
+        bool HandleEvent(uint32 eventId, GameObject* go, Unit* invoker) override;
         void HandleObjectiveComplete(uint32 eventId, const PlayerList& players, Team team) override;
 
         void HandleCreatureCreate(Creature* creature) override;

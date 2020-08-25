@@ -31,6 +31,10 @@ enum OutdoorPvPTypes
 {
     OPVP_ID_SI = 0,
     OPVP_ID_EP,
+    OPVP_ID_HP,
+    OPVP_ID_ZM,
+    OPVP_ID_TF,
+    OPVP_ID_NA,
 
     MAX_OPVP_ID
 };
@@ -45,6 +49,27 @@ enum OutdoorPvPZones
     ZONE_ID_EASTERN_PLAGUELANDS     = 139,
     ZONE_ID_STRATHOLME              = 2017,
     ZONE_ID_SCHOLOMANCE             = 2057,
+
+    ZONE_ID_HELLFIRE_PENINSULA      = 3483,
+    ZONE_ID_HELLFIRE_RAMPARTS       = 3562,
+    ZONE_ID_HELLFIRE_CITADEL        = 3563,
+    ZONE_ID_BLOOD_FURNACE           = 3713,
+    ZONE_ID_SHATTERED_HALLS         = 3714,
+    ZONE_ID_MAGTHERIDON_LAIR        = 3836,
+
+    ZONE_ID_ZANGARMARSH             = 3521,
+    ZONE_ID_SERPENTSHRINE_CAVERN    = 3607,
+    ZONE_ID_STREAMVAULT             = 3715,
+    ZONE_ID_UNDERBOG                = 3716,
+    ZONE_ID_SLAVE_PENS              = 3717,
+
+    ZONE_ID_TEROKKAR_FOREST         = 3519,
+    ZONE_ID_SHADOW_LABYRINTH        = 3789,
+    ZONE_ID_AUCHENAI_CRYPTS         = 3790,
+    ZONE_ID_SETHEKK_HALLS           = 3791,
+    ZONE_ID_MANA_TOMBS              = 3792,
+
+    ZONE_ID_NAGRAND                 = 3518
 };
 
 struct CapturePointSlider

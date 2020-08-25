@@ -22,7 +22,11 @@
 #include "World/World.h"
 #include "Log.h"
 #include "OutdoorPvPEP.h"
+#include "OutdoorPvPHP.h"
+#include "OutdoorPvPNA.h"
 #include "OutdoorPvPSI.h"
+#include "OutdoorPvPTF.h"
+#include "OutdoorPvPZM.h"
 
 INSTANTIATE_SINGLETON_1(OutdoorPvPMgr);
 
@@ -53,6 +57,10 @@ void OutdoorPvPMgr::InitOutdoorPvP()
 
     LOAD_OPVP_ZONE(SI);
     LOAD_OPVP_ZONE(EP);
+    LOAD_OPVP_ZONE(HP);
+    LOAD_OPVP_ZONE(ZM);
+    LOAD_OPVP_ZONE(TF);
+    LOAD_OPVP_ZONE(NA);
 
     sLog.outString(">> Loaded %u Outdoor PvP zones", counter);
     sLog.outString();
@@ -66,6 +74,14 @@ OutdoorPvP* OutdoorPvPMgr::GetScript(uint32 zoneId)
             return m_scripts[OPVP_ID_SI];
         case ZONE_ID_EASTERN_PLAGUELANDS:
             return m_scripts[OPVP_ID_EP];
+        case ZONE_ID_HELLFIRE_PENINSULA:
+            return m_scripts[OPVP_ID_HP];
+        case ZONE_ID_ZANGARMARSH:
+            return m_scripts[OPVP_ID_ZM];
+        case ZONE_ID_TEROKKAR_FOREST:
+            return m_scripts[OPVP_ID_TF];
+        case ZONE_ID_NAGRAND:
+            return m_scripts[OPVP_ID_NA];
         default:
             return nullptr;
     }
@@ -82,6 +98,20 @@ OutdoorPvP* OutdoorPvPMgr::GetScriptOfAffectedZone(uint32 zoneId)
         case ZONE_ID_STRATHOLME:
         case ZONE_ID_SCHOLOMANCE:
             return m_scripts[OPVP_ID_EP];
+        case ZONE_ID_HELLFIRE_RAMPARTS:
+        case ZONE_ID_HELLFIRE_CITADEL:
+        case ZONE_ID_BLOOD_FURNACE:
+        case ZONE_ID_SHATTERED_HALLS:
+            return m_scripts[OPVP_ID_HP];
+        case ZONE_ID_STREAMVAULT:
+        case ZONE_ID_UNDERBOG:
+        case ZONE_ID_SLAVE_PENS:
+            return m_scripts[OPVP_ID_ZM];
+        case ZONE_ID_SHADOW_LABYRINTH:
+        case ZONE_ID_AUCHENAI_CRYPTS:
+        case ZONE_ID_SETHEKK_HALLS:
+        case ZONE_ID_MANA_TOMBS:
+            return m_scripts[OPVP_ID_TF];
         default:
             return nullptr;
     }

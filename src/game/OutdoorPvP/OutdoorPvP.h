@@ -41,7 +41,7 @@ enum CapturePointAnimations
     CAPTURE_ANIM_NEUTRAL    = 2
 };
 
-typedef std::map < ObjectGuid /*playerGuid*/, bool /*isMainZone*/ > GuidZoneMap;
+typedef std::map<ObjectGuid /*playerGuid*/, bool /*isMainZone*/> GuidZoneMap;
 
 class OutdoorPvP
 {
@@ -55,7 +55,7 @@ class OutdoorPvP
         virtual void FillInitialWorldStates(WorldPacket& /*data*/, uint32& /*count*/) {}
 
         // Process Capture event
-        virtual bool HandleEvent(uint32 /*eventId*/, GameObject* /*go*/) { return false; }
+        virtual bool HandleEvent(uint32 /*eventId*/, GameObject* /*go*/, Unit* /*invoker*/) { return false; }
 
         // handle capture objective complete
         virtual void HandleObjectiveComplete(uint32 /*eventId*/, const PlayerList& /*players*/, Team /*team*/) {}
@@ -84,6 +84,12 @@ class OutdoorPvP
 
         // Handle player kill
         void HandlePlayerKill(Player* killer, Player* victim);
+
+        // Handle script condition fulfillment
+        virtual bool IsConditionFulfilled(Player const* /*source*/, uint32 /*conditionId*/, WorldObject const* /*conditionSource*/, uint32 /*conditionSourceType*/) { return false; }
+
+        // Handle script condition state change by an external factor
+        virtual void HandleConditionStateChange(uint32 /*conditionId*/, bool /*state*/) {}
 
     protected:
 
