@@ -43,12 +43,10 @@ bool WorldSession::CheckChatMessage(std::string& msg, bool addon/* = false*/)
     if (_player->GetPlayerbotAI())
         return true;
 #endif
-    // check max length: as of pre-2.3.x disconnects the player
+
+    // check max length: as of 2.3.x+ no longer disconnects, silently truncates to 255 (wowwiki)
     if (msg.length() > 255)
-    {
-        KickPlayer();
-        return false;
-    }
+        utf8limit(msg, 255);
 
     // skip remaining checks for addon messages or higher sec level accounts
     if (addon || GetSecurity() > SEC_PLAYER)
@@ -100,8 +98,22 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
     }
     if (langDesc->skill_id != 0 && !_player->HasSkill(langDesc->skill_id))
     {
-        SendNotification(LANG_NOT_LEARNED_LANGUAGE);
-        return;
+        // also check SPELL_AURA_COMPREHEND_LANGUAGE (client offers option to speak in that language)
+        Unit::AuraList const& langAuras = _player->GetAurasByType(SPELL_AURA_COMPREHEND_LANGUAGE);
+        bool foundAura = false;
+        for (auto langAura : langAuras)
+        {
+            if (langAura->GetModifier()->m_miscvalue == int32(lang))
+            {
+                foundAura = true;
+                break;
+            }
+        }
+        if (!foundAura)
+        {
+            SendNotification(LANG_NOT_LEARNED_LANGUAGE);
+            return;
+        }
     }
 
     if (lang == LANG_ADDON)
@@ -191,7 +203,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
         {
             std::string to, msg;
             recv_data >> to;
-            recv_data >> msg;
+
+            // WHISPER channel is available for addons since 2.1.0
+            if (lang == LANG_ADDON)
+                recv_data.read(msg , false);
+            else
+                recv_data >> msg;
 
             if (msg.empty())
                 break;
@@ -630,7 +647,7 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
     MaNGOS::EmoteChatBuilder emote_builder(*GetPlayer(), text_emote, emoteNum, unit);
     MaNGOS::LocalizedPacketDo<MaNGOS::EmoteChatBuilder > emote_do(emote_builder);
     MaNGOS::CameraDistWorker<MaNGOS::LocalizedPacketDo<MaNGOS::EmoteChatBuilder > > emote_worker(GetPlayer(), sWorld.getConfig(CONFIG_FLOAT_LISTEN_RANGE_TEXTEMOTE), emote_do);
-    Cell::VisitWorldObjects(GetPlayer(), emote_worker,  sWorld.getConfig(CONFIG_FLOAT_LISTEN_RANGE_TEXTEMOTE));
+    Cell::VisitWorldObjects(GetPlayer(), emote_worker, sWorld.getConfig(CONFIG_FLOAT_LISTEN_RANGE_TEXTEMOTE));
 
     // Send scripted event call
     if (unit && unit->AI())
@@ -640,9 +657,11 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
 void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recv_data)
 {
     ObjectGuid iguid;
+    uint8 unk;
     // DEBUG_LOG("WORLD: Received opcode CMSG_CHAT_IGNORED");
 
     recv_data >> iguid;
+    recv_data >> unk;                                       // probably related to spam reporting
 
     Player* player = sObjectMgr.GetPlayer(iguid);
     if (!player || !player->GetSession())
@@ -666,8 +685,9 @@ void WorldSession::SendWrongFactionNotice() const
     SendPacket(data);
 }
 
-void WorldSession::SendChatRestrictedNotice() const
+void WorldSession::SendChatRestrictedNotice(ChatRestrictionType restriction) const
 {
-    WorldPacket data(SMSG_CHAT_RESTRICTED, 0);
+    WorldPacket data(SMSG_CHAT_RESTRICTED, 1);
+    data << uint8(restriction);
     SendPacket(data);
 }

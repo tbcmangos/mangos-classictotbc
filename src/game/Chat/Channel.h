@@ -26,9 +26,6 @@
 
 #include <map>
 
-#define SPEAK_IN_LOCALDEFENSE_RANK 0
-#define SPEAK_IN_WORLDDEFENSE_RANK 11
-
 enum ChatNotify : uint8
 {
     CHAT_JOINED_NOTICE                = 0x00,               //+ "%s joined channel.";
@@ -65,17 +62,10 @@ enum ChatNotify : uint8
     CHAT_PLAYER_INVITED_NOTICE        = 0x1D,               //+ "[%s] You invited %s to join the channel";
     CHAT_PLAYER_INVITE_BANNED_NOTICE  = 0x1E,               //+ "[%s] %s has been banned.";
     CHAT_THROTTLED_NOTICE             = 0x1F,               //+ "[%s] The number of messages that can be sent to this channel is limited, please wait to send another message.";
-};
-
-// DBC Channel ID's
-enum ChannelId
-{
-    CHANNEL_ID_GENERAL              = 1,
-    CHANNEL_ID_TRADE                = 2,
-    CHANNEL_ID_LOCAL_DEFENSE        = 22,
-    CHANNEL_ID_WORLD_DEFENSE        = 23,
-    CHANNEL_ID_GUILD_RECRUITMENT    = 25,
-    CHANNEL_ID_LOOKING_FOR_GROUP    = 26
+    CHAT_NOT_IN_AREA_NOTICE           = 0x20,               //+ "[%s] You are not in the correct area for this channel."; -- The user is trying to send a chat to a zone specific channel, and they're not physically in that zone.
+    CHAT_NOT_IN_LFG_NOTICE            = 0x21,               //+ "[%s] You must be queued in looking for group before joining this channel."; -- The user must be in the looking for group system to join LFG chat channels.
+    CHAT_VOICE_ON_NOTICE              = 0x22,               //+ "[%s] Channel voice enabled by %s.";
+    CHAT_VOICE_OFF_NOTICE             = 0x23                //+ "[%s] Channel voice disabled by %s.";
 };
 
 class Channel
@@ -173,6 +163,10 @@ class Channel
         void ToggleModeration(Player* player);
         void Say(Player* player, const char* text, uint32 lang);
         void Invite(Player* player, const char* targetName);
+        void Voice(ObjectGuid guid1, ObjectGuid guid2) const;
+        void DeVoice(ObjectGuid guid1, ObjectGuid guid2) const;
+        void JoinNotify(ObjectGuid guid);                   // invisible notify
+        void LeaveNotify(ObjectGuid guid);                  // invisible notify
 
         // initial packet data (notify type and channel name)
         static void MakeNotifyPacket(WorldPacket& data, const std::string& channel, ChatNotify type);

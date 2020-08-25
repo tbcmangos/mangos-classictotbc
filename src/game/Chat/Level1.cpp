@@ -36,7 +36,7 @@
 #include "Maps/MapPersistentStateMgr.h"
 #include "Mails/Mail.h"
 #include "Util.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #ifdef _DEBUG_VMAPS
 #include "VMapFactory.h"
 #endif
@@ -93,7 +93,7 @@ bool ChatHandler::HandleNpcTextEmoteCommand(char* args)
         return false;
     }
 
-    pCreature->MonsterTextEmote(args, nullptr);
+    pCreature->MonsterTextEmote(args, m_session->GetPlayer());
 
     return true;
 }
@@ -409,7 +409,7 @@ bool ChatHandler::HandleNamegoCommand(char* args)
 
         Map* pMap = player->GetMap();
 
-        if (pMap->IsBattleGround())
+        if (pMap->IsBattleGroundOrArena())
         {
             // only allow if gm mode is on
             if (!player->isGameMaster())
@@ -429,7 +429,7 @@ bool ChatHandler::HandleNamegoCommand(char* args)
             // when porting out from the bg, it will be reset to 0
             target->SetBattleGroundId(player->GetBattleGroundId(), player->GetBattleGroundTypeId());
             // remember current position as entry point for return at bg end teleportation
-            if (!target->GetMap()->IsBattleGround())
+            if (!target->GetMap()->IsBattleGroundOrArena())
                 target->SetBattleGroundEntryPoint();
         }
         else if (pMap->IsDungeon())
@@ -516,7 +516,7 @@ bool ChatHandler::HandleGonameCommand(char* args)
         std::string chrNameLink = playerLink(target_name);
 
         Map* cMap = target->GetMap();
-        if (cMap->IsBattleGround())
+        if (cMap->IsBattleGroundOrArena())
         {
             // only allow if gm mode is on
             if (!_player->isGameMaster())
@@ -536,7 +536,7 @@ bool ChatHandler::HandleGonameCommand(char* args)
             // when porting out from the bg, it will be reset to 0
             _player->SetBattleGroundId(target->GetBattleGroundId(), target->GetBattleGroundTypeId());
             // remember current position as entry point for return at bg end teleportation
-            if (!_player->GetMap()->IsBattleGround())
+            if (!_player->GetMap()->IsBattleGroundOrArena())
                 _player->SetBattleGroundEntryPoint();
         }
         else if (cMap->IsDungeon())
@@ -567,7 +567,7 @@ bool ChatHandler::HandleGonameCommand(char* args)
 
             // if the player or the player's group is bound to another instance
             // the player will not be bound to another one
-            InstancePlayerBind* pBind = _player->GetBoundInstance(target->GetMapId());
+            InstancePlayerBind* pBind = _player->GetBoundInstance(target->GetMapId(), target->GetDifficulty());
             if (!pBind)
             {
                 Group* group = _player->GetGroup();
@@ -585,6 +585,8 @@ bool ChatHandler::HandleGonameCommand(char* args)
                         _player->BindToInstance(save, !save->CanReset());
                 }
             }
+
+            _player->SetDifficulty(target->GetDifficulty());
         }
 
         PSendSysMessage(LANG_APPEARING_AT, chrNameLink.c_str());
@@ -969,6 +971,7 @@ bool ChatHandler::HandleModifyASpeedCommand(char* args)
     chr->UpdateSpeed(MOVE_RUN,    true, modSpeed);
     chr->UpdateSpeed(MOVE_SWIM,   true, modSpeed);
     // chr->UpdateSpeed(MOVE_TURN,   true, modSpeed);
+    chr->UpdateSpeed(MOVE_FLIGHT, true, modSpeed);
     return true;
 }
 
@@ -1107,6 +1110,42 @@ bool ChatHandler::HandleModifyBWalkCommand(char* args)
     return true;
 }
 
+// Edit Player Fly
+bool ChatHandler::HandleModifyFlyCommand(char* args)
+{
+    if (!*args)
+        return false;
+
+    float modSpeed = (float)atof(args);
+
+    if (modSpeed > 10.0f || modSpeed < 0.1f)
+    {
+        SendSysMessage(LANG_BAD_VALUE);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    Player* chr = getSelectedPlayer();
+    if (chr == nullptr)
+    {
+        SendSysMessage(LANG_NO_CHAR_SELECTED);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    // check online security
+    if (HasLowerSecurity(chr))
+        return false;
+
+    PSendSysMessage(LANG_YOU_CHANGE_FLY_SPEED, modSpeed, GetNameLink(chr).c_str());
+    if (needReportToTarget(chr))
+        ChatHandler(chr).PSendSysMessage(LANG_YOURS_FLY_SPEED_CHANGED, GetNameLink().c_str(), modSpeed);
+
+    chr->UpdateSpeed(MOVE_FLIGHT, true, modSpeed);
+
+    return true;
+}
+
 // Edit Player Scale
 bool ChatHandler::HandleModifyScaleCommand(char* args)
 {
@@ -1215,6 +1254,32 @@ bool ChatHandler::HandleModifyMoneyCommand(char* args)
     return true;
 }
 
+bool ChatHandler::HandleModifyHonorCommand(char* args)
+{
+    if (!*args)
+        return false;
+
+    Player* target = getSelectedPlayer();
+    if (!target)
+    {
+        SendSysMessage(LANG_PLAYER_NOT_FOUND);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    // check online security
+    if (HasLowerSecurity(target))
+        return false;
+
+    int32 amount = (int32)atoi(args);
+
+    target->ModifyHonorPoints(amount);
+
+    PSendSysMessage(LANG_COMMAND_MODIFY_HONOR, GetNameLink(target).c_str(), target->GetHonorPoints());
+
+    return true;
+}
+
 bool ChatHandler::HandleTeleCommand(char* args)
 {
     if (!*args)
@@ -1252,9 +1317,9 @@ bool ChatHandler::HandleLookupAreaCommand(char* args)
     wstrToLower(wnamepart);
 
     // Search in AreaTable.dbc
-    for (uint32 areaid = 0; areaid <= sAreaStore.GetNumRows(); ++areaid)
+    for (uint32 areaflag = 0; areaflag < sAreaStore.GetNumRows(); ++areaflag)
     {
-        AreaTableEntry const* areaEntry = sAreaStore.LookupEntry(areaid);
+        AreaTableEntry const* areaEntry = sAreaStore.LookupEntry(areaflag);
         if (areaEntry)
         {
             int loc = GetSessionDbcLocale();
@@ -1935,7 +2000,7 @@ bool ChatHandler::ModifyMountCommandHelper(Player* target, char* args)
     {
         const uint32 level = target->getLevel();
         fast = (level >= 60);
-        slow = (!fast && level >= 40);
+        slow = (!fast && level >= 30);
     }
 
     std::deque<uint32> pool;
@@ -1947,13 +2012,22 @@ bool ChatHandler::ModifyMountCommandHelper(Player* target, char* args)
         {
             if (fast)
                 pool.push_back(24576);      // Chromatic Mount
+            else if (slow)
+                pool.push_back(32420);      // Old Crappy McWeakSauce
+            else
+                pool.push_back(34068);      // Summon Dodostrider
         }
         case SEC_GAMEMASTER:        // Mounts that were never obtainable by players, cut during development
         {
             if (fast)
             {
                 if (target->GetTeam() == ALLIANCE)
+                {
                     pool.push_back(23220);  // Swift Dawnsaber
+                    pool.push_back(47037);  // Swift War Elekk
+                }
+
+                pool.push_back(39450);      // Tallstrider
             }
             else if (slow)
             {
@@ -1987,6 +2061,7 @@ bool ChatHandler::ModifyMountCommandHelper(Player* target, char* args)
                 }
 
                 pool.push_back(25675);      // Reindeer
+                pool.push_back(42929);      // [DNT] Test Mount
             }
             else
             {
@@ -2034,11 +2109,33 @@ bool ChatHandler::ModifyMountCommandHelper(Player* target, char* args)
                 pool.push_back(24242);      // Swift Razzashi Raptor
                 pool.push_back(24252);      // Swift Zulian Tiger
                 pool.push_back(25859);      // Reindeer
+                pool.push_back(36702);      // Fiery Warhorse
+                pool.push_back(41252);      // Raven Lord
+                pool.push_back(42683);      // Swift Magic Broom
+                pool.push_back(42777);      // Swift Spectral Tiger
+                pool.push_back(43688);      // Amani War Bear
+                pool.push_back(43900);      // Swift Brewfest Ram
+                pool.push_back(46628);      // Swift White Hawkstrider
+                pool.push_back(48024);      // Headless Horseman's Mount
+                pool.push_back(48954);      // Swift Zhevra
+                pool.push_back(49379);      // Great Brewfest Kodo
+                pool.push_back(51412);      // Big Battle Bear
             }
             else if (slow)
+            {
                 pool.push_back(25858);      // Reindeer
+                pool.push_back(42680);      // Magic Broom
+                pool.push_back(42776);      // Spectral Tiger
+                pool.push_back(43899);      // Brewfest Ram
+                pool.push_back(49378);      // Brewfest Kodo
+                pool.push_back(51621);      // Headless Horseman's Unruly Mount
+            }
             else
+            {
                 pool.push_back(30174);      // Riding Turtle
+                pool.push_back(42692);      // Rickety Magic Broom
+                pool.push_back(49908);      // Pink Elekk
+            }
         }
     }
 

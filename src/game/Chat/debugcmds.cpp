@@ -31,7 +31,6 @@
 #include "Maps/MapManager.h"
 #include "Globals/ObjectMgr.h"
 #include "Entities/ObjectGuid.h"
-#include "Spells/SpellMgr.h"
 #include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Maps/InstanceData.h"
 #include "Cinematics/M2Stores.h"
@@ -53,9 +52,8 @@ bool ChatHandler::HandleDebugSendSpellFailCommand(char* args)
     if (!ExtractOptUInt32(&args, failarg2, 0))
         return false;
 
-    WorldPacket data(SMSG_CAST_RESULT, 4 + 1 + 1);
+    WorldPacket data(SMSG_CAST_RESULT, 5);
     data << uint32(133);
-    data << uint8(2);
     data << uint8(failnum);
     if (failarg1 || failarg2)
         data << uint32(failarg1);
@@ -137,7 +135,7 @@ bool ChatHandler::HandleDebugSendOpcodeCommand(char* /*args*/)
         return false;
     }
 
-    WorldPacket data(opcode, 0);
+    WorldPacket data(Opcodes(opcode), 0);
 
     std::string type;
     while (stream >> type)
@@ -245,7 +243,7 @@ bool ChatHandler::HandleDebugPlayCinematicCommand(char* args)
                 PSendSysMessage("%02u - %7ums [%f, %f, %f] Facing %f (%f degrees)", count, cam.timeStamp, cam.locations.x, cam.locations.y, cam.locations.z, cam.locations.w, cam.locations.w * (180 / M_PI));
                 count++;
             }
-            PSendSysMessage("%u waypoints dumped",uint32(itr->second.size()));
+            PSendSysMessage("%u waypoints dumped", uint32(itr->second.size()));
         }
     }
 
@@ -348,7 +346,7 @@ bool ChatHandler::HandleDebugSendChatMsgCommand(char* args)
         return false;
 
     WorldPacket data;
-    ChatHandler::BuildChatPacket(data, ChatMsg(type), msg, LANG_UNIVERSAL, CHAT_TAG_NONE, m_session->GetPlayer()->GetObjectGuid(), m_session->GetPlayerName());
+    BuildChatPacket(data, ChatMsg(type), msg, LANG_UNIVERSAL, CHAT_TAG_NONE, m_session->GetPlayer()->GetObjectGuid(), m_session->GetPlayerName());
     m_session->SendPacket(data);
     return true;
 }
@@ -548,7 +546,7 @@ bool ChatHandler::HandleDebugGetItemStateCommand(char* args)
 
                 if (updateQueue[qp] == nullptr)
                 {
-                    PSendSysMessage("%s at slot %u has a queuepos (%d) that points to nullptr in the queue!",
+                    PSendSysMessage("%s at slot %u has a queuepos (%d) that points to NULL in the queue!",
                                     item->GetGuidStr().c_str(), uint32(item->GetSlot()), uint32(qp));
                     error = true; continue;
                 }
@@ -619,7 +617,7 @@ bool ChatHandler::HandleDebugGetItemStateCommand(char* args)
 
                         if (updateQueue[qp] == nullptr)
                         {
-                            PSendSysMessage("%s in bag %u at slot %u has a queuepos (%d) that points to nullptr in the queue!",
+                            PSendSysMessage("%s in bag %u at slot %u has a queuepos (%d) that points to NULL in the queue!",
                                             item2->GetGuidStr().c_str(), uint32(bag->GetSlot()), uint32(item2->GetSlot()), uint32(qp));
                             error = true; continue;
                         }
@@ -702,6 +700,12 @@ bool ChatHandler::HandleDebugBattlegroundStartCommand(char* /*args*/)
     }
 
     return false;
+}
+
+bool ChatHandler::HandleDebugArenaCommand(char* /*args*/)
+{
+    sBattleGroundMgr.ToggleArenaTesting();
+    return true;
 }
 
 bool ChatHandler::HandleDebugSpellCheckCommand(char* /*args*/)
@@ -1137,7 +1141,7 @@ bool ChatHandler::HandleDebugSpellModsCommand(char* args)
     if (!typeStr)
         return false;
 
-    uint16 opcode;
+    Opcodes opcode;
     if (strncmp(typeStr, "flat", strlen(typeStr)) == 0)
         opcode = SMSG_SET_FLAT_SPELL_MODIFIER;
     else if (strncmp(typeStr, "pct", strlen(typeStr)) == 0)
@@ -1406,6 +1410,8 @@ bool ChatHandler::HandleDebugLootDropStats(char* args)
                 lootStore = "skinning";
             else if (lootStore == "disenchanting" || lootStore == "dis")
                 lootStore = "disenchanting";
+            else if (lootStore == "prospecting" || lootStore == "prosp")
+                lootStore = "prospecting";
             else if (lootStore == "mail" || lootStore == "m")
                 lootStore = "mail";
             else
@@ -1418,6 +1424,7 @@ bool ChatHandler::HandleDebugLootDropStats(char* args)
                 PSendSysMessage("pickpocketing");
                 PSendSysMessage("skinning");
                 PSendSysMessage("disenchanting");
+                PSendSysMessage("prospecting");
                 PSendSysMessage("mail");
                 return true;
             }
@@ -1507,6 +1514,39 @@ bool ChatHandler::HandleDebugChatFreezeCommand(char* /*args*/)
     return true;
 }
 
+bool ChatHandler::HandleDebugFlyCommand(char* args)
+{
+    Unit* target = getSelectedUnit();
+    if (!target)
+    {
+        SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+        return false;
+    }
+
+    uint32 value;
+    if (!ExtractUInt32(&args, value))
+        return false;
+
+    uint32 apply;
+    if (!ExtractUInt32(&args, apply))
+        return false;
+
+    switch (value)
+    {
+        case 0: target->SetHover(bool(apply)); break;
+        case 1: target->SetLevitate(bool(apply)); break;
+        case 2: target->SetCanFly(bool(apply)); break;
+        case 3:
+            if (apply)
+                target->SetByteValue(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY_ANIM);
+            else
+                target->SetByteValue(UNIT_FIELD_BYTES_1, 3, 0);
+            break;
+    }
+
+    return true;
+}
+
 bool ChatHandler::HandleDebugObjectFlags(char* args)
 {
     char* debugCmd = ExtractLiteralArg(&args);
@@ -1556,7 +1596,7 @@ bool ChatHandler::HandleDebugObjectFlags(char* args)
     Unit* target = getSelectedUnit();
     if (!target)
     {
-        SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+        SendSysMessage(LANG_SELECT_CREATURE);
         return false;
     }
 

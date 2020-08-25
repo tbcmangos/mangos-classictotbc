@@ -90,6 +90,16 @@ void Channel::Join(Player* player, const char* password)
         return;
     }
 
+    if (HasFlag(CHANNEL_FLAG_LFG) && sWorld.getConfig(CONFIG_BOOL_CHANNEL_RESTRICTED_LFG))
+    {
+        if (player->GetSession()->GetSecurity() == SEC_PLAYER && player->m_lookingForGroup.Empty())
+        {
+            MakeNotInLFG(data, m_name);
+            SendToOne(data, guid);
+            return;
+        }
+    }
+
     if (player->GetGuildId() && (GetFlags() == 0x38))
         return;
 
@@ -113,6 +123,8 @@ void Channel::Join(Player* player, const char* password)
 
     MakeYouJoined(data, m_name, *this);
     SendToOne(data, guid);
+
+    JoinNotify(guid);
 
     // if no owner first logged will become
     if (!IsPublic() && !m_ownerGuid)
@@ -160,6 +172,8 @@ void Channel::Leave(Player* player, bool send)
         MakeLeft(data, m_name, guid);
         SendToAll(data);
     }
+
+    LeaveNotify(guid);
 
     if (changeowner && !IsPublic())
         SetOwner(SelectNewOwner(), (m_players.size() > 1));
@@ -475,7 +489,7 @@ void Channel::SendChannelOwnerResponse(Player* player) const
     SendToOne(data, guid);
 }
 
-void Channel::SendChannelListResponse(Player* player, bool/* display = false*/)
+void Channel::SendChannelListResponse(Player* player, bool display/*= false*/)
 {
     ObjectGuid guid = player->GetObjectGuid();
 
@@ -489,6 +503,7 @@ void Channel::SendChannelListResponse(Player* player, bool/* display = false*/)
 
     // list players in channel
     WorldPacket data(SMSG_CHANNEL_LIST, 1 + (GetName().size() + 1) + 1 + 4 + m_players.size() * (8 + 1));
+    data << uint8(display);                                 // response type: 0 - /chatinfo query, 1 - display list query
     data << GetName();                                      // channel name
     data << uint8(GetFlags());                              // channel flags?
 
@@ -604,9 +619,7 @@ void Channel::Say(Player* player, const char* text, uint32 lang)
         return;
     }
 
-    if (m_players[guid].IsMuted() ||
-            (GetChannelId() == CHANNEL_ID_LOCAL_DEFENSE && player->GetHonorRankInfo().visualRank < SPEAK_IN_LOCALDEFENSE_RANK) ||
-            (GetChannelId() == CHANNEL_ID_WORLD_DEFENSE && player->GetHonorRankInfo().visualRank < SPEAK_IN_WORLDDEFENSE_RANK))
+    if (m_players[guid].IsMuted())
     {
         WorldPacket data;
         MakeMuted(data, m_name);
@@ -652,7 +665,7 @@ void Channel::Say(Player* player, const char* text, uint32 lang)
         lang = LANG_UNIVERSAL;
 
     WorldPacket data;
-    ChatHandler::BuildChatPacket(data, CHAT_MSG_CHANNEL, text, Language(lang), player->GetChatTag(), guid, player->GetName(), ObjectGuid(), "", m_name.c_str(), player->GetHonorRankInfo().rank);
+    ChatHandler::BuildChatPacket(data, CHAT_MSG_CHANNEL, text, Language(lang), player->GetChatTag(), guid, player->GetName(), ObjectGuid(), "", m_name.c_str());
     SendMessage(data, (moderator ? ObjectGuid() : guid));
 }
 
@@ -735,6 +748,41 @@ void Channel::SendMessage(WorldPacket const& data, ObjectGuid sender) const
                 plr->GetSession()->SendPacket(data);
 }
 
+void Channel::Voice(ObjectGuid /*guid1*/, ObjectGuid /*guid2*/) const
+{
+}
+
+void Channel::DeVoice(ObjectGuid /*guid1*/, ObjectGuid /*guid2*/) const
+{
+}
+
+void Channel::JoinNotify(ObjectGuid guid)
+{
+    WorldPacket data;
+
+    if (IsConstant())
+        data.Initialize(SMSG_USERLIST_ADD, 8 + 1 + 1 + 4 + GetName().size() + 1);
+    else
+        data.Initialize(SMSG_USERLIST_UPDATE, 8 + 1 + 1 + 4 + GetName().size() + 1);
+
+    data << ObjectGuid(guid);
+    data << uint8(GetPlayerFlags(guid));
+    data << uint8(GetFlags());
+    data << uint32(GetNumPlayers());
+    data << GetName();
+    SendToAll(data);
+}
+
+void Channel::LeaveNotify(ObjectGuid guid)
+{
+    WorldPacket data(SMSG_USERLIST_REMOVE, 8 + 1 + 4 + GetName().size() + 1);
+    data << ObjectGuid(guid);
+    data << uint8(GetFlags());
+    data << uint32(GetNumPlayers());
+    data << GetName();
+    SendToAll(data);
+}
+
 void Channel::MakeNotifyPacket(WorldPacket& data, const std::string& channel, ChatNotify type)
 {
     data.Initialize(SMSG_CHANNEL_NOTIFY, 1 + channel.size() + 1);
@@ -757,13 +805,16 @@ void Channel::MakeLeft(WorldPacket& data, const std::string& channel, const Obje
 void Channel::MakeYouJoined(WorldPacket& data, const std::string& channel, const Channel& which)
 {
     MakeNotifyPacket(data, channel, CHAT_YOU_JOINED_NOTICE);
-    data << uint32(which.GetFlags());
+    data << uint8(which.GetFlags());
+    data << uint32(which.GetChannelId());
     data << uint32(0);                                      // channel index (when split occurs due to player count)
 }
 
-void Channel::MakeYouLeft(WorldPacket& data, const std::string& channel, const Channel&/* which*/)
+void Channel::MakeYouLeft(WorldPacket& data, const std::string& channel, const Channel& which)
 {
     MakeNotifyPacket(data, channel, CHAT_YOU_LEFT_NOTICE);
+    data << uint32(which.GetChannelId());
+    data << uint8(0);                                       // left: 0x00, suspended: 0x01
 }
 
 void Channel::MakeWrongPassword(WorldPacket& data, const std::string& channel)
@@ -933,6 +984,28 @@ void Channel::MakePlayerInviteBanned(WorldPacket& data, const std::string& chann
 void Channel::MakeThrottled(WorldPacket& data, const std::string& channel)
 {
     MakeNotifyPacket(data, channel, CHAT_THROTTLED_NOTICE);
+}
+
+void Channel::MakeNotInArea(WorldPacket& data, const std::string& channel)
+{
+    MakeNotifyPacket(data, channel, CHAT_NOT_IN_AREA_NOTICE);
+}
+
+void Channel::MakeNotInLFG(WorldPacket& data, const std::string& channel)
+{
+    MakeNotifyPacket(data, channel, CHAT_NOT_IN_LFG_NOTICE);
+}
+
+void Channel::MakeVoiceOn(WorldPacket& data, const std::string& channel, const ObjectGuid& guid)
+{
+    MakeNotifyPacket(data, channel, CHAT_VOICE_ON_NOTICE);
+    data << guid;
+}
+
+void Channel::MakeVoiceOff(WorldPacket& data, const std::string& channel, const ObjectGuid& guid)
+{
+    MakeNotifyPacket(data, channel, CHAT_VOICE_OFF_NOTICE);
+    data << guid;
 }
 
 ObjectGuid Channel::SelectNewOwner() const

@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #ifndef MANGOSSERVER_CHANNELMGR_H
 #define MANGOSSERVER_CHANNELMGR_H
 
@@ -33,7 +32,7 @@ class ChannelMgr
 
         const ChannelMap& GetChannels() const { return channels; }
 
-        Channel* GetJoinChannel(const std::string& name);
+        Channel* GetJoinChannel(const std::string& name, uint32 channel_id);
         Channel* GetChannel(const std::string& name, Player* p, bool pkt = true);
         void LeftChannel(const std::string& name);
     private:
