@@ -376,6 +376,14 @@ bool PoolGroup<Creature>::CanSpawn(PoolObject* object, MapPersistentState& mapSt
 template<>
 bool PoolGroup<GameObject>::CanSpawn(PoolObject* object, MapPersistentState& mapState)
 {
+    if (GameObjectData const* data = sObjectMgr.GetGOData(object->guid))
+    {
+        if (Map* map = mapState.GetMap()) // for world maps this will fail on world start
+        {
+            if ((data->spawnMask & (1 << map->GetDifficulty())) == 0)
+                return false;
+        }
+    }
     return true;
 }
 
