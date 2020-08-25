@@ -438,7 +438,7 @@ const std::string GMTicketMgr::PrintMailResponse(GMTicket const& ticket, bool re
     std::ostringstream ss;
     ss << sObjectMgr.GetMangosString(textId, localeIndex);
 
-    ss << "\n\n\n\n";  // Vanilla spacer
+    ss << "\n|TInterface\\RAIDFRAME\\ReadyCheck-" << (resolved ? "" : "Not") << "Ready:64:64:144:0|t"; // TBC+ spacer
 
     const std::string& conclusion = ticket.GetConclusion();
     const std::string assignee = std::string(ticket.GetAssigneeName());

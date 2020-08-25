@@ -27,7 +27,7 @@
 
 void WorldSession::SendGMTicketResult(uint32 opcode, uint32 result) const
 {
-    WorldPacket data(uint16(opcode), 4);
+    WorldPacket data(Opcodes(opcode), 4);
     data << result;
     SendPacket(data);
 }
@@ -75,30 +75,24 @@ void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recv_data)
         return;
     }
 
-    uint8 category;                                         // Pre-TBC: parsed from the packet
+    uint8 category = 0;                                     // TBC+: "<Uncategorized>"
     uint32 map;
     float x, y, z;
     std::string message;
 
-    recv_data >> category;                                  // Pre-TBC
-
     recv_data >> map >> x >> y >> z;
     recv_data >> message;
 
-    std::string reserved;
-    recv_data >> reserved;                                  // Pre-TBC: "Reserved for future use"
+    recv_data.read_skip<uint32>();                          // TBC+: need response?
 
-    if (category == 2)                                      // Pre-TBC: "Behavior/Harassment"
-    {
-        uint32 chatDataLineCount;
-        recv_data >> chatDataLineCount;
+    uint32 chatDataLineCount;
+    recv_data >> chatDataLineCount;
 
-        uint32 chatDataSizeInflated;
-        recv_data >> chatDataSizeInflated;
+    uint32 chatDataSizeInflated;
+    recv_data >> chatDataSizeInflated;
 
-        if (size_t chatDataSizeDeflated = (recv_data.size() - recv_data.rpos()))
-            recv_data.read_skip(chatDataSizeDeflated);          // Compressed chat data
-    }
+    if (size_t chatDataSizeDeflated = (recv_data.size() - recv_data.rpos()))
+        recv_data.read_skip(chatDataSizeDeflated);          // Compressed chat data
 
     Player* player = GetPlayer();
     const ObjectGuid& guid = player->GetObjectGuid();
