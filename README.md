@@ -1,5 +1,5 @@
 # C(ontinued)-MaNGOS -- README
-[![Linux Build Status](https://travis-ci.org/cmangos/mangos-classic.svg?branch=master)](https://travis-ci.org/cmangos/mangos-classic) [![Windows Build status](https://ci.appveyor.com/api/projects/status/github/cmangos/mangos-classic?branch=master&svg=true)](https://ci.appveyor.com/project/cmangos/mangos-classic/branch/master)
+[![Build Status](https://travis-ci.org/cmangos/mangos-tbc.svg?branch=master)](https://travis-ci.org/cmangos/mangos-tbc) [![Windows Build status](https://ci.appveyor.com/api/projects/status/github/cmangos/mangos-tbc?branch=master&svg=true)](https://ci.appveyor.com/project/cmangos/mangos-tbc/branch/master)
 
 This file is part of the CMaNGOS Project. See [AUTHORS](AUTHORS.md) and [COPYRIGHT](COPYRIGHT.md) files for Copyright information
 
@@ -55,8 +55,8 @@ To be able to accomplish these goals, we support and promote:
   * [CMaNGOS Discord](https://discord.gg/Dgzerzb)
   * [GitHub repositories](https://github.com/cmangos/)
   * [Issue tracker](https://github.com/cmangos/issues/issues)
-  * [Pull Requests](https://github.com/cmangos/mangos-classic/pulls)
-  * [Current build status on Travis CI](https://travis-ci.org/cmangos/mangos-classic/)
+  * [Pull Requests](https://github.com/cmangos/mangos-tbc/pulls)
+  * [Current build status on Travis CI](https://travis-ci.org/cmangos/mangos-tbc/)
   * [Wiki](https://github.com/cmangos/issues/wiki) with additional information on installation
   * [Contributing Guidelines](CONTRIBUTING.md)
   * Documentation can be found in the doc/ subdirectory and on the GitHub wiki

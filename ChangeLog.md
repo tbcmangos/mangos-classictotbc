@@ -42,7 +42,7 @@
 * Add Auction House Bot
 * Add Creature linking
 * Add Pathfinding
-* Add Outdoor PvP for zones Eastern Plaguelands and Silithus
+* Add Outdoor PvP for zones Eastern Plaguelands, Silithus, Hellfire Peninsula, Terorkkar Forest, Zangarmarsh and Halaa
 * Add support for Gameobject group loot
 * Improve liquid handling
 * Add support for dynamic collision
@@ -57,6 +57,7 @@
 * Move vmaps to vmap version 3.0 and then to 4.0
 * Add PersistantState system
 * Implement proper work pool/gameevent spawns in Map instances
+* Implement server side spells
 * Implement a new conditions system that is more flexible
 * Improve overall spell targeting and implement many spells
 * Generic code style fixes
@@ -66,7 +67,7 @@
 * Updated G3DLite library to 8.0.1
 
 ### Statistics ###
-* Total number of changes: 2187 revisions
+* Total number of changes: 1820 revisions
 * Lots of bugs from forum and issues from github fixed
 
 MaNGOS 0.12   (Dec 22 2008)

@@ -25,7 +25,7 @@ if(CCACHE_PROGRAM)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
 endif()
 
-project(CMaNGOS_Classic)
+project(CMaNGOS_TBC)
 
 # Define here name of the binaries
 set(CMANGOS_BINARY_SERVER_NAME "mangosd")

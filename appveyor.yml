@@ -10,7 +10,7 @@ platform:
 
 # specify custom environment variables
 environment:
-  CMANGOS_PROJECT_NAME: "CMaNGOS_Classic" # should be same as root CMakeList.txt
+  CMANGOS_PROJECT_NAME: "CMaNGOS_TBC" # should be same as root CMakeList.txt
   MSVC_DEFAULT_OPTIONS: ON
   BOOST_ROOT: C:\Libraries\boost_1_63_0
   BOOST_LIBRARYDIR_WIN32: C:\Libraries\boost_1_63_0\lib32-msvc-14.0
@@ -64,6 +64,9 @@ branches:
 # Do not build on tags (GitHub only)
 skip_tags: true
 
+# unit test
+test: off
+
 # scripts to run before build
 before_build:
   - cmd: if "%platform%"=="Win32" set BOOST_LIBRARYDIR="%BOOST_LIBRARYDIR_WIN32%"
@@ -81,9 +84,6 @@ build_script:
          $slnFile = "$env:CMANGOS_PROJECT_NAME" + ".sln"
          Write-Host "Building $env:CMANGOS_PROJECT_NAME project ..." -f Yellow
          msbuild "$buildFolder\$slnFile" /m /verbosity:quiet /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-
-# unit test
-test: off
 
 artifacts:
   - path: bin\$(platform)_$(configuration)

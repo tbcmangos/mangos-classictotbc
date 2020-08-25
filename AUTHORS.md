@@ -35,8 +35,8 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * WoW Daemon Team (mentioned here as one, until we have proper details)
 
 * 123qwe
-* a1ien
 * Abim
+* a1ien
 * AbsoluteZero
 * aerione_alt
 * akreao
@@ -54,7 +54,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * anakin
 * Andeeria
 * andre
-* antifreak
+* Antifreak
 * Antimozg
 * antiroot
 * Antonio593
@@ -76,7 +76,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * b482518
 * Backbone
 * Balrok
-* bastili (a.K.a bastii)
+* bastili (a.k.a. bastii)
 * begemot
 * benemorius
 * Blackhawk
@@ -109,7 +109,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * Ceris
 * Charlie2025
 * CHEG
-* Chero (a.k.a Cher0)
+* Chero (a.k.a. Cher0)
 * ChipLeo
 * Christyan
 * CipherCOM
@@ -131,7 +131,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * Dark
 * darkEvil
 * Darkknight900
-* Darkman1983
+* darkman1983
 * Darkruler
 * Darkrulerz
 * darkstalker
@@ -195,7 +195,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * foxbox
 * fr1ge
 * fra298
-* FragFrog
+* fraggrog
 * Frankir
 * frcoun
 * Fred
@@ -218,8 +218,8 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * GriffonHeart
 * Grinder
 * Grz3s
-* GS
 * Gurg
+* GS
 * Hantet
 * hectolight
 * herrtrigger
@@ -243,13 +243,13 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * Itch
 * j4r0d
 * Janu
-* Jethrogibbs (a.k.a. jethro84530, Jethro)
+* Jethrogibbs (a.k.a. jethro84530)
 * Jolan
 * jorooo
 * jotapdiez
 * jpiolho
 * jsee
-* junta
+* Junta
 * kaelima
 * Kaios
 * kamikazetg
@@ -300,8 +300,8 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * Maxxie
 * MaxXx2021
 * McBen
-* MeanMachine
 * Megamage
+* MeanMachine
 * Meldanor
 * MeRclLy
 * michalpolko
@@ -352,7 +352,7 @@ The Authors of third party libraries are not explicitly mentioned, and usually a
 * Pablo
 * pabzea
 * palf4711
-* Panic
+* panic
 * partizanes
 * pasdVn
 * Pat S
