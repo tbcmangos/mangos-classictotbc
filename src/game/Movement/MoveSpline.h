@@ -20,7 +20,7 @@
 #define MANGOSSERVER_MOVEPLINE_H
 
 #include "spline.h"
-#include "MoveSplineInitArgs.h"
+#include "Movement/MoveSplineInitArgs.h"
 
 namespace Movement
 {

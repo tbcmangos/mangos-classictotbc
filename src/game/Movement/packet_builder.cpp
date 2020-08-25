@@ -73,47 +73,21 @@ namespace Movement
 
     void WriteLinearPath(const Spline<int32>& spline, ByteBuffer& data)
     {
-        // get ref of whole path points array
-        // NOTE: This array contain special data, mostly first and last elements are not part of the path
-        auto& pathPoint = spline.getPoints();
+        uint32 last_idx = spline.getPointCount() - 3;
+        const Vector3* real_path = &spline.getPoint(1);
 
-        // get needed indexes of data in the array
-        int32 loIdx = spline.first() + 1; // point 0 is current position and is already in the packet
-        int32 hiIdx = spline.last();
-
-        // check that we have valid indexes
-        MANGOS_ASSERT(hiIdx >= loIdx);
-
-        // get destination (last valid element of the array)
-        Vector3 const& destination = pathPoint[hiIdx];
-
-        // placeholder for intermediate points count
-        uint32 countPos = data.wpos();
-        data << 0;
-
-        // put the destination on packet
-        data << destination;
-
-        Vector3 offset;             // offset that will be computed from intermediate point to destination
-        uint32 offsetSent = 1;      // count of offset sent (destination should be considered too thats why its 1)
-
-        // loop for intermediates points sending
-        for (int32 i = loIdx; i < hiIdx; ++i) // stop before hiIdx as its the destination and is already sent
+        data << last_idx;
+        data << real_path[last_idx];   // destination
+        if (last_idx > 1)
         {
-            // compute offset
-            offset = destination - pathPoint[i];
-
-            // avoid sending too little offset to avoid client freeze
-            if (offset.squaredMagnitude() < 0.5f)
-                continue;
-
-            // add packed version of the offset and increment offset sent counter
-            data.appendPackXYZ(offset.x, offset.y, offset.z);
-            ++offsetSent;
+            Vector3 middle = (real_path[0] + real_path[last_idx]) / 2.f;
+            // first and last points already appended
+            for (uint32 i = 1; i < last_idx; ++i)
+            {
+                Vector3 offset = middle - real_path[i];
+                data.appendPackXYZ(offset.x, offset.y, offset.z);
+            }
         }
-
-        // fix the offset count sent in packet
-        data.put<uint32>(countPos, offsetSent);
     }
 
     void WriteCatmullRomPath(const Spline<int32>& spline, ByteBuffer& data)
@@ -158,17 +132,17 @@ namespace Movement
 
             data << splineFlags.raw();
 
-            if (splineFlags.final_point)
+            if (splineFlags.final_angle)
             {
-                data << move_spline.facing.f.x << move_spline.facing.f.y << move_spline.facing.f.z;
+                data << move_spline.facing.angle;
             }
             else if (splineFlags.final_target)
             {
                 data << move_spline.facing.target;
             }
-            else if (splineFlags.final_angle)
+            else if (splineFlags.final_point)
             {
-                data << move_spline.facing.angle;
+                data << move_spline.facing.f.x << move_spline.facing.f.y << move_spline.facing.f.z;
             }
 
             data << move_spline.timePassed();
