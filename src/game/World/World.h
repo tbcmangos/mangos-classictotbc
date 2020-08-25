@@ -28,6 +28,7 @@
 #include "Globals/SharedDefines.h"
 #include "Entities/Object.h"
 
+#include <atomic>
 #include <set>
 #include <list>
 #include <deque>
@@ -106,7 +107,8 @@ enum eConfigUInt32Values
     CONFIG_UINT32_START_PLAYER_MONEY,
     CONFIG_UINT32_MAX_HONOR_POINTS,
     CONFIG_UINT32_START_HONOR_POINTS,
-    CONFIG_UINT32_MIN_HONOR_KILLS,
+    CONFIG_UINT32_MAX_ARENA_POINTS,
+    CONFIG_UINT32_START_ARENA_POINTS,
     CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR,
     CONFIG_UINT32_INSTANCE_UNLOAD_DELAY,
     CONFIG_UINT32_MAX_SPELL_CASTS_IN_CHAIN,
@@ -145,12 +147,14 @@ enum eConfigUInt32Values
     CONFIG_UINT32_SKILL_GAIN_GATHERING,
     CONFIG_UINT32_SKILL_GAIN_WEAPON,
     CONFIG_UINT32_MAX_OVERSPEED_PINGS,
+    CONFIG_UINT32_EXPANSION,
     CONFIG_UINT32_CHATFLOOD_MESSAGE_COUNT,
     CONFIG_UINT32_CHATFLOOD_MESSAGE_DELAY,
     CONFIG_UINT32_CHATFLOOD_MUTE_TIME,
     CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY,
     CONFIG_UINT32_CREATURE_FAMILY_FLEE_DELAY,
     CONFIG_UINT32_WORLD_BOSS_LEVEL_DIFF,
+    CONFIG_UINT32_QUEST_DAILY_RESET_HOUR,
     CONFIG_UINT32_QUEST_WEEKLY_RESET_WEEK_DAY,
     CONFIG_UINT32_QUEST_WEEKLY_RESET_HOUR,
     CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY,
@@ -166,13 +170,18 @@ enum eConfigUInt32Values
     CONFIG_UINT32_BATTLEGROUND_PREMATURE_FINISH_TIMER,
     CONFIG_UINT32_BATTLEGROUND_PREMADE_GROUP_WAIT_FOR_MATCH,
     CONFIG_UINT32_BATTLEGROUND_QUEUE_ANNOUNCER_JOIN,
+    CONFIG_UINT32_ARENA_MAX_RATING_DIFFERENCE,
+    CONFIG_UINT32_ARENA_RATING_DISCARD_TIMER,
+    CONFIG_UINT32_ARENA_AUTO_DISTRIBUTE_INTERVAL_DAYS,
+    CONFIG_UINT32_ARENA_SEASON_ID,
+    CONFIG_UINT32_ARENA_FIRST_RESET_DAY,
     CONFIG_UINT32_GROUP_OFFLINE_LEADER_DELAY,
     CONFIG_UINT32_GUILD_EVENT_LOG_COUNT,
+    CONFIG_UINT32_GUILD_BANK_EVENT_LOG_COUNT,
     CONFIG_UINT32_MIRRORTIMER_FATIGUE_MAX,
     CONFIG_UINT32_MIRRORTIMER_BREATH_MAX,
     CONFIG_UINT32_MIRRORTIMER_ENVIRONMENTAL_MAX,
     CONFIG_UINT32_MIN_LEVEL_STAT_SAVE,
-    CONFIG_UINT32_MAINTENANCE_DAY,
     CONFIG_UINT32_CHARDELETE_KEEP_DAYS,
     CONFIG_UINT32_CHARDELETE_METHOD,
     CONFIG_UINT32_CHARDELETE_MIN_LEVEL,
@@ -192,6 +201,8 @@ enum eConfigUInt32Values
 enum eConfigInt32Values
 {
     CONFIG_INT32_DEATH_SICKNESS_LEVEL = 0,
+    CONFIG_INT32_ARENA_STARTRATING,
+    CONFIG_INT32_ARENA_STARTPERSONALRATING,
     CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF,
     CONFIG_INT32_QUEST_HIGH_LEVEL_HIDE_DIFF,
     CONFIG_INT32_VALUE_COUNT
@@ -277,12 +288,12 @@ enum eConfigBoolValues
 {
     CONFIG_BOOL_GRID_UNLOAD = 0,
     CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY,
+    CONFIG_BOOL_OFFHAND_CHECK_AT_TALENTS_RESET,
     CONFIG_BOOL_ALLOW_TWO_SIDE_ACCOUNTS,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHAT,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHANNEL,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GROUP,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD,
-    CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_TRADE,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_AUCTION,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_MAIL,
     CONFIG_BOOL_ALLOW_TWO_SIDE_WHO_LIST,
@@ -294,6 +305,7 @@ enum eConfigBoolValues
     CONFIG_BOOL_GM_LOG_TRADE,
     CONFIG_BOOL_GM_LOWER_SECURITY,
     CONFIG_BOOL_GM_TICKETS_QUEUE_STATUS,
+    CONFIG_BOOL_SKILL_PROSPECTING,
     CONFIG_BOOL_ALWAYS_MAX_SKILL_FOR_LEVEL,
     CONFIG_BOOL_WEATHER,
     CONFIG_BOOL_EVENT_ANNOUNCE,
@@ -301,6 +313,7 @@ enum eConfigBoolValues
     CONFIG_BOOL_DETECT_POS_COLLISION,
     CONFIG_BOOL_CHAT_RESTRICTED_RAID_WARNINGS,
     CONFIG_BOOL_CHANNEL_RESTRICTED_LFG,
+    CONFIG_BOOL_TALENTS_INSPECTING,
     CONFIG_BOOL_CHAT_FAKE_MESSAGE_PREVENTING,
     CONFIG_BOOL_CHAT_STRICT_LINK_CHECKING_SEVERITY,
     CONFIG_BOOL_CHAT_STRICT_LINK_CHECKING_KICK,
@@ -310,18 +323,26 @@ enum eConfigBoolValues
     CONFIG_BOOL_DEATH_CORPSE_RECLAIM_DELAY_PVP,
     CONFIG_BOOL_DEATH_CORPSE_RECLAIM_DELAY_PVE,
     CONFIG_BOOL_DEATH_BONES_WORLD,
-    CONFIG_BOOL_DEATH_BONES_BG,
+    CONFIG_BOOL_DEATH_BONES_BG_OR_ARENA,
     CONFIG_BOOL_TAXI_FLIGHT_CHAT_FIX,
     CONFIG_BOOL_LONG_TAXI_PATHS_PERSISTENCE,
     CONFIG_BOOL_ALL_TAXI_PATHS,
+    CONFIG_BOOL_DECLINED_NAMES_USED,
     CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING,
     CONFIG_BOOL_SKILL_FAIL_GAIN_FISHING,
     CONFIG_BOOL_SKILL_FAIL_POSSIBLE_FISHINGPOOL,
     CONFIG_BOOL_BATTLEGROUND_CAST_DESERTER,
     CONFIG_BOOL_BATTLEGROUND_QUEUE_ANNOUNCER_START,
     CONFIG_BOOL_BATTLEGROUND_SCORE_STATISTICS,
+    CONFIG_BOOL_ARENA_AUTO_DISTRIBUTE_POINTS,
+    CONFIG_BOOL_ARENA_QUEUE_ANNOUNCER_JOIN,
+    CONFIG_BOOL_ARENA_QUEUE_ANNOUNCER_EXIT,
     CONFIG_BOOL_OUTDOORPVP_SI_ENABLED,
     CONFIG_BOOL_OUTDOORPVP_EP_ENABLED,
+    CONFIG_BOOL_OUTDOORPVP_HP_ENABLED,
+    CONFIG_BOOL_OUTDOORPVP_ZM_ENABLED,
+    CONFIG_BOOL_OUTDOORPVP_TF_ENABLED,
+    CONFIG_BOOL_OUTDOORPVP_NA_ENABLED,
     CONFIG_BOOL_KICK_PLAYER_ON_BAD_PACKET,
     CONFIG_BOOL_STATS_SAVE_ONLY_ON_LOGOUT,
     CONFIG_BOOL_CLEAN_CHARACTER_DB,
@@ -336,19 +357,33 @@ enum eConfigBoolValues
     CONFIG_BOOL_VALUE_COUNT
 };
 
-/// Type of server
-enum RealmType
+/// Can be used in SMSG_AUTH_RESPONSE packet
+enum BillingPlanFlags
 {
-    REALM_TYPE_NORMAL = 0,
-    REALM_TYPE_PVP = 1,
-    REALM_TYPE_NORMAL2 = 4,
-    REALM_TYPE_RP = 6,
-    REALM_TYPE_RPPVP = 8,
-    REALM_TYPE_FFA_PVP = 16                                 // custom, free for all pvp mode like arena PvP in all zones except rest activated places and sanctuaries
-                         // replaced by REALM_PVP in realm list
+    SESSION_NONE            = 0x00,
+    SESSION_UNUSED          = 0x01,
+    SESSION_RECURRING_BILL  = 0x02,
+    SESSION_FREE_TRIAL      = 0x04,
+    SESSION_IGR             = 0x08,
+    SESSION_USAGE           = 0x10,
+    SESSION_TIME_MIXTURE    = 0x20,
+    SESSION_RESTRICTED      = 0x40,
+    SESSION_ENABLE_CAIS     = 0x80,
 };
 
-// [-ZERO] Need drop not existed cases
+/// Type of server, this is values from second column of Cfg_Configs.dbc (1.12.1 have another numeration)
+enum RealmType
+{
+    REALM_TYPE_NORMAL   = 0,
+    REALM_TYPE_PVP      = 1,
+    REALM_TYPE_NORMAL2  = 4,
+    REALM_TYPE_RP       = 6,
+    REALM_TYPE_RPPVP    = 8,
+    REALM_TYPE_FFA_PVP  = 16                                // custom, free for all pvp mode like arena PvP in all zones except rest activated places and sanctuaries
+                          // replaced by REALM_PVP in realm list
+};
+
+/// This is values from first column of Cfg_Categories.dbc (1.12.1 have another numeration)
 enum RealmZone
 {
     REALM_ZONE_UNKNOWN       = 0,                           // any language
@@ -380,7 +415,16 @@ enum RealmZone
     REALM_ZONE_TEST_SERVER   = 26,                          // any language
     REALM_ZONE_TOURNAMENT_27 = 27,                          // basic-Latin at create, any at login
     REALM_ZONE_QA_SERVER     = 28,                          // any language
-    REALM_ZONE_CN9           = 29                           // basic-Latin at create, any at login
+    REALM_ZONE_CN9           = 29,                          // basic-Latin at create, any at login
+    REALM_ZONE_TEST_SERVER_2 = 30,                          // any language
+    // in 3.x
+    REALM_ZONE_CN10          = 31,                          // basic-Latin at create, any at login
+    REALM_ZONE_CTC           = 32,
+    REALM_ZONE_CNC           = 33,
+    REALM_ZONE_CN1_4         = 34,                          // basic-Latin at create, any at login
+    REALM_ZONE_CN2_6_9       = 35,                          // basic-Latin at create, any at login
+    REALM_ZONE_CN3_7         = 36,                          // basic-Latin at create, any at login
+    REALM_ZONE_CN5_8         = 37                           // basic-Latin at create, any at login
 };
 
 /// Storage class for commands issued for delayed execution
@@ -436,7 +480,7 @@ class World
         typedef std::list<WorldSession*> Queue;
         void AddQueuedSession(WorldSession*);
         bool RemoveQueuedSession(WorldSession* sess);
-        int32 GetQueuedSessionPos(WorldSession*);
+        int32 GetQueuedSessionPos(WorldSession const* sess) const;
 
         /// \todo Actions on m_allowMovement still to be implemented
         /// Is movement allowed?
@@ -460,19 +504,8 @@ class World
         time_t const& GetGameTime() const { return m_gameTime; }
         /// Uptime (in secs)
         uint32 GetUptime() const { return uint32(m_gameTime - m_startTime); }
-
-        tm* GetLocalTimeByTime(time_t now) const { return localtime(&now); }
-        uint32 GetDateByLocalTime(tm* now) const { return ((uint32)(now->tm_year << 16) | (uint32)(now->tm_yday)); }
-        uint32 GetDateToday() const {   return GetDateByLocalTime(GetLocalTimeByTime(m_gameTime)); }
-        uint32 GetDateThisWeekBegin() const {   return GetDateToday() - GetLocalTimeByTime(m_gameTime)->tm_wday; }
-        uint32 GetDateLastMaintenanceDay() const
-        {
-            uint32 today = GetDateToday();
-            uint32 mDay  = getConfig(CONFIG_UINT32_MAINTENANCE_DAY);
-            tm* date     = GetLocalTimeByTime(m_gameTime);
-            // formula to find last mDay of gregorian calendary
-            return today - ((date->tm_wday - mDay  + 7) % 7);
-        }
+        /// Next daily quests reset time
+        time_t GetNextDailyQuestsResetTime() const { return m_NextDailyQuestReset; }
 
         /// Get the maximum skill level a player can reach
         uint16 GetConfigMaxSkillValue() const
@@ -544,13 +577,10 @@ class World
         // for max speed access
         static float GetMaxVisibleDistanceOnContinents()    { return m_MaxVisibleDistanceOnContinents; }
         static float GetMaxVisibleDistanceInInstances()     { return m_MaxVisibleDistanceInInstances;  }
-        static float GetMaxVisibleDistanceInBG()            { return m_MaxVisibleDistanceInBG;         }
+        static float GetMaxVisibleDistanceInBGArenas()      { return m_MaxVisibleDistanceInBGArenas;   }
 
         static float GetRelocationLowerLimitSq() { return m_relocation_lower_limit_sq; }
         static uint32 GetRelocationAINotifyDelay() { return m_relocation_ai_notify_delay; }
-
-        void InitServerMaintenanceCheck();
-        void ServerMaintenanceStart();
 
         void ProcessCliCommands();
         void QueueCliCommand(const CliCommandHolder* commandHolder) { std::lock_guard<std::mutex> guard(m_cliCommandQueueLock); m_cliCommandQueue.push_back(commandHolder); }
@@ -588,13 +618,23 @@ class World
         static TimePoint GetCurrentClockTime() { return m_currentTime; }
         static uint32 GetCurrentDiff() { return m_currentDiff; }
 
+        void UpdateSessionExpansion(uint8 expansion);
+
     protected:
         void _UpdateGameTime();
         // callback for UpdateRealmCharacters
         void _UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId);
 
+        void InitDailyQuestResetTime();
         void InitWeeklyQuestResetTime();
+        void SetMonthlyQuestResetTime(bool initialize = true);
+
+        void GenerateEventGroupEvents(bool daily, bool weekly, bool deleteColumns);
+        void LoadEventGroupChosen();
+
+        void ResetDailyQuests();
         void ResetWeeklyQuests();
+        void ResetMonthlyQuests();
 
     private:
         void setConfig(eConfigUInt32Values index, char const* fieldname, uint32 defvalue);
@@ -613,13 +653,10 @@ class World
         bool configNoReload(bool reload, eConfigFloatValues index, char const* fieldname, float defvalue) const;
         bool configNoReload(bool reload, eConfigBoolValues index, char const* fieldname, bool defvalue) const;
 
-        static volatile bool m_stopEvent;
+        static std::atomic<bool> m_stopEvent;
         static uint8 m_ExitCode;
         uint32 m_ShutdownTimer;
         uint32 m_ShutdownMask;
-
-        uint32 m_NextMaintenanceDate;
-        uint32 m_MaintenanceTimeChecker;
 
         time_t m_startTime;
         time_t m_gameTime;
@@ -648,7 +685,7 @@ class World
         // for max speed access
         static float m_MaxVisibleDistanceOnContinents;
         static float m_MaxVisibleDistanceInInstances;
-        static float m_MaxVisibleDistanceInBG;
+        static float m_MaxVisibleDistanceInBGArenas;
 
         static float  m_relocation_lower_limit_sq;
         static uint32 m_relocation_ai_notify_delay;
@@ -657,8 +694,10 @@ class World
         std::mutex m_cliCommandQueueLock;
         std::deque<const CliCommandHolder*> m_cliCommandQueue;
 
-        // next weekly quests reset time
+        // next daily quests reset time
+        time_t m_NextDailyQuestReset;
         time_t m_NextWeeklyQuestReset;
+        time_t m_NextMonthlyQuestReset;
 
         // Player Queue
         Queue m_QueuedSessions;
@@ -675,6 +714,9 @@ class World
 
         // List of Maps that should be force-loaded on startup
         std::set<uint32> m_configForceLoadMapIds;
+
+        // Vector of quests that were chosen for given group
+        std::vector<uint32> m_eventGroupChosen;
 
         std::vector<std::string> m_spamRecords;
 

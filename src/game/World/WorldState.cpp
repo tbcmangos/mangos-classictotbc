@@ -20,12 +20,33 @@
 #include "World/World.h"
 #include "Maps/MapManager.h"
 #include "Entities/Object.h"
+#include "GameEvents/GameEventMgr.h"
 #include <algorithm>
 #include <map>
 
-WorldState::WorldState() : m_emeraldDragonsState(0xF), m_emeraldDragonsTimer(0), m_emeraldDragonsChosenPositions(4, 0)
+enum
 {
+    GROMGOLUC_EVENT_1   = 15312,
+    GROMGOLUC_EVENT_2   = 15313,
+    GROMGOLUC_EVENT_3   = 15314,
+    GROMGOLUC_EVENT_4   = 15315,
 
+    OGUC_EVENT_1        = 15318,
+    OGUC_EVENT_2        = 15319,
+    OGUC_EVENT_3        = 15320,
+    OGUC_EVENT_4        = 15321,
+
+    GROMGOLOG_EVENT_1   = 15322,
+    GROMGOLOG_EVENT_2   = 15323,
+    GROMGOLOG_EVENT_3   = 15324,
+    GROMGOLOG_EVENT_4   = 15325,
+};
+
+WorldState::WorldState() : m_emeraldDragonsState(0xF), m_emeraldDragonsTimer(0), m_emeraldDragonsChosenPositions(4, 0), m_isMagtheridonHeadSpawnedHorde(false), m_isMagtheridonHeadSpawnedAlliance(false), m_adalSongOfBattleTimer(0), m_expansion(EXPANSION_TBC)
+{
+    m_transportStates[GROMGOL_UNDERCITY]    = GROMGOLUC_EVENT_1;
+    m_transportStates[GROMGOL_ORGRIMMAR]    = OGUC_EVENT_1;
+    m_transportStates[ORGRIMMAR_UNDERCITY]  = GROMGOLOG_EVENT_1;
 }
 
 
@@ -73,11 +94,24 @@ void WorldState::Load()
                 }
                 case SAVE_ID_AHN_QIRAJ: // TODO:
                     break;
+                case SAVE_ID_QUEL_DANAS: // TODO:
+                    break;
+                case SAVE_ID_EXPANSION_RELEASE:
+                    if (data.size())
+                    {
+                        uint32 expansion; // need to read as number not as character
+                        loadStream >> expansion;
+                        m_expansion = expansion;
+                    }
+                    else
+                        m_expansion = sWorld.getConfig(CONFIG_UINT32_EXPANSION);
+                    break;
             }
         }
         while (result->NextRow());
     }
     RespawnEmeraldDragons();
+    StartExpansionEvent();
 }
 
 void WorldState::Save(SaveIds saveId)
@@ -101,42 +135,179 @@ void WorldState::Save(SaveIds saveId)
             CharacterDatabase.PExecute("INSERT INTO world_state(Id,Data) VALUES('%u','%s')", SAVE_ID_EMERALD_DRAGONS, dragonsData.data());
             break;
         }
+        case SAVE_ID_EXPANSION_RELEASE:
+        {
+            std::string expansionData = std::to_string(m_expansion);
+            CharacterDatabase.PExecute("DELETE FROM world_state WHERE Id='%u'", SAVE_ID_EXPANSION_RELEASE);
+            CharacterDatabase.PExecute("INSERT INTO world_state(Id,Data) VALUES('%u','%s')", SAVE_ID_EXPANSION_RELEASE, expansionData.data());
+            break;
+        }
         // TODO: Add saving for AQ and QD
         case SAVE_ID_AHN_QIRAJ:
-        // case SAVE_ID_QUEL_DANAS:
+        case SAVE_ID_QUEL_DANAS:
             break;
     }
 }
 
 void WorldState::HandleGameObjectUse(GameObject* go, Unit* user)
 {
-
+    switch (go->GetEntry())
+    {
+        case OBJECT_MAGTHERIDONS_HEAD:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (Player* player = dynamic_cast<Player*>(user))
+            {
+                if (player->GetTeam() == HORDE)
+                {
+                    m_isMagtheridonHeadSpawnedHorde = true;
+                    m_guidMagtheridonHeadHorde = go->GetObjectGuid();
+                    BuffMagtheridonTeam(HORDE);
+                }
+                else
+                {
+                    m_isMagtheridonHeadSpawnedAlliance = true;
+                    m_guidMagtheridonHeadAlliance = go->GetObjectGuid();
+                    BuffMagtheridonTeam(ALLIANCE);
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void WorldState::HandleGameObjectRevertState(GameObject* go)
 {
-
+    switch (go->GetEntry())
+    {
+        case OBJECT_MAGTHERIDONS_HEAD:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (go->GetObjectGuid() == m_guidMagtheridonHeadHorde)
+            {
+                m_isMagtheridonHeadSpawnedHorde = false;
+                m_guidMagtheridonHeadHorde = ObjectGuid();
+                DispelMagtheridonTeam(HORDE);
+            }
+            else if (go->GetObjectGuid() == m_guidMagtheridonHeadAlliance)
+            {
+                m_isMagtheridonHeadSpawnedAlliance = false;
+                m_guidMagtheridonHeadAlliance = ObjectGuid();
+                DispelMagtheridonTeam(ALLIANCE);
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void WorldState::HandlePlayerEnterZone(Player* player, uint32 zoneId)
 {
-
+    switch (zoneId)
+    {
+        case ZONEID_HELLFIRE_PENINSULA:
+        case ZONEID_HELLFIRE_RAMPARTS:
+        case ZONEID_HELLFIRE_CITADEL:
+        case ZONEID_BLOOD_FURNACE:
+        case ZONEID_SHATTERED_HALLS:
+        case ZONEID_MAGTHERIDON_LAIR:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (m_isMagtheridonHeadSpawnedAlliance && player->GetTeam() == ALLIANCE)
+                player->CastSpell(player, SPELL_TROLLBANES_COMMAND, TRIGGERED_OLD_TRIGGERED);
+            if (m_isMagtheridonHeadSpawnedHorde && player->GetTeam() == HORDE)
+                player->CastSpell(player, SPELL_NAZGRELS_FAVOR, TRIGGERED_OLD_TRIGGERED);
+            m_magtheridonHeadPlayers.push_back(player->GetObjectGuid());
+        }
+        case ZONEID_SHATTRATH:
+        case ZONEID_BOTANICA:
+        case ZONEID_MECHANAR:
+        case ZONEID_ARCATRAZ:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (m_adalSongOfBattleTimer)
+                player->CastSpell(player, SPELL_ADAL_SONG_OF_BATTLE, TRIGGERED_OLD_TRIGGERED);
+            m_adalSongOfBattlePlayers.push_back(player->GetObjectGuid());
+        }
+        default:
+            break;
+    }
 }
 
 void WorldState::HandlePlayerLeaveZone(Player* player, uint32 zoneId)
 {
-
+    switch (zoneId)
+    {
+        case ZONEID_HELLFIRE_PENINSULA:
+        case ZONEID_HELLFIRE_RAMPARTS:
+        case ZONEID_HELLFIRE_CITADEL:
+        case ZONEID_BLOOD_FURNACE:
+        case ZONEID_SHATTERED_HALLS:
+        case ZONEID_MAGTHERIDON_LAIR:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            if (player->GetTeam() == ALLIANCE)
+                player->RemoveAurasDueToSpell(SPELL_TROLLBANES_COMMAND);
+            if (player->GetTeam() == HORDE)
+                player->RemoveAurasDueToSpell(SPELL_NAZGRELS_FAVOR);
+            auto position = std::find(m_magtheridonHeadPlayers.begin(), m_magtheridonHeadPlayers.end(), player->GetObjectGuid());
+            if (position != m_magtheridonHeadPlayers.end()) // == myVector.end() means the element was not found
+                m_magtheridonHeadPlayers.erase(position);
+        }
+        case ZONEID_SHATTRATH:
+        case ZONEID_BOTANICA:
+        case ZONEID_MECHANAR:
+        case ZONEID_ARCATRAZ:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            player->RemoveAurasDueToSpell(SPELL_ADAL_SONG_OF_BATTLE);
+            auto position = std::find(m_adalSongOfBattlePlayers.begin(), m_adalSongOfBattlePlayers.end(), player->GetObjectGuid());
+            if (position != m_adalSongOfBattlePlayers.end()) // == myVector.end() means the element was not found
+                m_adalSongOfBattlePlayers.erase(position);
+        }
+        default:
+            break;
+    }
 }
 
-//void WorldState::HandlePlayerEnterArea(Player* player, uint32 areaId)
-//{
-//
-//}
-//
-//void WorldState::HandlePlayerLeaveArea(Player* player, uint32 areaId)
-//{
-//
-//}
+void WorldState::HandlePlayerEnterArea(Player* player, uint32 areaId)
+{
+    switch (areaId)
+    {
+        case AREAID_SKYGUARD_OUTPOST:
+        case AREAID_SHARTUUL_TRANSPORTER:
+        case AREAID_DEATHS_DOOR:
+        case AREAID_THERAMORE_ISLE:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            m_areaPlayers[areaId].push_back(player->GetObjectGuid());
+            break;
+        }
+        default: break;
+    }
+}
+
+void WorldState::HandlePlayerLeaveArea(Player* player, uint32 areaId)
+{
+    switch (areaId)
+    {
+        case AREAID_SKYGUARD_OUTPOST:
+        case AREAID_SHARTUUL_TRANSPORTER:
+        case AREAID_DEATHS_DOOR:
+        case AREAID_THERAMORE_ISLE:
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            auto position = std::find(m_areaPlayers[areaId].begin(), m_areaPlayers[areaId].end(), player->GetObjectGuid());
+            if (position != m_areaPlayers[areaId].end()) // == myVector.end() means the element was not found
+                m_areaPlayers[areaId].erase(position);
+            break;
+        }
+        default: break;
+    }
+}
 
 bool WorldState::IsConditionFulfilled(uint32 conditionId, uint32 state) const
 {
@@ -146,6 +317,58 @@ bool WorldState::IsConditionFulfilled(uint32 conditionId, uint32 state) const
 void WorldState::HandleConditionStateChange(uint32 conditionId, uint32 state)
 {
     m_transportStates[conditionId] = state;
+}
+
+void WorldState::BuffMagtheridonTeam(Team team)
+{
+    for (ObjectGuid& guid : m_magtheridonHeadPlayers)
+    {
+        if (Player* player = sObjectMgr.GetPlayer(guid))
+        {
+            if (team == ALLIANCE && player->GetTeam() == ALLIANCE)
+            {
+                player->GetMap()->AddMessage([guid](Map* map) -> void
+                {
+                    if (Player* player = map->GetPlayer(guid))
+                        player->CastSpell(player, SPELL_TROLLBANES_COMMAND, TRIGGERED_OLD_TRIGGERED);
+                });
+            }
+            if (team == HORDE && player->GetTeam() == HORDE)
+            {
+                player->GetMap()->AddMessage([guid](Map* map) -> void
+                {
+                    if (Player* player = map->GetPlayer(guid))
+                        player->CastSpell(player, SPELL_NAZGRELS_FAVOR, TRIGGERED_OLD_TRIGGERED);
+                });
+            }
+        }
+    }
+}
+
+void WorldState::DispelMagtheridonTeam(Team team)
+{
+    for (ObjectGuid& guid : m_magtheridonHeadPlayers)
+    {
+        if (Player* player = sObjectMgr.GetPlayer(guid))
+        {
+            if (team == ALLIANCE && player->GetTeam() == ALLIANCE)
+            {
+                player->GetMap()->AddMessage([guid](Map* map) -> void
+                {
+                    if (Player* player = map->GetPlayer(guid))
+                        player->RemoveAurasDueToSpell(SPELL_TROLLBANES_COMMAND);
+                });
+            }
+            if (team == HORDE && player->GetTeam() == HORDE)
+            {
+                player->GetMap()->AddMessage([guid](Map* map) -> void
+                {
+                    if (Player* player = map->GetPlayer(guid))
+                        player->RemoveAurasDueToSpell(SPELL_NAZGRELS_FAVOR);
+                });
+            }
+        }
+    }
 }
 
 void WorldState::HandleExternalEvent(uint32 eventId)
@@ -173,12 +396,26 @@ void WorldState::HandleExternalEvent(uint32 eventId)
             Save(SAVE_ID_EMERALD_DRAGONS); // save to DB right away
             break;
         }
+        case CUSTOM_EVENT_ADALS_SONG_OF_BATTLE:
+            m_adalSongOfBattleTimer = 120 * MINUTE * IN_MILLISECONDS; // Two hours duration
+            BuffAdalsSongOfBattle();
+            break;
     }
 }
 
 void WorldState::Update(const uint32 diff)
 {
     std::lock_guard<std::mutex> guard(m_mutex);
+
+    if (m_adalSongOfBattleTimer)
+    {
+        if (m_adalSongOfBattleTimer <= diff)
+        {
+            m_adalSongOfBattleTimer = 0;
+            DispelAdalsSongOfBattle();
+        }
+        else m_adalSongOfBattleTimer -= diff;
+    }
 
     if (m_emeraldDragonsTimer)
     {
@@ -188,6 +425,36 @@ void WorldState::Update(const uint32 diff)
             RespawnEmeraldDragons();
         }
         else m_emeraldDragonsTimer -= diff;
+    }
+}
+
+void WorldState::BuffAdalsSongOfBattle()
+{
+    for (ObjectGuid& guid : m_adalSongOfBattlePlayers)
+    {
+        if (Player* player = sObjectMgr.GetPlayer(guid))
+        {
+            player->GetMap()->AddMessage([guid](Map* map) -> void
+            {
+                if (Player* player = map->GetPlayer(guid))
+                    player->CastSpell(player, SPELL_ADAL_SONG_OF_BATTLE, TRIGGERED_OLD_TRIGGERED);
+            });
+        }
+    }
+}
+
+void WorldState::DispelAdalsSongOfBattle()
+{
+    for (ObjectGuid& guid : m_adalSongOfBattlePlayers)
+    {
+        if (Player* player = sObjectMgr.GetPlayer(guid))
+        {
+            player->GetMap()->AddMessage([guid](Map* map) -> void
+            {
+                if (Player* player = map->GetPlayer(guid))
+                    player->RemoveAurasDueToSpell(SPELL_ADAL_SONG_OF_BATTLE);
+            });
+        }
     }
 }
 
@@ -258,4 +525,25 @@ void WorldState::RespawnEmeraldDragons()
         if (IsDragonSpawned(m_emeraldDragonsChosenPositions[3]))
             WorldObject::SummonCreature(TempSpawnSettings(nullptr, m_emeraldDragonsChosenPositions[3], emeraldDragonSpawns[3][0], emeraldDragonSpawns[3][1], emeraldDragonSpawns[3][2], emeraldDragonSpawns[3][3], TEMPSPAWN_DEAD_DESPAWN, 0, false, false, pathIds[3]), map);
     });
+}
+
+bool WorldState::SetExpansion(uint8 expansion)
+{
+    if (expansion > EXPANSION_TBC)
+        return false;
+
+    m_expansion = expansion;
+    if (expansion == EXPANSION_NONE)
+        sGameEventMgr.StartEvent(GAME_EVENT_BEFORE_THE_STORM);
+    else
+        sGameEventMgr.StopEvent(GAME_EVENT_BEFORE_THE_STORM);
+    sWorld.UpdateSessionExpansion(expansion);
+    Save(SAVE_ID_EXPANSION_RELEASE); // save to DB right away
+    return true;
+}
+
+void WorldState::StartExpansionEvent()
+{
+    if (m_expansion == EXPANSION_NONE)
+        sGameEventMgr.StartEvent(GAME_EVENT_BEFORE_THE_STORM);
 }

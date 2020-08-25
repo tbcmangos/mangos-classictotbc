@@ -27,30 +27,48 @@
 #include <atomic>
 #include <string>
 
-//enum ZoneIds
-//{
-//
-//};
+enum ZoneIds
+{
+    ZONEID_HELLFIRE_PENINSULA   = 3483,
+    ZONEID_HELLFIRE_RAMPARTS    = 3562,
+    ZONEID_HELLFIRE_CITADEL     = 3563,
+    ZONEID_BLOOD_FURNACE        = 3713,
+    ZONEID_SHATTERED_HALLS      = 3714,
+    ZONEID_MAGTHERIDON_LAIR     = 3836,
 
-//enum AreaIds
-//{
-//
-//};
+    ZONEID_SHATTRATH    = 3703,
+    ZONEID_BOTANICA     = 3847,
+    ZONEID_ARCATRAZ     = 3848,
+    ZONEID_MECHANAR     = 3849,
+};
 
-//enum SpellId
-//{
-//
-//};
+enum AreaIds
+{
+    AREAID_SKYGUARD_OUTPOST     = 3964,
+    AREAID_SHARTUUL_TRANSPORTER = 4008,
+    AREAID_DEATHS_DOOR          = 3831,
+    AREAID_THERAMORE_ISLE       = 513,
+};
 
-//enum GoId
-//{
-//
-//};
+enum SpellId
+{
+    SPELL_TROLLBANES_COMMAND    = 39911,
+    SPELL_NAZGRELS_FAVOR        = 39913,
 
-//enum Conditions
-//{
-//
-//};
+    SPELL_ADAL_SONG_OF_BATTLE   = 39953,
+};
+
+enum GoId
+{
+    OBJECT_MAGTHERIDONS_HEAD = 184640
+};
+
+enum Conditions
+{
+    ORGRIMMAR_UNDERCITY = 164871,
+    GROMGOL_ORGRIMMAR   = 175080,
+    GROMGOL_UNDERCITY   = 176495,
+};
 
 enum Events
 {
@@ -58,17 +76,31 @@ enum Events
     CUSTOM_EVENT_LETHON_DIED,
     CUSTOM_EVENT_EMERISS_DIED,
     CUSTOM_EVENT_TAERAR_DIED,
+    CUSTOM_EVENT_ADALS_SONG_OF_BATTLE,
 };
 
 enum SaveIds
 {
     SAVE_ID_EMERALD_DRAGONS,
     SAVE_ID_AHN_QIRAJ,
-    // SAVE_ID_QUEL_DANAS,
+    SAVE_ID_QUEL_DANAS,
+    SAVE_ID_EXPANSION_RELEASE,
+};
+
+enum GameEvents
+{
+    GAME_EVENT_BEFORE_THE_STORM = 100,
+    GAME_EVENT_QUEL_DANAS_PHASE_1 = 101,
+    // next 10 are reserved for quel danas - 110
 };
 
 // To be used
 struct AhnQirajData
+{
+    std::string GetData() { return ""; }
+};
+
+struct QuelDanasData
 {
     std::string GetData() { return ""; }
 };
@@ -90,8 +122,8 @@ class WorldState
         void HandlePlayerEnterZone(Player* player, uint32 zoneId);
         void HandlePlayerLeaveZone(Player* player, uint32 zoneId);
 
-        //void HandlePlayerEnterArea(Player* player, uint32 areaId);
-        //void HandlePlayerLeaveArea(Player* player, uint32 areaId);
+        void HandlePlayerEnterArea(Player* player, uint32 areaId);
+        void HandlePlayerLeaveArea(Player* player, uint32 areaId);
 
         bool IsConditionFulfilled(uint32 conditionId, uint32 state) const;
         void HandleConditionStateChange(uint32 conditionId, uint32 state);
@@ -100,6 +132,17 @@ class WorldState
         void ExecuteOnAreaPlayers(uint32 areaId, std::function<void(Player*)> executor);
 
         void Update(const uint32 diff);
+
+        // tbc section
+        void BuffMagtheridonTeam(Team team);
+        void DispelMagtheridonTeam(Team team);
+
+        void BuffAdalsSongOfBattle();
+        void DispelAdalsSongOfBattle();
+
+        // Release events
+        uint8 GetExpansion() const { return m_expansion; }
+        bool SetExpansion(uint8 expansion);
     private:
         std::map<uint32, GuidVector> m_areaPlayers;
         std::map<uint32, std::atomic<uint32>> m_transportStates; // atomic to avoid having to lock
@@ -116,6 +159,22 @@ class WorldState
         std::vector<uint32> m_emeraldDragonsChosenPositions;
         AhnQirajData m_aqData;
 
+        // tbc section
+        bool m_isMagtheridonHeadSpawnedHorde;
+        bool m_isMagtheridonHeadSpawnedAlliance;
+        ObjectGuid m_guidMagtheridonHeadHorde;
+        ObjectGuid m_guidMagtheridonHeadAlliance;
+        GuidVector m_magtheridonHeadPlayers;
+
+        GuidVector m_adalSongOfBattlePlayers;
+        uint32 m_adalSongOfBattleTimer;
+
+        QuelDanasData m_quelDanasData;
+
+        // Release Events
+        void StartExpansionEvent();
+
+        std::atomic<uint8> m_expansion;
 };
 
 #define sWorldState MaNGOS::Singleton<WorldState>::Instance()
