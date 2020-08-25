@@ -19,11 +19,9 @@ SDName: Felwood
 SD%Complete: 95
 SDComment: Quest support: 4261, 4506, 5203, 7603, 7603 (Summon Pollo Grande)
 SDCategory: Felwood
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_kitten
 npc_niby_the_almighty
 npc_kroshius
@@ -31,7 +29,7 @@ npc_captured_arkonarin
 npc_arei
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/follower_ai.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 #include "Globals/ObjectMgr.h"

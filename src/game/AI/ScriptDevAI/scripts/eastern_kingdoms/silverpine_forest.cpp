@@ -19,16 +19,14 @@ SDName: Silverpine_Forest
 SD%Complete: 100
 SDComment: Quest support: 435, 452
 SDCategory: Silverpine Forest
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_deathstalker_erland
 npc_deathstalker_faerleia
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*#####
@@ -294,7 +292,10 @@ bool QuestAccept_npc_deathstalker_faerleia(Player* pPlayer, Creature* pCreature,
         DoScriptText(SAY_START, pCreature, pPlayer);
 
         if (npc_deathstalker_faerleiaAI* pFaerleiaAI = dynamic_cast<npc_deathstalker_faerleiaAI*>(pCreature->AI()))
+        {
             pFaerleiaAI->StartEvent(pPlayer);
+            pCreature->SetFactionTemporary(FACTION_ESCORT_H_NEUTRAL_ACTIVE, TEMPFACTION_RESTORE_RESPAWN); // faction guessed
+        }
     }
     return true;
 }

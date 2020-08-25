@@ -19,17 +19,15 @@ SDName: Tirisfal_Glades
 SD%Complete: 100
 SDComment: Quest support: 590, 1819
 SDCategory: Tirisfal Glades
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 go_mausoleum_door
 go_mausoleum_trigger
 npc_calvin_montague
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 /*######
 ## go_mausoleum_door
@@ -81,7 +79,7 @@ bool GOUse_go_mausoleum_trigger(Player* pPlayer, GameObject* pGo)
 enum
 {
     SAY_COMPLETE        = -1000356,
-    SPELL_DRINK_SD      = 2639,                             // possibly not correct spell (but iconId is correct)
+    SD_SPELL_DRINK      = 2639,                             // possibly not correct spell (but iconId is correct)
     QUEST_590           = 590,
     FACTION_HOSTILE     = 168
 };
@@ -144,7 +142,7 @@ struct npc_calvin_montagueAI : public ScriptedAI
                     if (Player* pPlayer = m_creature->GetMap()->GetPlayer(m_playerGuid))
                         pPlayer->AreaExploredOrEventHappens(QUEST_590);
 
-                    m_creature->CastSpell(m_creature, SPELL_DRINK_SD, TRIGGERED_OLD_TRIGGERED);
+                    m_creature->CastSpell(m_creature, SD_SPELL_DRINK, TRIGGERED_OLD_TRIGGERED);
                     ++m_uiPhase;
                     break;
                 case 3:

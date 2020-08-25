@@ -3,6 +3,7 @@
  * Please see the included DOCS/LICENSE.TXT for more information */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
+
 #include "Grids/Cell.h"
 #include "Grids/CellImpl.h"
 #include "Grids/GridNotifiers.h"

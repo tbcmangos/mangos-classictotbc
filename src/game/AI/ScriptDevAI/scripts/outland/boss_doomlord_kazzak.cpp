@@ -15,62 +15,63 @@
  */
 
 /* ScriptData
-SDName: Boss_Kazzak
+SDName: Boss_Doomlord_Kazzak
 SD%Complete: 90
-SDComment: Some timers need to be confirmed.
-SDCategory: Bosses
-EndScriptData
-
-*/
+SDComment: Timers
+SDCategory: Hellfire Peninsula
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 
 enum
 {
-    SAY_INTRO                 = -1000147,
-    SAY_AGGRO1                = -1000148,
-    SAY_AGGRO2                = -1000149,
-    SAY_SURPREME1             = -1000150,
-    SAY_SURPREME2             = -1000151,
-    SAY_KILL1                 = -1000152,
-    SAY_KILL2                 = -1000153,
-    SAY_KILL3                 = -1000154,
-    SAY_DEATH                 = -1000155,
-    EMOTE_FRENZY              = -1000002,
-    SAY_RAND1                 = -1000157,
-    SAY_RAND2                 = -1000158,
+    SAY_INTRO                       = -1000147,
+    SAY_AGGRO1                      = -1000148,
+    SAY_AGGRO2                      = -1000149,
+    SAY_SURPREME1                   = -1000150,
+    SAY_SURPREME2                   = -1000151,
+    SAY_KILL1                       = -1000152,
+    SAY_KILL2                       = -1000153,
+    SAY_KILL3                       = -1000154,
+    SAY_DEATH                       = -1000155,
+    EMOTE_GENERIC_FRENZY            = -1000002,
+    SAY_RAND1                       = -1000157,
+    SAY_RAND2                       = -1000158,
 
-    SPELL_SHADOW_VOLLEY       = 21341,
-    SPELL_BERSERK             = 21340,
-    SPELL_CLEAVE              = 20691,
-    SPELL_THUNDERCLAP         = 26554,
-    SPELL_VOIDBOLT            = 21066,
-    SPELL_MARK_OF_KAZZAK      = 21056,                  // triggers 21058 when target gets to 0 mana
-    SPELL_CAPTURESOUL         = 21053,                  // procs 21054 on kill
-    SPELL_TWISTED_REFLECTION   = 21063
+    SPELL_SHADOW_VOLLEY             = 32963,
+    SPELL_CLEAVE                    = 16044,
+    SPELL_THUNDERCLAP               = 36706,
+    SPELL_VOID_BOLT                 = 21066,
+    SPELL_MARK_OF_KAZZAK            = 32960,
+    SPELL_FRENZY                    = 32964,        // triggers 32963
+    SPELL_CAPTURE_SOUL              = 48473,        // procs 32966 on player kill
+    SPELL_TWISTED_REFLECTION        = 21063,
+    SPELL_BERSERK                   = 32965,        // triggers 32963
 };
 
-struct boss_kazzakAI : public ScriptedAI
+struct boss_doomlordkazzakAI : public ScriptedAI
 {
-    boss_kazzakAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
+    boss_doomlordkazzakAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
 
     uint32 m_uiShadowVolleyTimer;
     uint32 m_uiCleaveTimer;
     uint32 m_uiThunderClapTimer;
     uint32 m_uiVoidBoltTimer;
     uint32 m_uiMarkOfKazzakTimer;
+    uint32 m_uiEnrageTimer;
+    uint32 m_uiGreatEnrageTimer;
     uint32 m_uiTwistedReflectionTimer;
-    uint32 m_uiSupremeTimer;
 
     void Reset() override
     {
-        m_uiShadowVolleyTimer       = urand(3000, 12000);
+        m_uiShadowVolleyTimer       = urand(6000, 10000);
         m_uiCleaveTimer             = 7000;
-        m_uiThunderClapTimer        = urand(16000, 20000);
+        m_uiThunderClapTimer        = urand(14000, 18000);
         m_uiVoidBoltTimer           = 30000;
         m_uiMarkOfKazzakTimer       = 25000;
-        m_uiTwistedReflectionTimer  = 33000;
-        m_uiSupremeTimer            = 3 * MINUTE * IN_MILLISECONDS;
+        m_uiEnrageTimer             = 60000;
+        m_uiGreatEnrageTimer        = 3 * MINUTE * IN_MILLISECONDS;
+        m_uiTwistedReflectionTimer  = 33000;                // Timer may be incorrect
     }
 
     void JustRespawned() override
@@ -80,16 +81,17 @@ struct boss_kazzakAI : public ScriptedAI
 
     void Aggro(Unit* /*pWho*/) override
     {
-        DoCastSpellIfCan(m_creature, SPELL_CAPTURESOUL, CAST_TRIGGERED);
         DoScriptText(urand(0, 1) ? SAY_AGGRO1 : SAY_AGGRO2, m_creature);
+        DoCastSpellIfCan(m_creature, SPELL_CAPTURE_SOUL, CAST_TRIGGERED);
     }
 
     void KilledUnit(Unit* pVictim) override
     {
+        // When Kazzak kills a player (not pets/totems), he regens some health
         if (pVictim->GetTypeId() != TYPEID_PLAYER)
             return;
 
-        switch (urand(0, 3))
+        switch (urand(0, 2))
         {
             case 0: DoScriptText(SAY_KILL1, m_creature); break;
             case 1: DoScriptText(SAY_KILL2, m_creature); break;
@@ -104,33 +106,11 @@ struct boss_kazzakAI : public ScriptedAI
 
     void UpdateAI(const uint32 uiDiff) override
     {
+        // Return since we have no target
         if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
-        if (m_uiSupremeTimer)
-        {
-            // Enrage - cast shadowbolt volley every second
-            if (m_uiSupremeTimer <= uiDiff)
-            {
-                if (DoCastSpellIfCan(m_creature, SPELL_BERSERK) == CAST_OK)
-                {
-                    DoScriptText(urand(0, 1) ? SAY_SURPREME1 : SAY_SURPREME2, m_creature);
-                    m_uiSupremeTimer = 0;
-                }
-            }
-            else
-                m_uiSupremeTimer -= uiDiff;
-
-            // Cast shadowbolt volley on timer before Berserk
-            if (m_uiShadowVolleyTimer < uiDiff)
-            {
-                if (DoCastSpellIfCan(m_creature, SPELL_SHADOW_VOLLEY) == CAST_OK)
-                    m_uiShadowVolleyTimer = urand(5000, 30000);
-            }
-            else
-                m_uiShadowVolleyTimer -= uiDiff;
-        }
-
+        // Cleave_Timer
         if (m_uiCleaveTimer < uiDiff)
         {
             if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_CLEAVE) == CAST_OK)
@@ -139,6 +119,7 @@ struct boss_kazzakAI : public ScriptedAI
         else
             m_uiCleaveTimer -= uiDiff;
 
+        // ThunderClap_Timer
         if (m_uiThunderClapTimer < uiDiff)
         {
             if (DoCastSpellIfCan(nullptr, SPELL_THUNDERCLAP) == CAST_OK)
@@ -147,17 +128,19 @@ struct boss_kazzakAI : public ScriptedAI
         else
             m_uiThunderClapTimer -= uiDiff;
 
+        // VoidBolt_Timer
         if (m_uiVoidBoltTimer < uiDiff)
         {
-            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_VOIDBOLT) == CAST_OK)
-                m_uiVoidBoltTimer = urand(15000, 28000);
+            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_VOID_BOLT) == CAST_OK)
+                m_uiVoidBoltTimer = urand(15000, 18000);
         }
         else
             m_uiVoidBoltTimer -= uiDiff;
 
+        // MarkOfKazzak_Timer
         if (m_uiMarkOfKazzakTimer < uiDiff)
         {
-            if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, SPELL_MARK_OF_KAZZAK, SELECT_FLAG_POWER_MANA))
+            if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, SPELL_MARK_OF_KAZZAK, SELECT_FLAG_PLAYER | SELECT_FLAG_POWER_MANA))
             {
                 if (DoCastSpellIfCan(pTarget, SPELL_MARK_OF_KAZZAK) == CAST_OK)
                     m_uiMarkOfKazzakTimer = 20000;
@@ -166,6 +149,31 @@ struct boss_kazzakAI : public ScriptedAI
         else
             m_uiMarkOfKazzakTimer -= uiDiff;
 
+        // Enrage_Timer
+        if (m_uiEnrageTimer < uiDiff)
+        {
+            if (DoCastSpellIfCan(nullptr, SPELL_FRENZY) == CAST_OK)
+            {
+                DoScriptText(EMOTE_GENERIC_FRENZY, m_creature);
+                m_uiEnrageTimer = 60000;
+            }
+        }
+        else
+            m_uiEnrageTimer -= uiDiff;
+
+        // Great_Enrage_Timer
+        if (m_uiGreatEnrageTimer)
+        {
+            if (m_uiGreatEnrageTimer <= uiDiff)
+            {
+                if (DoCastSpellIfCan(nullptr, SPELL_BERSERK) == CAST_OK)
+                    m_uiGreatEnrageTimer = 0;
+            }
+            else
+                m_uiGreatEnrageTimer -= uiDiff;
+        }
+
+        // Twisted Reflection
         if (m_uiTwistedReflectionTimer < uiDiff)
         {
             if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, SPELL_TWISTED_REFLECTION, SELECT_FLAG_PLAYER))
@@ -181,15 +189,15 @@ struct boss_kazzakAI : public ScriptedAI
     }
 };
 
-UnitAI* GetAI_boss_kazzak(Creature* pCreature)
+UnitAI* GetAI_boss_doomlordkazzak(Creature* pCreature)
 {
-    return new boss_kazzakAI(pCreature);
+    return new boss_doomlordkazzakAI(pCreature);
 }
 
-void AddSC_boss_kazzakAI()
+void AddSC_boss_doomlordkazzak()
 {
     Script* pNewScript = new Script;
-    pNewScript->Name = "boss_kazzak";
-    pNewScript->GetAI = &GetAI_boss_kazzak;
+    pNewScript->Name = "boss_doomlord_kazzak";
+    pNewScript->GetAI = &GetAI_boss_doomlordkazzak;
     pNewScript->RegisterSelf();
 }

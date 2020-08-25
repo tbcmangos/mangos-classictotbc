@@ -22,7 +22,7 @@ SDCategory: Guards
 EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
-#include "guard_ai.h"
+#include "AI/ScriptDevAI/base/guard_ai.h"
 
 // This script is for use within every single guard to save coding time
 

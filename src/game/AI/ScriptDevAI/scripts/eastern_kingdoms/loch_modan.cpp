@@ -19,16 +19,14 @@ SDName: Loch_Modan
 SD%Complete: 100
 SDComment: Quest support: 3181 (only to argue with pebblebitty to get to searing gorge, before quest rewarded), 309
 SDCategory: Loch Modan
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_mountaineer_pebblebitty
 npc_miran
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*######

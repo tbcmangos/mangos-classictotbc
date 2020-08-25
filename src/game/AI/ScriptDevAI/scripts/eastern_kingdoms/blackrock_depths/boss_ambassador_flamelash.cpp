@@ -19,9 +19,7 @@ SDName: Boss_Ambassador_Flamelash
 SD%Complete: 90
 SDComment: Texts probably missing; Spirits handling could be improved.
 SDCategory: Blackrock Depths
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackrock_depths.h"

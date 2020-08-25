@@ -19,14 +19,12 @@ SDName: Alterac_Mountains
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Alterac Mountains
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 void AddSC_alterac_mountains()
 {

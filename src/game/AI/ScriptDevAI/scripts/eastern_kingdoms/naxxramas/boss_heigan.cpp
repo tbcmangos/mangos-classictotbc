@@ -21,9 +21,7 @@ SDComment: Missing poison inside the eye stalk tunnel in phase 2
            Candidate spell is 30122 (correct damage range and already used in encounter) but there is no evidence of this
            and of how the spell is cast and by who (no data found in sniffs as this part was removed in WotLK)
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

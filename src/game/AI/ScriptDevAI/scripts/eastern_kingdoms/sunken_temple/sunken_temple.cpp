@@ -19,11 +19,9 @@ SDName: Sunken_Temple
 SD%Complete: 100
 SDComment: Quest support: 8733
 SDCategory: Sunken Temple
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 at_shade_of_eranikus
 npc_malfurion_stormrage
 event_antalarion_statue_activation
@@ -32,7 +30,7 @@ go_eternal_flame
 effectDummy_summon_hakkar
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "sunken_temple.h"
 
 enum

@@ -19,15 +19,13 @@ SDName: scholomance.cpp
 SD%Complete: 100
 SDComment: Creature support for 10498
 SDCategory: Scholomance
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_spectral_tutor
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 /*######
 ## npc_spectral_tutor

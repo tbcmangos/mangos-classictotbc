@@ -113,7 +113,7 @@ struct npc_soulflayerAI : public ScriptedAI
         {
             if (DoCastSpellIfCan(m_creature->GetVictim(), m_uiRandomCcAbility) == CAST_OK)
             {
-                m_creature->GetVictim()->DeleteThreatList(); // TODO: This is simply WTF
+                m_creature->GetVictim()->DeleteThreatList();
                 m_uiRandomCcAbilityTimer = urand(8000, 10000);
             }
         }

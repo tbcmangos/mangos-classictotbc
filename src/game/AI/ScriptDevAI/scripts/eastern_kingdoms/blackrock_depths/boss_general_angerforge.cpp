@@ -19,9 +19,7 @@ SDName: Boss_General_Angerforge
 SD%Complete: 100
 SDComment:
 SDCategory: Blackrock Depths
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

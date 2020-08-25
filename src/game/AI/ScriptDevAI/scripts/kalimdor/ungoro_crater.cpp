@@ -19,16 +19,14 @@ SDName: Ungoro_Crater
 SD%Complete: 100
 SDComment: Quest support: 4245, 4491
 SDCategory: Un'Goro Crater
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_ame01
 npc_ringo
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 #include "AI/ScriptDevAI/base/follower_ai.h"
 

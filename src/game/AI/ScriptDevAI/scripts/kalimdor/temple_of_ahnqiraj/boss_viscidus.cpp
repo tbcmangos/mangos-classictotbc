@@ -19,9 +19,7 @@ SDName: Boss_Viscidus
 SD%Complete: 90
 SDComment: ToDo: Use aura proc to handle freeze event instead of direct function
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -55,14 +53,14 @@ enum
     SPELL_VISCIDUS_SUICIDE      = 26002,
     SPELL_DESPAWN_GLOBS         = 26608,
 
-    SPELL_MEMBRANE_VISCIDUS     = 25994,                    // damage reduction spell
-    SPELL_VISCIDUS_WEAKNESS     = 25926,                    // aura which procs at damage - should trigger the slow spells
-    SPELL_VISCIDUS_SHRINKS      = 25893,
-    SPELL_VISCIDUS_SHRINKS_HP   = 27934,
-    SPELL_VISCIDUS_GROWS        = 25897,
-    SPELL_SUMMON_GLOBS          = 25885,                    // summons npc 15667 using spells from 25865 to 25884; All spells have target coords
-    SPELL_VISCIDUS_TELEPORT     = 25904,                    // teleport to room center
-    SPELL_SUMMONT_TRIGGER       = 26564,                    // summons 15992
+    SPELL_MEMBRANE_VISCIDUS     = 25994,                   // damage reduction spell - removed from DBC (readded)
+    SPELL_VISCIDUS_WEAKNESS     = 25926,                   // aura which procs at damage - should trigger the slow spells - removed from DBC (readded)
+    SPELL_VISCIDUS_SHRINKS      = 25893,                   // removed from DBC (readded)
+    SPELL_VISCIDUS_SHRINKS_HP   = 27934,                   // removed from DBC (readded)
+    SPELL_VISCIDUS_GROWS        = 25897,                   // removed from DBC (readded)
+    SPELL_SUMMON_GLOBS          = 25885,                   // summons npc 15667 using spells from 25865 to 25884; All spells have target coords - removed from DBC (readdeed)
+    SPELL_VISCIDUS_TELEPORT     = 25904,                   // teleport to room center - removed from DBC (readded)
+    SPELL_SUMMONT_TRIGGER       = 26564,                   // summons 15992 - removed from DBC (readded)
 
     SPELL_SUMMON_TOXIC_SLIME    = 26584,                    // unk purpose
     SPELL_SUMMON_TOXIC_SLIME_2  = 26577,
@@ -286,7 +284,7 @@ struct boss_viscidusAI : public CombatAI
             return;
 
         // only count frost damage
-        if (GetSchoolMask(pSpell->School) == SPELL_SCHOOL_MASK_FROST) // - TODO: do through proc of SPELL_VISCIDUS_WEAKNESS
+        if (pSpell->SchoolMask == SPELL_SCHOOL_MASK_FROST) // - TODO: do through proc of SPELL_VISCIDUS_WEAKNESS
         {
             ++m_uiHitCount;
 
@@ -375,7 +373,7 @@ struct ViscidusFreeze : public AuraScript
 
 struct SummonToxicSlime : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const override
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
     {
         if (!spell->GetUnitTarget())
             return;

@@ -19,9 +19,7 @@ SDName: Boss_Razorgore
 SD%Complete: 95
 SDComment: Threat management after Mind Control is released needs core support (boss should have aggro on its previous controller and its previous victim should have threat transfered from boss to controlling player)
 SDCategory: Blackwing Lair
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackwing_lair.h"
@@ -68,7 +66,7 @@ struct boss_razorgoreAI : public CombatAI
         m_creature->SetWalk(false);
         if (m_instance)
         {
-            m_creature->GetCombatManager().SetLeashingCheck([](Unit* unit, float x, float y, float z)
+            m_creature->GetCombatManager().SetLeashingCheck([](Unit* unit, float /*x*/, float /*y*/, float /*z*/)
             {
                 return static_cast<ScriptedInstance*>(unit->GetInstanceData())->GetPlayerInMap(true, false) == nullptr;
             });
@@ -85,7 +83,7 @@ struct boss_razorgoreAI : public CombatAI
         DoCastSpellIfCan(nullptr, SPELL_DOUBLE_ATTACK, CAST_AURA_NOT_PRESENT | CAST_TRIGGERED);
     }
 
-    void Aggro(Unit* attacker) override
+    void Aggro(Unit* /*attacker*/) override
     {
         m_creature->RemoveAurasDueToSpell(SPELL_POSSESS_VISUAL);
     }
@@ -101,7 +99,7 @@ struct boss_razorgoreAI : public CombatAI
         }
     }
 
-    void JustPreventedDeath(Unit* attacker) override
+    void JustPreventedDeath(Unit* /*attacker*/) override
     {
         m_instance->SetData(TYPE_RAZORGORE, FAIL);
     }
@@ -213,7 +211,7 @@ struct npc_blackwing_orbAI : public ScriptedAI
     }
 };
 
-bool ProcessEventIdRazorgorePossess(uint32 eventId, Object* source, Object* target, bool isStart)
+bool ProcessEventIdRazorgorePossess(uint32 /*eventId*/, Object* source, Object* /*target*/, bool /*isStart*/)
 {
     if (!source->IsPlayer())
         return true;
@@ -227,7 +225,7 @@ bool ProcessEventIdRazorgorePossess(uint32 eventId, Object* source, Object* targ
 
 struct DestroyEgg : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const override
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
     {
         GameObject* target = spell->GetGOTarget();
         Unit* razorgore = spell->GetCaster();
@@ -254,7 +252,7 @@ struct DestroyEgg : public SpellScript
 
 struct ExplosionRazorgore : public SpellScript
 {
-    bool OnCheckTarget(const Spell* spell, Unit* target, SpellEffectIndex effIdx) const override
+    bool OnCheckTarget(const Spell* /*spell*/, Unit* target, SpellEffectIndex /*effIdx*/) const override
     {
         if (target->IsPlayer())
             return true;
@@ -288,7 +286,7 @@ struct PossessRazorgore : public AuraScript
 
 struct CalmDragonkin : public SpellScript
 {
-    SpellCastResult OnCheckCast(Spell* spell, bool strict) const override
+    SpellCastResult OnCheckCast(Spell* spell, bool /*strict*/) const override
     {
         if (spell->m_targets.getUnitTarget()->GetEntry() == NPC_RAZORGORE)
             return SPELL_FAILED_BAD_TARGETS;

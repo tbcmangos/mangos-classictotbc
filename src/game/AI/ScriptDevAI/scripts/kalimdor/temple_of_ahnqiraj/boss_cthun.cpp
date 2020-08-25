@@ -19,9 +19,7 @@ SDName: Boss_Cthun
 SD%Complete: 95
 SDComment: Transform spell has some minor core issues. Eject from stomach event contains workarounds because of the missing spells. Digestive Acid should be handled in core.
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -42,11 +40,11 @@ enum
     SPELL_TRANSFORM                 = 26232,
     SPELL_CTHUN_VULNERABLE          = 26235,
     SPELL_MOUTH_TENTACLE            = 26332,                // prepare target to teleport to stomach
-    SPELL_DIGESTIVE_ACID_TELEPORT   = 26220,                // stomach teleport spell
+    SPELL_DIGESTIVE_ACID_TELEPORT   = 26220,                // removed from DBC (readded). stomach teleport spell
     SPELL_EXIT_STOMACH_KNOCKBACK    = 25383,                // spell id is wrong
-    SPELL_EXIT_STOMACH_JUMP         = 26224,                // should make the player jump to the ceiling - not used yet
-    SPELL_EXIT_STOMACH_EFFECT       = 26230,                // used to complete the eject effect from the stomach - not used yet
-    SPELL_PORT_OUT_STOMACH_EFFECT   = 26648,                // used to kill players inside the stomach on evade
+    SPELL_EXIT_STOMACH_JUMP         = 26224,                // removed from DBC (readded). should make the player jump to the ceiling - not used yet
+    SPELL_EXIT_STOMACH_EFFECT       = 26230,                // removed from DBC (readded). used to complete the eject effect from the stomach - not used yet
+    SPELL_PORT_OUT_STOMACH_EFFECT   = 26648,                // removed from DBC (readded). used to kill players inside the stomach on evade
     SPELL_DIGESTIVE_ACID            = 26476,                // damage spell - should be handled by the map
     // SPELL_EXIT_STOMACH            = 26221,               // summons 15800
 

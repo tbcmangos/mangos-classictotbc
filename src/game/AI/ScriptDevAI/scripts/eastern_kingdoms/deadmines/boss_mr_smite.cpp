@@ -19,9 +19,7 @@ SDName: Boss_Mr_Smite
 SD%Complete: 100
 SDComment:
 SDCategory: Deadmines
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "deadmines.h"

@@ -19,15 +19,13 @@ SDName: Razorfen_Downs
 SD%Complete: 100
 SDComment: Quest 3525
 SDCategory: Razorfen Downs
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_belnistrasz
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*###
@@ -131,7 +129,7 @@ struct npc_belnistraszAI : public npc_escortAI
         {
             uint32 uiEntry = 0;
 
-            // ref
+            // ref TARGET_LOCATION_CASTER_RANDOM_CIRCUMFERENCE
             float angle = 2.0f * M_PI_F * rand_norm_f();
             float fX, fZ, fY;
             pSummoner->GetClosePoint(fX, fZ, fY, 0.0f, 2.0f, angle);

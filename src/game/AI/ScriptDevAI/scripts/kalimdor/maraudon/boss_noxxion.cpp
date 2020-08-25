@@ -19,9 +19,7 @@ SDName: Boss_Noxxion
 SD%Complete: 100
 SDComment:
 SDCategory: Maraudon
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

@@ -22,7 +22,7 @@
 #include "Entities/Player.h"
 #include "Server/DBCStores.h"
 #include "Spells/Spell.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Entities/Creature.h"
 #include "World/World.h"
 #include "Util.h"
@@ -48,6 +48,10 @@ PetAI::PetAI(Creature* creature) : UnitAI(creature), m_creature(creature), inCom
     {
         case 688: // imp
             m_attackDistance = 25.f;
+            m_meleeEnabled = false;
+            break;
+        case 31687: // water ele
+            m_attackDistance = 30.f;
             m_meleeEnabled = false;
             break;
     }

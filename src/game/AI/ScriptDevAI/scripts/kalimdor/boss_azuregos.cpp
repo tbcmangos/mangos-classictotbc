@@ -17,11 +17,9 @@
 /* ScriptData
 SDName: Boss_Azuregos
 SD%Complete: 99
-SDComment: Enrage is disabled because it is very doubtful that Azuregos had one in Classic
+SDComment: Enrage is to be checked
 SDCategory: Azshara
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 
@@ -37,7 +35,7 @@ enum
     SPELL_FROST_BREATH          = 21099,
     SPELL_REFLECT               = 22067,
     SPELL_CLEAVE                = 19983,                    // Was 8255; this one is from wowhead and seems to be the correct one
-//    SPELL_ENRAGE                = 23537,                  // Enrage code is disabled. See comment above
+    SPELL_ENRAGE                = 23537,
 };
 
 struct boss_azuregosAI : public ScriptedAI
@@ -50,7 +48,7 @@ struct boss_azuregosAI : public ScriptedAI
     uint32 m_uiTeleportTimer;
     uint32 m_uiReflectTimer;
     uint32 m_uiCleaveTimer;
-//    bool m_bEnraged;
+    bool m_bEnraged;
 
     void Reset() override
     {
@@ -60,7 +58,7 @@ struct boss_azuregosAI : public ScriptedAI
         m_uiTeleportTimer   = 30000;
         m_uiReflectTimer    = urand(15000, 30000);
         m_uiCleaveTimer     = 7000;
-//        m_bEnraged          = false;
+        m_bEnraged          = false;
     }
 
     void KilledUnit(Unit* pVictim) override
@@ -142,11 +140,11 @@ struct boss_azuregosAI : public ScriptedAI
             m_uiCleaveTimer -= uiDiff;
 
         // EnrageTimer
-//        if (!m_bEnraged && m_creature->GetHealthPercent() < 26.0f)
-//        {
-//            if (DoCastSpellIfCan(m_creature, SPELL_ENRAGE) == CAST_OK)
-//                m_bEnraged = true;
-//        }
+        if (!m_bEnraged && m_creature->GetHealthPercent() < 26.0f)
+        {
+            if (DoCastSpellIfCan(m_creature, SPELL_ENRAGE) == CAST_OK)
+                m_bEnraged = true;
+        }
 
         DoMeleeAttackIfReady();
     }

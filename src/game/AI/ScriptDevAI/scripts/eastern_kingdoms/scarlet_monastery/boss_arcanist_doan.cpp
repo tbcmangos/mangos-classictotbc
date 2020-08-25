@@ -19,9 +19,7 @@ SDName: Boss_Arcanist_Doan
 SD%Complete: 100
 SDComment:
 SDCategory: Scarlet Monastery
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

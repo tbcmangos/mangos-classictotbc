@@ -19,9 +19,7 @@ SDName: Boss_Four_Horsemen
 SD%Complete: 99
 SDComment: Percentage of say for special text is guessed based on videos
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

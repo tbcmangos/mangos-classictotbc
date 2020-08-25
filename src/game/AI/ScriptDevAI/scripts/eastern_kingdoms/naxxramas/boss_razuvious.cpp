@@ -19,19 +19,18 @@ SDName: Boss_Razuvious
 SD%Complete: 95%
 SDComment: TODO: Deathknight Understudy are supposed to gain Mind Exhaustion debuff when released from player Mind Control
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"
 
 enum
 {
-    SAY_AGGRO1               = -1533120,
-    SAY_AGGRO2               = -1533121,
-    SAY_AGGRO3               = -1533122,
-    SAY_AGGRO4               = -1533123,
+    SOUND_AGGRO1             = 8855,
+    SOUND_AGGRO2             = 8856,
+    SOUND_AGGRO3             = 8859,
+    SOUND_AGGRO4             = 8861,
+
     SAY_SLAY                 = -1533124,
     SAY_UNDERSTUDY_TAUNT_1   = -1533125,
     SAY_UNDERSTUDY_TAUNT_2   = -1533126,
@@ -71,7 +70,7 @@ struct boss_razuviousAI : public ScriptedAI
         DoScriptText(SAY_SLAY, m_creature);
     }
 
-    void SpellHit(Unit* caster, const SpellEntry* spell) override
+    void SpellHit(Unit* /*caster*/, const SpellEntry* spell) override
     {
         // Every time a Deathknight Understudy taunts Razuvious, he will yell its disappointment
         if (spell->Id == SPELL_TAUNT)
@@ -110,10 +109,11 @@ struct boss_razuviousAI : public ScriptedAI
     {
         switch (urand(0, 3))
         {
-            case 0: DoScriptText(SAY_AGGRO1, m_creature); break;
-            case 1: DoScriptText(SAY_AGGRO2, m_creature); break;
-            case 2: DoScriptText(SAY_AGGRO3, m_creature); break;
-            case 3: DoScriptText(SAY_AGGRO4, m_creature); break;
+            // Yell texts on aggro were removed in patch 2.0 but the sounds remained
+            case 0: DoPlaySoundToSet(m_creature, SOUND_AGGRO1); break;
+            case 1: DoPlaySoundToSet(m_creature, SOUND_AGGRO2); break;
+            case 2: DoPlaySoundToSet(m_creature, SOUND_AGGRO3); break;
+            case 3: DoPlaySoundToSet(m_creature, SOUND_AGGRO4); break;
         }
 
         if (m_instance)

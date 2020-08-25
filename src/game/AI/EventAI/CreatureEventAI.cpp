@@ -84,6 +84,13 @@ void CreatureEventAI::GetAIInformation(ChatHandler& reader)
     }
 }
 
+// For Non Dungeon map only allow non-difficulty flags or EFLAG_NORMAL mode
+inline bool IsEventFlagsFitForNormalMap(uint8 eFlags)
+{
+    return !(eFlags & (EFLAG_NORMAL | EFLAG_HEROIC)) ||
+           (eFlags & EFLAG_NORMAL);
+}
+
 CreatureEventAI::CreatureEventAI(Creature* creature) : CreatureAI(creature),
     m_EventUpdateTime(0),
     m_EventDiff(0),
@@ -124,12 +131,25 @@ void CreatureEventAI::InitAI()
             if (i.event_flags & EFLAG_DEBUG_ONLY)
                 continue;
 #endif
-
-            ++events_count;
+            // only check normal / heroic distinction if at least one is set, if none is set, event should occur at all times
+            if (i.event_flags & (EFLAG_NORMAL | EFLAG_HEROIC))
+            {
+                if (m_creature->GetMap()->IsDungeon())
+                {
+                    if ((1 << (m_creature->GetMap()->GetSpawnMode() + 1)) & i.event_flags)
+                    {
+                        ++events_count;
+                    }
+                }
+                else if (IsEventFlagsFitForNormalMap(i.event_flags))
+                    ++events_count;
+            }
+            else
+                ++events_count;
         }
         // EventMap had events but they were not added because they must be for instance
         if (events_count == 0)
-            sLog.outErrorEventAI("Creature %u has events but no events added to list because of instance flags (spawned in map %u).", m_creature->GetEntry(), m_creature->GetMapId());
+            sLog.outErrorEventAI("Creature %u has events but no events added to list because of instance flags (spawned in map %u, difficulty %u).", m_creature->GetEntry(), m_creature->GetMapId(), m_creature->GetMap()->GetDifficulty());
         else
         {
             m_CreatureEventAIList.reserve(events_count);
@@ -140,7 +160,22 @@ void CreatureEventAI::InitAI()
                 if (i.event_flags & EFLAG_DEBUG_ONLY)
                     continue;
 #endif
-                // Indent for better compatibility with other cores
+                bool storeEvent = false;
+                if (i.event_flags & (EFLAG_NORMAL | EFLAG_HEROIC))
+                {
+                    if (m_creature->GetMap()->IsDungeon())
+                    {
+                        if ((1 << (m_creature->GetMap()->GetSpawnMode() + 1)) & i.event_flags)
+                            storeEvent = true;
+                    }
+                    else if (IsEventFlagsFitForNormalMap(i.event_flags))
+                        storeEvent = true;
+                }
+                else
+                    storeEvent = true;
+
+                if (storeEvent)
+                {
                     m_CreatureEventAIList.push_back(CreatureEventAIHolder(i));
                     // Cache for fast use
                     if (i.event_type == EVENT_T_OOC_LOS)
@@ -157,7 +192,7 @@ void CreatureEventAI::InitAI()
                                     SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(m_mainSpellId);
                                     m_mainSpellCost = Spell::CalculatePowerCost(spellInfo, m_creature);
                                     m_mainSpellMinRange = GetSpellMinRange(sSpellRangeStore.LookupEntry(spellInfo->rangeIndex));
-                                    m_mainAttackMask = SpellSchoolMask(m_mainAttackMask + GetSchoolMask(spellInfo->School));
+                                    m_mainAttackMask = SpellSchoolMask(m_mainAttackMask + spellInfo->SchoolMask);
                                     m_mainSpellInfo = spellInfo;
                                 }
                                 m_mainSpells.insert(i.action[actionIdx].cast.spellId);
@@ -166,6 +201,7 @@ void CreatureEventAI::InitAI()
                             if (i.action[actionIdx].cast.castFlags & CAST_DISTANCE_YOURSELF)
                                 m_distanceSpells.insert(i.action[actionIdx].cast.spellId);
                         }
+                }
             }
         }
     }
@@ -417,7 +453,7 @@ bool CreatureEventAI::CheckEvent(CreatureEventAIHolder& holder, Unit* actionInvo
             if (!m_creature->IsInCombat())
                 return false;
 
-            std::list<Creature*> pList;
+            CreatureList pList;
             DoFindFriendlyMissingBuff(pList, (float)event.friendly_buff.radius, event.friendly_buff.spellId);
 
             // List is empty
@@ -1560,7 +1596,7 @@ void CreatureEventAI::SpellHit(Unit* unit, const SpellEntry* spellInfo)
         if (i.event.event_type == EVENT_T_SPELLHIT)
             // If spell id matches (or no spell id) & if spell school matches (or no spell school)
             if (!i.event.spell_hit.spellId || spellInfo->Id == i.event.spell_hit.spellId)
-                if (GetSchoolMask(spellInfo->School) & i.event.spell_hit.schoolMask)
+                if (spellInfo->SchoolMask & i.event.spell_hit.schoolMask)
                     CheckAndReadyEventForExecution(i, unit);
 
     ProcessEvents(unit);
@@ -1573,7 +1609,7 @@ void CreatureEventAI::SpellHitTarget(Unit* target, const SpellEntry* spellInfo)
         if (i.event.event_type == EVENT_T_SPELLHIT_TARGET)
             // If spell id matches (or no spell id) & if spell school matches (or no spell school)
             if (!i.event.spell_hit_target.spellId || spellInfo->Id == i.event.spell_hit_target.spellId)
-                if (GetSchoolMask(spellInfo->School) & i.event.spell_hit_target.schoolMask)
+                if (spellInfo->SchoolMask & i.event.spell_hit_target.schoolMask)
                     CheckAndReadyEventForExecution(i, target);
 
     ProcessEvents(target);

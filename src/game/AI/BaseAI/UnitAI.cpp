@@ -93,14 +93,13 @@ void UnitAI::EnterEvadeMode()
     m_unit->CombatStopWithPets(true);
 
     // only alive creatures that are not on transport can return to home position
-    if (GetReactState() != REACT_PASSIVE && m_unit->IsAlive())
+    if (GetReactState() != REACT_PASSIVE && m_unit->IsAlive() && !m_unit->IsBoarded())
     {
         if (!m_unit->IsImmobilizedState()) // if still rooted after aura removal - permarooted
             m_unit->GetMotionMaster()->MoveTargetedHome();
         else
             JustReachedHome();
     }
-
 
     m_unit->TriggerEvadeEvents();
 }
@@ -295,7 +294,7 @@ void UnitAI::OnSpellCastStateChange(Spell const* spell, bool state, WorldObject*
         return;
 
     SpellEntry const* spellInfo = spell->m_spellInfo;
-    if (spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING) || spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING_1) || spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING_2))
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX4_CAN_CAST_WHILE_CASTING) || spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING_1) || spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING_2) || spellInfo->HasAttribute(SPELL_ATTR_EX5_DONT_TURN_DURING_CAST))
         return;
 
     // Creature should always stop before it will cast a non-instant spell

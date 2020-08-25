@@ -19,9 +19,7 @@ SDName: Boss_Mograine_And_Whitemane
 SD%Complete: 90
 SDComment:
 SDCategory: Scarlet Monastery
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "scarlet_monastery.h"
@@ -100,7 +98,7 @@ struct boss_scarlet_commander_mograineAI : public ScriptedAI
             if (pWho->GetTypeId() == TYPEID_PLAYER)
             {
                 Player* player = static_cast<Player*>(pWho);
-                if (player->HasItemWithIdEquipped(ITEM_CORRUPTED_ASHBRINGER, 1) && m_creature->IsWithinDist(player, 20.0f))
+                if (player->HasItemOrGemWithIdEquipped(ITEM_CORRUPTED_ASHBRINGER, 1) && m_creature->IsWithinDist(player, 20.0f))
                 {
                     player->GetMap()->ScriptsStart(sRelayScripts, ASHBRINGER_RELAY_SCRIPT_ID, m_creature, player);
                     m_pInstance->SetData(TYPE_ASHBRINGER_EVENT, DONE);

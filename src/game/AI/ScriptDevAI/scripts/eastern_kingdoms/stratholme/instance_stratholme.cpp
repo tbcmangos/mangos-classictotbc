@@ -19,9 +19,7 @@ SDName: Instance_Stratholme
 SD%Complete: 70
 SDComment: Undead side 90% implemented, event needs better implementation, Barthildas relocation for reload case is missing, Baron Combat handling is buggy.
 SDCategory: Stratholme
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "stratholme.h"
@@ -37,7 +35,8 @@ instance_stratholme::instance_stratholme(Map* pMap) : ScriptedInstance(pMap),
     m_bIsSlaughterDoorOpen(false),
     m_uiYellCounter(0),
     m_uiMindlessCount(0),
-    m_uiPostboxesUsed(0)
+    m_uiPostboxesUsed(0),
+    m_uiSilverHandKilled(0)
 {
     Initialize();
 }
@@ -106,6 +105,7 @@ void instance_stratholme::OnCreatureCreate(Creature* pCreature)
         case NPC_BARON:
         case NPC_YSIDA:
         case NPC_BARTHILAS:
+        case NPC_PALADIN_QUEST_CREDIT:
             m_npcEntryGuidStore[pCreature->GetEntry()] = pCreature->GetObjectGuid();
             break;
 
@@ -466,6 +466,18 @@ void instance_stratholme::SetData(uint32 uiType, uint32 uiData)
             }
             // No need to save anything here, so return
             return;
+        case TYPE_TRUE_MASTERS:
+            m_auiEncounter[uiType] = uiData;
+            if (uiData == SPECIAL)
+            {
+                ++m_uiSilverHandKilled;
+
+                // When the 5th paladin is killed set data to DONE in order to give the quest credit for the last paladin
+                if (m_uiSilverHandKilled == MAX_SILVERHAND)
+                    SetData(TYPE_TRUE_MASTERS, DONE);
+            }
+            // No need to save anything here, so return
+            return;
         case TYPE_AURIUS:
             // Prevent further players to complete the quest in that instance or autocomplete the follow-up quest. the flag will be set back if event is succeed
             if (uiData == DONE)
@@ -537,6 +549,7 @@ uint32 instance_stratholme::GetData(uint32 uiType) const
         case TYPE_AURIUS:
         case TYPE_BARTHILAS_RUN:
         case TYPE_POSTMASTER:
+        case TYPE_TRUE_MASTERS:
             return m_auiEncounter[uiType];
         default:
             return 0;

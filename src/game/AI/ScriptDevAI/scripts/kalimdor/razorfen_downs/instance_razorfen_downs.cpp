@@ -19,9 +19,7 @@ SDName: instance_razorfen_downs
 SD%Complete: 90%
 SDComment: Spawns coords can be improved
 SDCategory: Razorfen Downs
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "razorfen_downs.h"

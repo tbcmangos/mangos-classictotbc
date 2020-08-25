@@ -21,7 +21,7 @@
 #define MANGOS_GUARDIANAI_H
 
 #include "PetAI.h"
-#include "../EventAI/CreatureEventAI.h"
+#include "AI/EventAI/CreatureEventAI.h"
 #include "Entities/ObjectGuid.h"
 #include "Timer.h"
 

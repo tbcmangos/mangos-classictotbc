@@ -79,9 +79,6 @@ enum
 // Prophecies yelled by Propher Skeram before he is engaged
 static const uint32 sound_skeram_prophecy[] = { 8616, 8621, 8619, 8620, 8618 };
 
-// Spells from Qiraji Resonating crystal (AQ40 specific mounts)
-static const uint32 qiraji_mount_auras[] = { 25953, 26054, 26055, 26056 };
-
 class instance_temple_of_ahnqiraj : public ScriptedInstance, private DialogueHelper
 {
     public:
@@ -95,8 +92,6 @@ class instance_temple_of_ahnqiraj : public ScriptedInstance, private DialogueHel
         void OnCreatureCreate(Creature* creature) override;
         void OnObjectCreate(GameObject* pGo) override;
         void OnCreatureRespawn(Creature* creature) override;
-
-        void OnPlayerLeave(Player* pPlayer) override;
 
         void SetData(uint32 uiType, uint32 uiData) override;
         uint32 GetData(uint32 uiType) const override;

@@ -19,14 +19,12 @@ SDName: Molten_Core
 SD%Complete:
 SDComment:
 SDCategory: Molten Core
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"
 
 /*######

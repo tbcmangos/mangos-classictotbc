@@ -19,9 +19,7 @@ SDName: Uldaman
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Uldaman
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "uldaman.h"

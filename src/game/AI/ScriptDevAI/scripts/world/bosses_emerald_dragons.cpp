@@ -17,11 +17,9 @@
 /* ScriptData
 SDName: bosses_emerald_dragons
 SD%Complete: 99
-SDComment: Correct models used by Spirit Shade for each race/gender combination are missing (Lethon)
+SDComment: Correct models used by Spirit Shade for each race/gender combination are missing (Lethon) / Player summon NYI
 SDCategory: Emerald Dragon Bosses
-EndScriptData
-
-*/
+EndScriptData */
 
 /* ContentData
 boss_emerald_dragon -- Superclass for the four dragons
@@ -47,9 +45,9 @@ enum
     SPELL_SEEPING_FOG_L             = 24814,
     SPELL_NOXIOUS_BREATH            = 24818,
     SPELL_TAILSWEEP                 = 15847,
-    // SPELL_SUMMON_PLAYER             = 24776,                // Not used in Classic
+    SPELL_SUMMON_PLAYER             = 24776,                // Not yet implemented
 
-    NPC_YSONDRE                     = 14887,
+    NPC_YSONDRE = 14887,
 };
 
 struct boss_emerald_dragonAI : public ScriptedAI
@@ -91,7 +89,7 @@ struct boss_emerald_dragonAI : public ScriptedAI
             pSummoned->AI()->AttackStart(pTarget);
     }
 
-    void JustDied(Unit* killer) override
+    void JustDied(Unit* /*killer*/) override
     {
         sWorldState.HandleExternalEvent(m_creature->GetEntry() - NPC_YSONDRE + CUSTOM_EVENT_YSONDRE_DIED);
     }
@@ -275,7 +273,7 @@ struct boss_lethonAI : public boss_emerald_dragonAI
             // Summon this way to be able to cast the shade visual spell with player as original caster
             // This is not currently supported by core but this spell's visual should be dependent on player
             // Also possible that this was no problem due to the special way these NPCs had been summoned in classic times
-            if (Creature* pSummoned = pTarget->SummonCreature(NPC_SPIRIT_SHADE, 0.0f, 0.0f, 0.0f, pTarget->GetOrientation(), TEMPSPAWN_TIMED_OR_DEAD_DESPAWN, 60 * IN_MILLISECONDS, false, false, 0, 0, false, false, true))
+            if (Creature* pSummoned = pTarget->SummonCreature(NPC_SPIRIT_SHADE, 0.0f, 0.0f, 0.0f, pTarget->GetOrientation(), TEMPSPAWN_TIMED_OR_DEAD_DESPAWN, 60 * IN_MILLISECONDS, false, 0, 0, false, false, true))
                 pSummoned->CastSpell(pSummoned, SPELL_SPIRIT_SHAPE_VISUAL, TRIGGERED_OLD_TRIGGERED, nullptr, nullptr, pTarget->GetObjectGuid());
         }
     }

@@ -19,9 +19,7 @@ SDName: Boss_Thekal
 SD%Complete: 90
 SDComment: Needs a good shake-up.
 SDCategory: Zul'Gurub
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "zulgurub.h"
@@ -98,6 +96,7 @@ struct boss_thekalBaseAI : public ScriptedAI
         m_creature->ClearComboPointHolders();
         m_creature->RemoveAllAurasOnDeath();
         m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_20_PERCENT, false);
+        m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_35_PERCENT, false);
         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         m_creature->ClearAllReactives();
         m_creature->GetMotionMaster()->Clear();

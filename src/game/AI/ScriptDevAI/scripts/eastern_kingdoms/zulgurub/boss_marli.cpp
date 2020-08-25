@@ -19,9 +19,7 @@ SDName: Boss_Marli
 SD%Complete: 90
 SDComment: Enlarge for small spiders NYI
 SDCategory: Zul'Gurub
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "zulgurub.h"

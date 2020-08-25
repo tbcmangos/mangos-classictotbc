@@ -19,9 +19,7 @@ SDName: Instance_Blackrock_Depths
 SD%Complete: 80
 SDComment:
 SDCategory: Blackrock Depths
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackrock_depths.h"

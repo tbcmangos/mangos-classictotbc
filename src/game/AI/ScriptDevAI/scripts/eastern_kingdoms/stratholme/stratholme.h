@@ -7,7 +7,7 @@
 
 enum
 {
-    MAX_ENCOUNTER               = 10,
+    MAX_ENCOUNTER               = 11,
     MAX_SILVERHAND              = 5,
     MAX_ZIGGURATS               = 3,
 
@@ -21,6 +21,7 @@ enum
     TYPE_AURIUS                 = 7,
     TYPE_BLACK_GUARDS           = 8,
     TYPE_POSTMASTER             = 9,
+    TYPE_TRUE_MASTERS           = 10,
 
     NPC_TIMMY_THE_CRUEL         = 10808,
     NPC_BARTHILAS               = 10435,
@@ -49,6 +50,12 @@ enum
     NPC_UNDEAD_POSTMAN          = 11142,
     NPC_SKELETAL_GUARDIAN       = 10390,
     NPC_SKELETAL_BERSERKER      = 10391,
+    NPC_GREGOR_THE_JUSTICIAR    = 17910,                    // related to quest "True Masters of the Light"
+    NPC_CATHELA_THE_SEEKER      = 17911,
+    NPC_NEMAS_THE_ARBITER       = 17912,
+    NPC_AELMAR_THE_VANQUISHER   = 17913,
+    NPC_VICAR_HYERONIMUS        = 17914,
+    NPC_PALADIN_QUEST_CREDIT    = 17915,
     NPC_PLAGUED_RAT             = 10441,
     NPC_PLAGUED_INSECT          = 10461,
     NPC_PLAGUED_MAGGOT          = 10536,
@@ -268,6 +275,7 @@ class instance_stratholme : public ScriptedInstance
         uint32 m_uiYellCounter;
         uint32 m_uiMindlessCount;
         uint8 m_uiPostboxesUsed;
+        uint8 m_uiSilverHandKilled;
 
         ZigguratStore m_zigguratStorage[MAX_ZIGGURATS];
 

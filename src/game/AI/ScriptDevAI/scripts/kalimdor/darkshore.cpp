@@ -19,9 +19,7 @@ SDName: Darkshore
 SD%Complete: 100
 SDComment: Quest support: 731, 945, 994, 995, 2078, 2118, 4763, 5321
 SDCategory: Darkshore
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "Grids/GridNotifiers.h"
@@ -43,7 +41,6 @@ npc_blackwood_totemic
 event_purify_food
 go_furbolg_food
 EndContentData */
-
 
 /*####
 # npc_kerlonian
@@ -357,7 +354,7 @@ enum
     TEXT_ID_THRESH_DEFAULT  = 718,
     TEXT_ID_KEY_READY       = 758,
 
-    GOSSIP_ITEM_TURN_KEY    = -3000111,
+    GOSSIP_ITEM_TURN_KEY    = -3000112,
 };
 
 struct npc_threshwackonatorAI : public FollowerAI

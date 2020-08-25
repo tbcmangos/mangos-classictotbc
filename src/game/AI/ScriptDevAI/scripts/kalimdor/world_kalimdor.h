@@ -22,16 +22,13 @@ enum
     GO_ROCKET_CLUSTER           = 180875,
     SPELL_OMEN_MOONLIGHT        = 26392,
     MAX_ROCKETS                 = 30,
-
-    // Quest 1126
-    NPC_HIVE_ASHI_DRONES        = 13136,
 };
 
 enum Encounters
 {
     TYPE_OMEN               = 0, // Quest 8868
     TYPE_HIVE               = 1, // Quest 1126
-    // TYPE_TETHYR          = 2, // Quest 11198 - tbc+
+    TYPE_TETHYR             = 2, // Quest 11198 - tbc+
     TYPE_FREEDOM_CREATURES  = 3, // Quest 2969
     MAX_ENCOUNTER
 };

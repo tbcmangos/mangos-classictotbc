@@ -21,9 +21,7 @@ SDComment: Though gameplay is Blizzlike, logic in Zombie Chow Search and Call Al
            Also, based on similar encounters, Trigger NPCs for the summoning should probably be spawned by a (currently unknown) spell
            and the despawn of all adds should also be handled by a spell.
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

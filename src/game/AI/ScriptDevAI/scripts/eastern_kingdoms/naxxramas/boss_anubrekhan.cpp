@@ -19,9 +19,7 @@ SDName: Boss_Anubrekhan
 SD%Complete: 99
 SDComment: Corpse Scarabs summon from dead Crypt Guard may need improvement: timer and spell logic
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

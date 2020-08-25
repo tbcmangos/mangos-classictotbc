@@ -14,13 +14,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
- /* ScriptData
- SDName: Boss_Sartura
- SD%Complete: 100
- SDComment:
- SDCategory: Temple of Ahn'Qiraj
- EndScriptData
- */
+/* ScriptData
+SDName: Boss_Sartura
+SD%Complete: 100
+SDComment:
+SDCategory: Temple of Ahn'Qiraj
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"

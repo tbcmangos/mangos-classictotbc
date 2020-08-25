@@ -19,9 +19,7 @@ SDName: Instance_Scarlet_Monastery
 SD%Complete: 50
 SDComment:
 SDCategory: Scarlet Monastery
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "scarlet_monastery.h"
@@ -70,7 +68,7 @@ void instance_scarlet_monastery::OnObjectCreate(GameObject* pGo)
 
 void instance_scarlet_monastery::OnPlayerEnter(Player* pPlayer)
 {
-    if (pPlayer->HasItemWithIdEquipped(ITEM_CORRUPTED_ASHRBRINGER, 1) && GetData(TYPE_ASHBRINGER_EVENT) == NOT_STARTED)
+    if (pPlayer->HasItemOrGemWithIdEquipped(ITEM_CORRUPTED_ASHRBRINGER, 1) && GetData(TYPE_ASHBRINGER_EVENT) == NOT_STARTED)
         SetData(TYPE_ASHBRINGER_EVENT, IN_PROGRESS);
 }
 

@@ -7,6 +7,7 @@
 
 #include "Entities/Player.h"
 #include "Entities/GossipDef.h"
+#include "Quests/QuestDef.h"
 
 // Gossip Item Text
 #define GOSSIP_TEXT_BROWSE_GOODS        "I'd like to browse your goods."
@@ -135,7 +136,10 @@ enum
 // Coded
 #define ADD_GOSSIP_ITEM(icon, text, sender, optionId)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, text, sender, optionId, "", 0)
 #define ADD_GOSSIP_ITEM_ID(icon, textId, sender, optionId)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, textId, sender, optionId, 0, 0)
-#define ADD_GOSSIP_ITEM_EXTENDED(icon, text, sender, optionId, boxMessage, boxMoney, code)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, text, sender, optionId, boxMessage, code)
+#define ADD_GOSSIP_ITEM_EXTENDED(icon, text, sender, optionId, boxMessage, boxMoney, code)   PlayerTalkClass->GetGossipMenu().AddMenuItem(icon, text, sender, optionId, boxMessage, boxMoney, code)
+
+// Sets proper 2.4+ gossip menu id
+#define SET_GOSSIP_MENU_ID(id)      PlayerTalkClass->GetGossipMenu().SetMenuId(id)
 
 // This fuction Sends the current menu to show to client
 // uiTextId - NPCTEXTID (uint32)

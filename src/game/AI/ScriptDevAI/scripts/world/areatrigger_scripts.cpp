@@ -17,52 +17,102 @@
 /* ScriptData
 SDName: Areatrigger_Scripts
 SD%Complete: 100
-SDComment: Quest support: 1126, 4291, 6681, 7632, 273, 8735
+SDComment: Quest support: 1126, 4291, 6681, 7632, 273, 10280, 10589/10604, 8735
 SDCategory: Areatrigger
-EndScriptData
-
-*/
+EndScriptData */
 
 /* ContentData
+at_coilfang_waterfall           4591
+at_legion_teleporter            4560 Teleporter TO Invasion Point: Cataclysm
 at_ravenholdt
 at_childrens_week_spot          3546,3547,3548,3552,3549,3550
 at_scent_larkorwi               1726,1727,1728,1729,1730,1731,1732,1733,1734,1735,1736,1737,1738,1739,1740
 at_murkdeep                     1966
 at_ancient_leaf                 3587
+at_haramad_teleport             4479
 at_huldar_miran                 171
+at_area_52                      4422, 4466, 4471, 4472
 at_twilight_grove               4017
 at_hive_tower                   3146
 EndContentData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/scripts/kalimdor/world_kalimdor.h"
+#include "world_map_scripts.h"
 
 static uint32 TriggerOrphanSpell[6][3] =
 {
-    {3546, 14305, 1479},                                    // The Bough of the Eternals
-    {3547, 14444, 1800},                                    // Lordaeron Throne Room
-    {3548, 14305, 1558},                                    // The Stonewrought Dam
-    {3549, 14444, 911},                                     // Gateway to the Frontier
-    {3550, 14444, 910},                                     // Down at the Docks
-    {3552, 14305, 1687}                                     // Spooky Lighthouse
+    {3546, 14305, 65056},                                   // The Bough of the Eternals
+    {3547, 14444, 65059},                                   // Lordaeron Throne Room
+    {3548, 14305, 65055},                                   // The Stonewrought Dam
+    {3549, 14444, 65058},                                   // Gateway to the Frontier
+    {3550, 14444, 65057},                                   // Down at the Docks
+    {3552, 14305, 65054}                                    // Spooky Lighthouse
 };
 
 bool AreaTrigger_at_childrens_week_spot(Player* pPlayer, AreaTriggerEntry const* pAt)
 {
     for (auto& i : TriggerOrphanSpell)
     {
-        if (pPlayer->IsCurrentQuest(i[2]))
+        if (pAt->id == i[0] &&
+                pPlayer->GetMiniPet() && pPlayer->GetMiniPet()->GetEntry() == i[1])
         {
-            if (pAt->id == i[0] &&
-                    pPlayer->GetMiniPet() && pPlayer->GetMiniPet()->GetEntry() == i[1])
-            {
-                pPlayer->SendQuestCompleteEvent(i[2]);
-                pPlayer->CompleteQuest(i[2]);
-                return true;
-            }
+            pPlayer->CastSpell(pPlayer, i[2], TRIGGERED_OLD_TRIGGERED);
+            return true;
         }
     }
+    return false;
+}
 
+/*######
+## at_coilfang_waterfall
+######*/
+
+enum
+{
+    GO_COILFANG_WATERFALL   = 184212
+};
+
+bool AreaTrigger_at_coilfang_waterfall(Player* pPlayer, AreaTriggerEntry const* /*pAt*/)
+{
+    if (GameObject* pGo = GetClosestGameObjectWithEntry(pPlayer, GO_COILFANG_WATERFALL, 35.0f))
+    {
+        if (pGo->GetLootState() == GO_READY)
+            pGo->UseDoorOrButton();
+    }
+    return false;
+}
+
+/*######
+## at_legion_teleporter
+######*/
+
+enum
+{
+    SPELL_TELE_A_TO         = 37389,
+    QUEST_GAINING_ACCESS_A  = 10589,
+
+    SPELL_TELE_H_TO         = 37387, // has cast time TODO: verify once sniff is acquired
+    QUEST_GAINING_ACCESS_H  = 10604
+};
+
+bool AreaTrigger_at_legion_teleporter(Player* pPlayer, AreaTriggerEntry const* /*pAt*/)
+{
+    if (pPlayer->IsAlive() && !pPlayer->IsInCombat())
+    {
+        if (pPlayer->GetTeam() == ALLIANCE && pPlayer->GetQuestRewardStatus(QUEST_GAINING_ACCESS_A))
+        {
+            pPlayer->CastSpell(pPlayer, SPELL_TELE_A_TO, TRIGGERED_NONE);
+            return true;
+        }
+
+        if (pPlayer->GetTeam() == HORDE && pPlayer->GetQuestRewardStatus(QUEST_GAINING_ACCESS_H))
+        {
+            pPlayer->CastSpell(pPlayer, SPELL_TELE_H_TO, TRIGGERED_NONE);
+            return true;
+        }
+        return false;
+    }
     return false;
 }
 
@@ -194,20 +244,37 @@ bool AreaTrigger_at_ancient_leaf(Player* pPlayer, AreaTriggerEntry const* /*pAt*
 }
 
 /*######
+## at_haramad_teleport
+######*/
+
+enum
+{
+    QUEST_SPECIAL_DELIVERY_TO_SHATTRATH = 10280
+};
+
+bool AreaTrigger_at_haramad_teleport(Player* pPlayer, AreaTriggerEntry const* /*pAt*/)
+{
+    if (pPlayer->IsCurrentQuest(QUEST_SPECIAL_DELIVERY_TO_SHATTRATH))
+        pPlayer->TeleportTo(530, -1810.465f, 5323.083f, -12.428f, 2.040f);
+
+    return false;
+}
+
+/*######
 ## Miran and Huldar are Ambushed when AT-171 is triggered
 ## when quest 273 is active
 ######*/
 
 enum
 {
-    QUEST_RESUPPLYING_THE_EXCAVATION    = 273,
+    QUEST_RESUPPLYING_THE_EXCAVATION = 273,
 
-    NPC_SAEAN                           = 1380,
-    NPC_MIRAN                           = 1379,
-    NPC_HULDAR                          = 2057,
-    NPC_DARK_IRON_AMBUSHER              = 1981,
+    NPC_SAEAN = 1380,
+    NPC_MIRAN = 1379,
+    NPC_HULDAR = 2057,
+    NPC_DARK_IRON_AMBUSHER = 1981,
 
-    FACTION_HOSTILE                     = 14
+    FACTION_HOSTILE = 14
 };
 
 struct Location
@@ -268,6 +335,24 @@ bool AreaTrigger_at_huldar_miran(Player* pPlayer, AreaTriggerEntry const* /*pAt*
     }
 
     return true;
+}
+
+/*######
+## at_area_52
+######*/
+
+enum
+{
+    SPELL_A52_NEURALYZER = 34400
+};
+
+bool AreaTrigger_at_area_52(Player* pPlayer, AreaTriggerEntry const* /*pAt*/)
+{
+    // ToDo: research if there should be other actions happening here
+    if (!pPlayer->HasAura(SPELL_A52_NEURALYZER))
+        pPlayer->CastSpell(pPlayer, SPELL_A52_NEURALYZER, TRIGGERED_NONE);
+
+    return false;
 }
 
 /*######
@@ -344,6 +429,16 @@ void AddSC_areatrigger_scripts()
     pNewScript->RegisterSelf();
 
     pNewScript = new Script;
+    pNewScript->Name = "at_coilfang_waterfall";
+    pNewScript->pAreaTrigger = &AreaTrigger_at_coilfang_waterfall;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "at_legion_teleporter";
+    pNewScript->pAreaTrigger = &AreaTrigger_at_legion_teleporter;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
     pNewScript->Name = "at_ravenholdt";
     pNewScript->pAreaTrigger = &AreaTrigger_at_ravenholdt;
     pNewScript->RegisterSelf();
@@ -364,8 +459,18 @@ void AddSC_areatrigger_scripts()
     pNewScript->RegisterSelf();
 
     pNewScript = new Script;
+    pNewScript->Name = "at_haramad_teleport";
+    pNewScript->pAreaTrigger = &AreaTrigger_at_haramad_teleport;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
     pNewScript->Name = "at_huldar_miran";
     pNewScript->pAreaTrigger = &AreaTrigger_at_huldar_miran;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "at_area_52";
+    pNewScript->pAreaTrigger = &AreaTrigger_at_area_52;
     pNewScript->RegisterSelf();
 
     pNewScript = new Script;

@@ -19,9 +19,7 @@ SDName: Boss_KelThuzad
 SD%Complete: 99
 SDComment: Phase 1 summoning timers and/or aura stacking are to be improved once Classic sniffs are available
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

@@ -19,14 +19,12 @@ SDName: Dun_Morogh
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Dun Morogh
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 void AddSC_dun_morogh()
 {

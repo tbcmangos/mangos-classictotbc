@@ -19,15 +19,13 @@ SDName: Orgrimmar
 SD%Complete: 100
 SDComment: Quest support: 2460
 SDCategory: Orgrimmar
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_shenthul
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 /*######
 ## npc_shenthul

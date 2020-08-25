@@ -19,9 +19,7 @@ SDName: Boss_Jeklik
 SD%Complete: 85
 SDComment: Some minor improvements are required; Bat rider movement not implemented
 SDCategory: Zul'Gurub
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "zulgurub.h"

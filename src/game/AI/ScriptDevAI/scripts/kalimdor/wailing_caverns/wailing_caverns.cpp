@@ -19,9 +19,7 @@ SDName: wailing_caverns
 SD%Complete: 90
 SDComment: Missing vipers emerge effect, Naralex doesn't fly at exit(Core issue)
 SDCategory: Wailing Caverns
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "wailing_caverns.h"
@@ -393,7 +391,7 @@ struct npc_disciple_of_naralexAI : public npc_escortAI
                                 {
                                     // ToDo: Make Naralex fly
                                     // sort of a hack, compare to boss_onyxia
-                                    pNaralex->SetByteValue(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND);
+                                    pNaralex->SetByteValue(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY_ANIM);
 
                                     // Set to flying
                                     pNaralex->SetLevitate(true);

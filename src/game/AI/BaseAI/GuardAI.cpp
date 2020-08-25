@@ -74,7 +74,6 @@ void GuardAI::MoveInLineOfSight(Unit* who)
                         AttackStart(victim);
                     }
                 }
-
             }
         }
     }

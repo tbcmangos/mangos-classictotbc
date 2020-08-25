@@ -19,9 +19,7 @@ SDName: Instance_Deadmines
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Deadmines
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "deadmines.h"

@@ -7,7 +7,6 @@
 
 // Remove this include, when EscortAI stores uint32 quest-id instead of Quest*
 #include "Globals/ObjectMgr.h"
-#include "AI/ScriptDevAI/include/sc_creature.h"
 
 enum EscortState
 {

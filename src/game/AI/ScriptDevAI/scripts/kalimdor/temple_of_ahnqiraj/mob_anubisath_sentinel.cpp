@@ -19,9 +19,7 @@ SDName: mob_anubisath_sentinel
 SD%Complete: 100
 SDComment:
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

@@ -19,15 +19,13 @@ SDName: Silithus
 SD%Complete: 100
 SDComment: Quest support: 8519.
 SDCategory: Silithus
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_anachronos_the_ancient
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 /*###
 ## npc_anachronos_the_ancient
@@ -96,7 +94,7 @@ enum
     SPELL_GREEN_DRAGON_TRANSFORM        = 25105,
     SPELL_RED_DRAGON_TRANSFORM          = 25106,
     SPELL_BLUE_DRAGON_TRANSFORM         = 25107,
-    SPELL_BRONZE_DRAGON_TRANSFORM       = 25108,
+    SPELL_BRONZE_DRAGON_TRANSFORM       = 25108,            // Spell was removed - exists only before 2.0.1
     SPELL_MERITHRA_WAKE                 = 25145,            // triggers 25172 on targets
     SPELL_ARYGOS_VENGEANCE              = 25149,            // triggers 25168 on targets
     SPELL_CAELESTRASZ_MOLTEN_RAIN       = 25150,            // triggers 25169 & 25170 on targets

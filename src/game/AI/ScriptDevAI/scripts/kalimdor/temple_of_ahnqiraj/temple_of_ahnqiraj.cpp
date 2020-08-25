@@ -19,9 +19,7 @@ SDName: Instance_Temple_of_Ahnqiraj
 SD%Complete: 80
 SDComment: C'thun whisperings spells NYI.
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -39,11 +37,10 @@ static const DialogueEntry aIntroDialogue[] =
     {0, 0, 0}
 };
 
-instance_temple_of_ahnqiraj::instance_temple_of_ahnqiraj(Map* pMap) : ScriptedInstance(pMap),
+instance_temple_of_ahnqiraj::instance_temple_of_ahnqiraj(Map* pMap) : ScriptedInstance(pMap), DialogueHelper(aIntroDialogue),
     m_uiBugTrioDeathCount(0),
     m_uiCthunWhisperTimer(90000),
-    m_uiSkeramProphecyTimer(5 * MINUTE * IN_MILLISECONDS),
-    DialogueHelper(aIntroDialogue)
+    m_uiSkeramProphecyTimer(5 * MINUTE * IN_MILLISECONDS)
 {
     Initialize();
 };
@@ -64,18 +61,6 @@ bool instance_temple_of_ahnqiraj::IsEncounterInProgress() const
     }
 
     return false;
-}
-
-void instance_temple_of_ahnqiraj::OnPlayerLeave(Player* pPlayer) {
-    // Remove any aura related to Temple of Ahn'Qiraj specific mounts
-    for (uint32 aura : qiraji_mount_auras)
-    {
-        if (pPlayer->HasAura(aura))
-        {
-            pPlayer->RemoveAurasDueToSpell(aura);
-            return;
-        }
-    }
 }
 
 void instance_temple_of_ahnqiraj::JustDidDialogueStep(int32 entry)

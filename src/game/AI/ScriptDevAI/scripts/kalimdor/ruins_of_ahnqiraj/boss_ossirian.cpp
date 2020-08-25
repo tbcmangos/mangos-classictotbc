@@ -19,9 +19,7 @@ SDName: Boss_Ossirian
 SD%Complete: 100%
 SDComment:
 SDCategory: Ruins of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "ruins_of_ahnqiraj.h"

@@ -19,9 +19,7 @@ SDName: Instance_Onyxias_Lair
 SD%Complete: 80%
 SDComment: Quel'Serrar forging event is missing. Whelp summoning would be improved by GO casting.
 SDCategory: Onyxia's Lair
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "onyxias_lair.h"

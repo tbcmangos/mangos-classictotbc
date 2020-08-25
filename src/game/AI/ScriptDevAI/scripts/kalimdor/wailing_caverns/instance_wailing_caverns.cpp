@@ -19,9 +19,7 @@ SDName: Instance_Wailing_Caverns
 SD%Complete: 90
 SDComment:
 SDCategory: Wailing Caverns
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "wailing_caverns.h"

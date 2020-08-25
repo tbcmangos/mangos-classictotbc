@@ -19,9 +19,7 @@ SDName: Boss_Buru
 SD%Complete: 70
 SDComment:
 SDCategory: Ruins of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "ruins_of_ahnqiraj.h"
@@ -110,7 +108,7 @@ struct boss_buruAI : public CombatAI
             ScheduleNewTarget();
     }
 
-    void SpellHitTarget(Unit* target, const SpellEntry* spellInfo, SpellMissInfo /*missInfo*/) override
+    void SpellHitTarget(Unit* /*target*/, const SpellEntry* spellInfo, SpellMissInfo /*missInfo*/) override
     {
         if (spellInfo->Id == SPELL_CREATURE_SPECIAL)
             DoAttackNewTarget();

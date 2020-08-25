@@ -19,9 +19,7 @@ SDName: instance_zulfarrak
 SD%Complete: 80%
 SDComment:
 SDCategory: Zul'Farrak
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "zulfarrak.h"

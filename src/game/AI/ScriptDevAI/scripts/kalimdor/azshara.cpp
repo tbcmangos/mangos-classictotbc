@@ -19,11 +19,12 @@ SDName: Azshara
 SD%Complete: 100%
 SDComment: Quest support: 2744, 3141, 3602, 8729, 9364, 10994
 SDCategory: Azshara
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
+npc_rizzle_sprysprocket
+npc_depth_charge
+go_southfury_moonstone
 mobs_spitelashes
 npc_loramus_thalipedes
 npc_felhound_tracker
@@ -32,7 +33,218 @@ go_lightning
 boss_maws
 EndContentData */
 
+#include "AI/ScriptDevAI/include/sc_common.h"
+#include "AI/ScriptDevAI/base/escort_ai.h"
 #include "AI/ScriptDevAI/base/pet_ai.h"
+
+/*#####
+## npc_rizzle_sprysprocket
+#####*/
+
+enum
+{
+    SAY_START                   = -1000351,
+    EMOTE_START                 = -1000352,
+    SAY_WHISPER_CHILL           = -1000353,
+    SAY_GRENADE_FAIL            = -1000354,
+    SAY_END                     = -1000355,
+
+    QUEST_MOONSTONE             = 10994,
+    NPC_RIZZLE                  = 23002,
+    NPC_DEPTH_CHARGE            = 23025,
+
+    SPELL_SUMMON_RIZZLE         = 39866,
+    SPELL_BLACKJACK             = 39865,                    // stuns player
+    SPELL_ESCAPE                = 39871,                    // teleports to water
+    SPELL_SWIM_SPEED            = 40596,
+
+    SPELL_FROST_TRAP            = 39902,                    // not used?
+
+    SPELL_PERIODIC_GRENADE      = 40553,                    // cannot tell who are supposed to have this aura
+    SPELL_FROST_GRENADE         = 40525,                    // triggered by periodic grenade
+
+    SPELL_SUMMON_DEPTH_CHARGE   = 39907,                    // summons the bomb creature
+    SPELL_TRAP                  = 39899,                    // knockback
+
+    SPELL_PERIODIC_CHECK        = 39888,
+    SPELL_SURRENDER             = 39889,                    // should be triggered by periodic check, if player comes in certain distance with quest incomplete
+
+    SPELL_GIVE_MOONSTONE        = 39886
+};
+
+#define GOSSIP_ITEM_MOONSTONE   "Hand over the Southfury moonstone and I'll let you go."
+
+struct npc_rizzle_sprysprocketAI : public npc_escortAI
+{
+    npc_rizzle_sprysprocketAI(Creature* pCreature) : npc_escortAI(pCreature)
+    {
+        pCreature->SetActiveObjectState(true);
+        m_bIsIntro = true;
+        m_uiIntroPhase = 0;
+        m_uiIntroTimer = 0;
+        m_uiDepthChargeTimer = 10000;
+        Reset();
+    }
+
+    bool m_bIsIntro;
+    uint8 m_uiIntroPhase;
+    uint32 m_uiIntroTimer;
+    uint32 m_uiDepthChargeTimer;
+
+    void MoveInLineOfSight(Unit* pUnit) override
+    {
+        if (HasEscortState(STATE_ESCORT_ESCORTING) && pUnit->GetTypeId() == TYPEID_PLAYER)
+        {
+            if (!HasEscortState(STATE_ESCORT_PAUSED) && m_creature->IsWithinDistInMap(pUnit, INTERACTION_DISTANCE) && m_creature->IsWithinLOSInMap(pUnit))
+            {
+                if (((Player*)pUnit)->GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
+                    m_creature->CastSpell(m_creature, SPELL_SURRENDER, TRIGGERED_OLD_TRIGGERED);
+            }
+        }
+
+        npc_escortAI::MoveInLineOfSight(pUnit);
+    }
+
+    void WaypointReached(uint32 uiPointId) override
+    {
+        switch (uiPointId)
+        {
+            case 1:
+                m_creature->CastSpell(m_creature, SPELL_PERIODIC_CHECK, TRIGGERED_OLD_TRIGGERED);
+                break;
+        }
+    }
+
+    void Reset() override { }
+
+    void SpellHit(Unit* /*pCaster*/, const SpellEntry* pSpell) override
+    {
+        if (pSpell->Id == SPELL_SURRENDER)
+        {
+            SetEscortPaused(true);
+            DoScriptText(SAY_END, m_creature);
+            m_creature->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+        }
+    }
+
+    // this may be wrong (and doesn't work)
+    void SpellHitTarget(Unit* pTarget, const SpellEntry* pSpell) override
+    {
+        if (pTarget->GetTypeId() == TYPEID_PLAYER && pSpell->Id == SPELL_FROST_GRENADE)
+            DoScriptText(SAY_WHISPER_CHILL, m_creature, pTarget);
+    }
+
+    // this may be wrong
+    void JustSummoned(Creature* /*pSummoned*/) override
+    {
+        // pSummoned->CastSpell(pSummoned,SPELL_PERIODIC_GRENADE,TRIGGERED_NONE,nullptr,nullptr,m_creature->GetObjectGuid());
+    }
+
+    void UpdateEscortAI(const uint32 uiDiff) override
+    {
+        if (m_bIsIntro)
+        {
+            if (m_uiIntroTimer < uiDiff)
+                m_uiIntroTimer = 1500;
+            else
+            {
+                m_uiIntroTimer -= uiDiff;
+                return;
+            }
+
+            switch (m_uiIntroPhase)
+            {
+                case 0:
+                    DoScriptText(SAY_START, m_creature);
+                    DoScriptText(EMOTE_START, m_creature);
+                    break;
+                case 1:
+                    // teleports to water _before_ we Start()
+                    m_creature->CastSpell(m_creature, SPELL_ESCAPE, TRIGGERED_NONE);
+                    break;
+                case 2:
+                    m_creature->CastSpell(m_creature, SPELL_SWIM_SPEED, TRIGGERED_NONE);
+                    m_bIsIntro = false;
+                    Start(true);
+                    break;
+            }
+
+            ++m_uiIntroPhase;
+            return;
+        }
+
+        if (m_uiDepthChargeTimer < uiDiff)
+        {
+            if (!HasEscortState(STATE_ESCORT_PAUSED))
+                m_creature->CastSpell(m_creature, SPELL_SUMMON_DEPTH_CHARGE, TRIGGERED_NONE);
+
+            m_uiDepthChargeTimer = urand(10000, 15000);
+        }
+        else
+            m_uiDepthChargeTimer -= uiDiff;
+    }
+};
+
+UnitAI* GetAI_npc_rizzle_sprysprocket(Creature* pCreature)
+{
+    return new npc_rizzle_sprysprocketAI(pCreature);
+}
+
+bool GossipHello_npc_rizzle_sprysprocket(Player* pPlayer, Creature* pCreature)
+{
+    if (pPlayer->GetQuestStatus(QUEST_MOONSTONE) == QUEST_STATUS_INCOMPLETE)
+        pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_MOONSTONE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+
+    pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetObjectGuid());
+    return true;
+}
+
+bool GossipSelect_npc_rizzle_sprysprocket(Player* pPlayer, Creature* /*pCreature*/, uint32 /*uiSender*/, uint32 uiAction)
+{
+    if (uiAction == GOSSIP_ACTION_INFO_DEF + 1)
+    {
+        pPlayer->CLOSE_GOSSIP_MENU();
+        pPlayer->CastSpell(pPlayer, SPELL_GIVE_MOONSTONE, TRIGGERED_NONE);
+    }
+
+    return true;
+}
+
+struct npc_depth_chargeAI : public ScriptedAI
+{
+    npc_depth_chargeAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
+
+    void MoveInLineOfSight(Unit* pUnit) override
+    {
+        if (pUnit->GetTypeId() != TYPEID_PLAYER)
+            return;
+
+        if (m_creature->IsWithinDistInMap(pUnit, INTERACTION_DISTANCE) && m_creature->IsWithinLOSInMap(pUnit))
+            m_creature->CastSpell(pUnit, SPELL_TRAP, TRIGGERED_NONE);
+    }
+
+    void Reset() override { }
+};
+
+UnitAI* GetAI_npc_depth_charge(Creature* pCreature)
+{
+    return new npc_depth_chargeAI(pCreature);
+}
+
+/*######
+## go_southfury_moonstone
+######*/
+
+bool GOUse_go_southfury_moonstone(Player* pPlayer, GameObject* /*pGo*/)
+{
+    // implicitTarget=48 not implemented as of writing this code, and manual summon may be just ok for our purpose
+    // pPlayer->CastSpell(pPlayer,SPELL_SUMMON_RIZZLE,TRIGGERED_NONE);
+
+    if (Creature* pCreature = pPlayer->SummonCreature(NPC_RIZZLE, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSPAWN_DEAD_DESPAWN, 0))
+        pCreature->CastSpell(pPlayer, SPELL_BLACKJACK, TRIGGERED_NONE);
+
+    return false;
+}
 
 /*######
 ## mobs_spitelashes
@@ -553,7 +765,22 @@ UnitAI* GetAI_boss_maws(Creature* pCreature)
 
 void AddSC_azshara()
 {
-    Script* pNewScript;
+    Script* pNewScript = new Script;
+    pNewScript->Name = "npc_rizzle_sprysprocket";
+    pNewScript->GetAI = &GetAI_npc_rizzle_sprysprocket;
+    pNewScript->pGossipHello = &GossipHello_npc_rizzle_sprysprocket;
+    pNewScript->pGossipSelect = &GossipSelect_npc_rizzle_sprysprocket;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "npc_depth_charge";
+    pNewScript->GetAI = &GetAI_npc_depth_charge;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "go_southfury_moonstone";
+    pNewScript->pGOUse = &GOUse_go_southfury_moonstone;
+    pNewScript->RegisterSelf();
 
     pNewScript = new Script;
     pNewScript->Name = "mobs_spitelashes";

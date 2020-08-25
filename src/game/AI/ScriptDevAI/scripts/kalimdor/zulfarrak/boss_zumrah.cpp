@@ -19,9 +19,7 @@ SDName: boss_zumrah
 SD%Complete: 100
 SDComment:
 SDCategory: Zul'Farrak
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "zulfarrak.h"

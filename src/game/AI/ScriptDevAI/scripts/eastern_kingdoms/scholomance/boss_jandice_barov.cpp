@@ -19,9 +19,7 @@ SDName: Boss_jandicebarov
 SD%Complete: 90
 SDComment: Jandice's Illusions are missing their AoE immunity, they should only be vunerable to direct damage (missing core feature ?)
 SDCategory: Scholomance
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

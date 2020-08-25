@@ -19,9 +19,7 @@ SDName: Boss_Pyroguard_Emberseer
 SD%Complete: 90
 SDComment: Dummy spells used during the transformation may need further research
 SDCategory: Blackrock Spire
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackrock_spire.h"

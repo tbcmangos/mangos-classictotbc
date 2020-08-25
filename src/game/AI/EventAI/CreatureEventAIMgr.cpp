@@ -25,7 +25,7 @@
 #include "ProgressBar.h"
 #include "Policies/Singleton.h"
 #include "Maps/GridDefines.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "World/World.h"
 #include "DBScripts/ScriptMgr.h"
 
@@ -352,7 +352,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                             continue;
                         }
 
-                        if ((temp.spell_hit.schoolMask & GetSchoolMask(pSpell->School)) != GetSchoolMask(pSpell->School))
+                        if ((temp.spell_hit.schoolMask & pSpell->SchoolMask) != pSpell->SchoolMask)
                             sLog.outErrorEventAI("Creature %u has param1(spellId %u) but param2 is not -1 and not equal to spell's school mask. Event %u can never trigger.", temp.creature_id, temp.spell_hit.schoolMask, i);
                     }
 
@@ -569,7 +569,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                             continue;
                         }
 
-                        if ((temp.spell_hit_target.schoolMask & GetSchoolMask(spellInfo->School)) != GetSchoolMask(spellInfo->School))
+                        if ((temp.spell_hit_target.schoolMask & spellInfo->SchoolMask) != spellInfo->SchoolMask)
                             sLog.outErrorEventAI("Creature %u has param1(spellId %u) but param2 is not -1 and not equal to spell's school mask. Event %u can never trigger.", temp.creature_id, temp.spell_hit.schoolMask, i);
                     }
 
@@ -743,7 +743,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
 
                             // used TARGET_T_ACTION_INVOKER, but likely should be _INVOKER_OWNER instead
                             if (action.cast.target == TARGET_T_ACTION_INVOKER &&
-                                    (IsSpellHaveEffect(spell, SPELL_EFFECT_QUEST_COMPLETE) || IsSpellHaveEffect(spell, SPELL_EFFECT_DUMMY)))
+                                    (IsSpellHaveEffect(spell, SPELL_EFFECT_QUEST_COMPLETE) || IsSpellHaveEffect(spell, SPELL_EFFECT_DUMMY) || IsSpellHaveEffect(spell, SPELL_EFFECT_KILL_CREDIT_GROUP)))
                                 sLog.outErrorEventAI("Event %u Action %u has TARGET_T_ACTION_INVOKER(%u) target type, but should have TARGET_T_ACTION_INVOKER_OWNER(%u).", i, j + 1, TARGET_T_ACTION_INVOKER, TARGET_T_ACTION_INVOKER_OWNER);
 
                             // Spell that should only target players, but could get any
@@ -864,10 +864,14 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         IsValidTargetType(temp.event_type, action.type, action.killed_monster.target, i, j + 1);
                         break;
                     case ACTION_T_SET_INST_DATA:
+                        if (!(temp.event_flags & EFLAG_DIFFICULTY_ALL))
+                            sLog.outErrorEventAI("Event %u Action %u. Cannot set instance data without difficulty event flags.", i, j + 1);
                         if (action.set_inst_data.value > 4/*SPECIAL*/)
                             sLog.outErrorEventAI("Event %u Action %u attempts to set instance data above encounter state 4. Custom case?", i, j + 1);
                         break;
                     case ACTION_T_SET_INST_DATA64:
+                        if (!(temp.event_flags & EFLAG_DIFFICULTY_ALL))
+                            sLog.outErrorEventAI("Event %u Action %u. Cannot set instance data without difficulty event flags.", i, j + 1);
                         IsValidTargetType(temp.event_type, action.type, action.set_inst_data64.target, i, j + 1);
                         break;
                     case ACTION_T_UPDATE_TEMPLATE:
@@ -965,7 +969,7 @@ void CreatureEventAIMgr::LoadCreatureEventAI_Scripts()
                         if (action.changeMovement.asDefault > 1)
                         {
                             sLog.outErrorEventAI("Event %u Action %u uses invalid default movement setting %u. Setting to 0.", i, j + 1, action.changeMovement.asDefault);
-                            action.deathPrevention.state = 0;
+                            action.changeMovement.asDefault = 0;
                         }
                         break;
                     case ACTION_T_SET_REACT_STATE:

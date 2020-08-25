@@ -19,17 +19,15 @@ SDName: Desolace
 SD%Complete: 100
 SDComment: Quest support: 1440, 5561, 5821, 5943, 6132
 SDCategory: Desolace
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_aged_dying_ancient_kodo
 npc_dalinda_malem
 npc_melizza_brimbuzzle
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*######

@@ -19,11 +19,9 @@ SDName: Shadowfang_Keep
 SD%Complete: 75
 SDComment: npc_shadowfang_prisoner using escortAI for movement to door.
 SDCategory: Shadowfang Keep
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_shadowfang_prisoner
 mob_arugal_voidwalker
 npc_arugal
@@ -31,7 +29,7 @@ boss_arugal
 npc_deathstalker_vincent
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 #include "shadowfang_keep.h"
 #include "Spells/Scripts/SpellScript.h"
@@ -257,7 +255,6 @@ struct mob_arugal_voidwalkerAI : public ScriptedAI
             }
             else
             {
-                pNewLeader = m_creature;
                 m_bIsLeader = true;
                 m_bWPDone = true;
             }
@@ -841,7 +838,7 @@ struct npc_deathstalker_vincentAI : public ScriptedAI
             m_creature->SetStandState(UNIT_STAND_STATE_DEAD);
     }
 
-    void DamageTaken(Unit* pDoneBy, uint32& damage, DamageEffectType /*damagetype*/, SpellEntry const* /*spellInfo*/) override
+    void DamageTaken(Unit* /*pDoneBy*/, uint32& damage, DamageEffectType /*damagetype*/, SpellEntry const* /*spellInfo*/) override
     {
         if (m_creature->getStandState())
             m_creature->SetStandState(UNIT_STAND_STATE_STAND);

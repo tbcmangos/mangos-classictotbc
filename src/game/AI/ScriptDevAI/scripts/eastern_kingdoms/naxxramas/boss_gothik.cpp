@@ -19,9 +19,7 @@ SDName: Boss_Gothik
 SD%Complete: 100
 SDComment:
 SDCategory: Naxxramas
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"

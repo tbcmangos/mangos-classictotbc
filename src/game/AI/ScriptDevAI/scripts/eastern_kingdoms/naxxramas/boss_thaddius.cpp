@@ -19,17 +19,15 @@ SDName: Boss_Thaddius
 SD%Complete: 100
 SDComment:
 SDCategory: Naxxramas
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 boss_thaddius
 boss_stalagg
 boss_feugen
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "naxxramas.h"
 
 enum
@@ -319,7 +317,7 @@ struct boss_thaddiusAddsAI : public ScriptedAI
         return otherAdd;
     }
 
-    void Aggro(Unit* who) override
+    void Aggro(Unit* /*who*/) override
     {
         if (!m_instance)
             return;
@@ -464,7 +462,7 @@ struct boss_thaddiusAddsAI : public ScriptedAI
         m_creature->StopMoving();
         m_creature->ClearComboPointHolders();
         m_creature->RemoveAllAurasOnDeath();
-        m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_20_PERCENT, false);
+        m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_35_PERCENT, false);
         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         m_creature->SetImmuneToPlayer(true);
         m_creature->ClearAllReactives();

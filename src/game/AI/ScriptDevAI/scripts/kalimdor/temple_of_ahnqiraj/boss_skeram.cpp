@@ -19,9 +19,7 @@ SDName: Boss_Skeram
 SD%Complete: 100
 SDComment:
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -45,7 +43,7 @@ enum
     SPELL_SUMMON_IMAGES         = 747,
     SPELL_TELEPORT_IMAGE        = 26591,
 
-    SPELL_BIRTH                 = 26262, // Different in tbc+ - unconfirmed but has same script
+    SPELL_BIRTH                 = 34115, // TBC+ spell on spawn - purpose of 1 sec delay before images attack
 };
 
 enum SkeramActions
@@ -194,7 +192,7 @@ struct boss_skeramAI : public CombatAI
         // Teleport, reset thread (and restore visibility if needed)
         DoCastSpellIfCan(nullptr, teleportSpellID);
         DoResetThreat();
-        // ClearMark();     // Starting with patch 2.0.1 raid marks are cleared on teleport
+        ClearMark();
         m_creature->RemoveAllAuras();
 
         if (attacking)
@@ -222,7 +220,7 @@ struct boss_skeramAI : public CombatAI
         return 0;
     }
 
-/*    void ClearMark()
+    void ClearMark()
     {
         if (m_instance)
         {
@@ -235,7 +233,7 @@ struct boss_skeramAI : public CombatAI
             }
         }
     }
-*/
+
     void HandleInitImages()
     {
         std::random_shuffle(m_teleports.begin(), m_teleports.end()); // Shuffle the teleport spells to ensure that boss and images have a different location assigned randomly
@@ -331,7 +329,7 @@ struct TrueFulfillment : public AuraScript
 
 struct InitializeImages : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const override
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
     {
         if (Unit* unitTarget = spell->GetUnitTarget())
         {
@@ -345,7 +343,7 @@ struct InitializeImages : public SpellScript
 
 struct InitializeImage : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const override
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
     {
         if (Unit* unitTarget = spell->GetUnitTarget())
         {
@@ -366,7 +364,7 @@ struct InitializeImage : public SpellScript
         }
     }
 
-    bool OnCheckTarget(const Spell* spell, Unit* target, SpellEffectIndex eff) const
+    bool OnCheckTarget(const Spell* /*spell*/, Unit* target, SpellEffectIndex /*eff*/) const
     {
         if (target->GetSpawnerGuid()) // only original spawn can be hit by this
             return false;
@@ -377,7 +375,7 @@ struct InitializeImage : public SpellScript
 
 struct TeleportImage : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const override
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const override
     {
         if (Unit* target = spell->GetUnitTarget())
             if (boss_skeramAI* skeramAI = dynamic_cast<boss_skeramAI*>(target->AI()))

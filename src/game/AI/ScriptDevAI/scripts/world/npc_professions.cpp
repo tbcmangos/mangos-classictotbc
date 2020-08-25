@@ -19,9 +19,7 @@ SDName: Npc_Professions
 SD%Complete: 80
 SDComment: Provides learn/unlearn/relearn-options for professions. Not supported: Unlearn engineering, re-learn engineering, re-learn leatherworking.
 SDCategory: NPCs
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 
@@ -102,9 +100,9 @@ there is no difference here (except that default text is chosen with `gameobject
 
 #define S_LEARN_WEAPON          9789
 #define S_LEARN_ARMOR           9790
-#define S_LEARN_HAMMER          17044
-#define S_LEARN_AXE             17043
-#define S_LEARN_SWORD           17042
+#define S_LEARN_HAMMER          39099
+#define S_LEARN_AXE             39098
+#define S_LEARN_SWORD           39097
 
 #define S_UNLEARN_WEAPON        36436
 #define S_UNLEARN_ARMOR         36435

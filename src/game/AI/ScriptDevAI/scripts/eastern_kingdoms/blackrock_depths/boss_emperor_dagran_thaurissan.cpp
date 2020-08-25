@@ -19,9 +19,7 @@ SDName: Boss_Emperor_Dagran_Thaurissan
 SD%Complete: 90
 SDComment: With script for Moria
 SDCategory: Blackrock Depths
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackrock_depths.h"

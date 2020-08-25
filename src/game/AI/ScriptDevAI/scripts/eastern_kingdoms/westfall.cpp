@@ -19,16 +19,14 @@ SDName: Westfall
 SD%Complete: 90
 SDComment: Quest support: 155, 1651
 SDCategory: Westfall
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_daphne_stilwell
 npc_defias_traitor
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*######

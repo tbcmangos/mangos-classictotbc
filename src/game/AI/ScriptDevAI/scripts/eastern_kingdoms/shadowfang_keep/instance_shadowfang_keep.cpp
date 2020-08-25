@@ -19,9 +19,7 @@ SDName: Instance_Shadowfang_Keep
 SD%Complete: 100
 SDComment:
 SDCategory: Shadowfang Keep
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "shadowfang_keep.h"

@@ -19,9 +19,7 @@ SDName: Instance_Gnomeregan
 SD%Complete: 90%
 SDComment:  Support for Grubbis and Thermaplugg Encounters
 SDCategory: Gnomeregan
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "gnomeregan.h"

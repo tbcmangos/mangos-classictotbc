@@ -19,15 +19,13 @@ SDName: Teldrassil
 SD%Complete: 100
 SDComment: Quest support: 938
 SDCategory: Teldrassil
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_mist
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/follower_ai.h"
 
 /*####

@@ -10,7 +10,7 @@ SDCategory: Npc
 EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
-#include "pet_ai.h"
+#include "AI/ScriptDevAI/base/pet_ai.h"
 
 ScriptedPetAI::ScriptedPetAI(Creature* creature) : CreatureAI(creature)
 {}

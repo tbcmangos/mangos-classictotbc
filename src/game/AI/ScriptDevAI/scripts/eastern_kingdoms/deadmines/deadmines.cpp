@@ -19,9 +19,7 @@ SDName: Deadmines
 SD%Complete: 100
 SDComment: Contains GO for Iron Clad door event
 SDCategory: Deadmines
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "deadmines.h"

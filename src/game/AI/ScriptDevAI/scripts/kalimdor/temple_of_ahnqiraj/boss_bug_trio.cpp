@@ -19,9 +19,7 @@ SDName: bug_trio
 SD%Complete: 99
 SDComment: Summon Player spell NYI (when current target is unreachable)
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -35,7 +33,7 @@ enum
     SPELL_FULL_HEAL         = 17683,
 
     // Lord Kri
-    SPELL_CLEAVE            = 26350,
+    SPELL_CLEAVE            = 40504,            // TBC uses different spell from vanilla 26350
     SPELL_TOXIC_VOLLEY      = 25812,
     SPELL_SUMMON_CLOUD      = 26590,            // summons 15933
     SPELL_THRASH            = 3391,
@@ -80,7 +78,7 @@ struct boss_silithidRoyaltyAI : public CombatAI
         m_deathAbility(0)
     {
         AddCustomAction(ROYALTY_DEVOUR_DELAY, true, [&]() { HandleDevourDelay(); });
-        m_creature->GetCombatManager().SetLeashingCheck([&](Unit* unit, float x, float y, float z) -> bool
+        m_creature->GetCombatManager().SetLeashingCheck([&](Unit* /*unit*/, float /*x*/, float /*y*/, float /*z*/) -> bool
         {
             return m_creature->GetDistance(resetPoint.m_fX, resetPoint.m_fY, resetPoint.m_fZ, DIST_CALC_COMBAT_REACH) < 10.0f;
         });
@@ -113,7 +111,7 @@ struct boss_silithidRoyaltyAI : public CombatAI
     }
 
     // Handle damage to trigger consume when the two bosses that are killed first
-    void JustPreventedDeath(Unit* attacker)
+    void JustPreventedDeath(Unit* /*attacker*/)
     {
         if (!m_instance)
             return;

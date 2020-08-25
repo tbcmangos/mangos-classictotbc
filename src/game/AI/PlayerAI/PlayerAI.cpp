@@ -65,7 +65,7 @@ void PlayerAI::EnterEvadeMode()
         m_player->GetMotionMaster()->MoveFollow(charmer, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE, true);
 }
 
-void PlayerAI::UpdateAI(const uint32 diff)
+void PlayerAI::UpdateAI(const uint32 /*diff*/)
 {
     // Check if we have a current target
     if (!m_player->SelectHostileTarget() || !m_player->GetVictim())

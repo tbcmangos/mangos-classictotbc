@@ -19,9 +19,7 @@ SDName: Boss_Baron_Geddon
 SD%Complete: 100
 SDComment: Armaggedon is not working properly (core issue)
 SDCategory: Molten Core
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"

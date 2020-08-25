@@ -19,15 +19,13 @@ SDName: dire_maul
 SD%Complete: 100%
 SDComment: Quest support: 7631.
 SDCategory: Dire Maul
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 event_spell_release_jeevee
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "dire_maul.h"
 
 /*######

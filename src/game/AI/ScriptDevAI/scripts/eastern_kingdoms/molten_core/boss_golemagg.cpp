@@ -19,9 +19,7 @@ SDName: Boss_Golemagg
 SD%Complete: 100
 SDComment:
 SDCategory: Molten Core
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"

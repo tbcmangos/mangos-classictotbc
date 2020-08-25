@@ -19,9 +19,7 @@ SDName: Boss_Onyxia
 SD%Complete: 85
 SDComment: Visual improvement needed in phase 2: flying animation while hovering. Quel'Serrar event is missing.
 SDCategory: Onyxia's Lair
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "onyxias_lair.h"

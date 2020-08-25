@@ -19,9 +19,7 @@ SDName: instance_razorfen_kraul
 SD%Complete: 50
 SDComment:
 SDCategory: Razorfen Kraul
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "razorfen_kraul.h"

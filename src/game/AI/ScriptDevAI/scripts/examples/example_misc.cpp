@@ -19,9 +19,7 @@ SDName: Example_Misc
 SD%Complete: 100
 SDComment: Item, Areatrigger and other small code examples
 SDCategory: Script Examples
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

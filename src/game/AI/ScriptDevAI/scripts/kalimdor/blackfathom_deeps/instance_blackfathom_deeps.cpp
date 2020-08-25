@@ -19,9 +19,7 @@ SDName: Instance_Blackfathom_Deeps
 SD%Complete: 50
 SDComment: Quest support: 6921
 SDCategory: Blackfathom Deeps
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackfathom_deeps.h"

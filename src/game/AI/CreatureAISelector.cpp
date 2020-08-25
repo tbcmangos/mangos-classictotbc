@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "AI/CreatureAISelector.h"
+#include "CreatureAISelector.h"
 #include "Entities/Creature.h"
 #include "BaseAI/CreatureAIImpl.h"
 #include "BaseAI/NullCreatureAI.h"

@@ -19,11 +19,9 @@ SDName: The_Barrens
 SD%Complete: 90
 SDComment: Quest support: 863, 898, 1719, 2458.
 SDCategory: Barrens
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_gilthares
 npc_taskmaster_fizzule
 npc_twiggy_flathead
@@ -31,7 +29,7 @@ at_twiggy_flathead
 npc_wizzlecrank_shredder
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*######
@@ -688,7 +686,7 @@ struct npc_gallywixAI : public ScriptedAI
         DoScriptText(SAY_STEALTH_ALERT_GALLYWIX, m_creature, who);
     }
 
-    void DamageTaken(Unit* /*dealer*/, uint32& damage, DamageEffectType /*damagetype*/, SpellEntry const* spellInfo) override
+    void DamageTaken(Unit* /*dealer*/, uint32& /*damage*/, DamageEffectType /*damagetype*/, SpellEntry const* spellInfo) override
     {
         if (spellInfo && spellInfo->SpellFamilyName == SPELLFAMILY_ROGUE && spellInfo->IsFitToFamilyMask(0x0000000000800200)) // on Ambush
             m_creature->CastSpell(nullptr, SPELL_DECIMATE, TRIGGERED_OLD_TRIGGERED);
@@ -709,7 +707,7 @@ struct npc_venture_co_lookoutAI : public ScriptedAI
         DoScriptText(urand(0, 1) ? SAY_STEALTH_ALERT_LOOKOUT_1 : SAY_STEALTH_ALERT_LOOKOUT_2, m_creature, who);
     }
 
-    void DamageTaken(Unit* /*dealer*/, uint32& damage, DamageEffectType /*damagetype*/, SpellEntry const* spellInfo) override
+    void DamageTaken(Unit* /*dealer*/, uint32& /*damage*/, DamageEffectType /*damagetype*/, SpellEntry const* spellInfo) override
     {
         if (spellInfo && spellInfo->SpellFamilyName == SPELLFAMILY_ROGUE && spellInfo->IsFitToFamilyMask(0x0000000000820000)) // on Eviscerate
             m_creature->CastSpell(nullptr, SPELL_SLUSH, TRIGGERED_OLD_TRIGGERED);

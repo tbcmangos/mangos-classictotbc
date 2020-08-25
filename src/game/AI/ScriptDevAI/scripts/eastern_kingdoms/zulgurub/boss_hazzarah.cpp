@@ -19,9 +19,7 @@ SDName: Boss_Hazzarah
 SD%Complete: 100
 SDComment:
 SDCategory: Zul'Gurub
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 

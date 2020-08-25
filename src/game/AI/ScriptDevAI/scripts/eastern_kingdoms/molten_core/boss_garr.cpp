@@ -19,9 +19,7 @@ SDName: Boss_Garr
 SD%Complete: 95
 SDComment: 'Summon Player' missing
 SDCategory: Molten Core
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"

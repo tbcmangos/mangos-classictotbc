@@ -19,15 +19,12 @@ SDName: Blasted_Lands
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Blasted Lands
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"
 /* ContentData
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 void AddSC_blasted_lands()
 {

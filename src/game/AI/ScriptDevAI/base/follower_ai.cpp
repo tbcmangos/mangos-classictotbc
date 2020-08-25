@@ -10,7 +10,7 @@ SDCategory: Npc
 EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
-#include "follower_ai.h"
+#include "AI/ScriptDevAI/base/follower_ai.h"
 
 const float MAX_PLAYER_DISTANCE = 100.0f;
 

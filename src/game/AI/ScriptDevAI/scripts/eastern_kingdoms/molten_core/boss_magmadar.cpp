@@ -19,9 +19,7 @@ SDName: Boss_Magmadar
 SD%Complete: 99
 SDComment: Lava bomb timers may need some adjustements
 SDCategory: Molten Core
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"

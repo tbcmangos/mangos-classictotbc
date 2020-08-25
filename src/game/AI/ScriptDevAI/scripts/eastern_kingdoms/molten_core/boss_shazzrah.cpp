@@ -18,9 +18,7 @@
 SDName: Boss_Shazzrah
 SD%Complete: 75
 SDCategory: Molten Core
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "molten_core.h"

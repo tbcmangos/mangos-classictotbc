@@ -19,16 +19,14 @@ SDName: gnomeregan
 SD%Complete: 90
 SDComment:  Grubbis Encounter, quest 2904 (A fine mess)
 SDCategory: Gnomeregan
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_blastmaster_emi_shortfuse
 npc_kernobee
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "gnomeregan.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 #include "AI/ScriptDevAI/base/follower_ai.h"

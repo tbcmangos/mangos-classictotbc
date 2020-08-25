@@ -19,15 +19,13 @@ SDName: Stranglethorn_Vale
 SD%Complete: 100
 SDComment: Quest support: 592
 SDCategory: Stranglethorn Vale
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 mob_yenniku
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 /*######
 ## mob_yenniku

@@ -19,9 +19,7 @@ SDName: Instance_Scholomance
 SD%Complete: 99
 SDComment: Possible some D2 or other exotic missing
 SDCategory: Scholomance
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "scholomance.h"

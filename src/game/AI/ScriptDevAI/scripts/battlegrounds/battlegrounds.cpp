@@ -19,9 +19,7 @@ SDName: Battleground
 SD%Complete: 100
 SDComment: Spirit guides in battlegrounds will revive all players every 30 sec
 SDCategory: Battlegrounds
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "Spells/Scripts/SpellScript.h"
@@ -43,6 +41,7 @@ enum
     SPELL_SPIRIT_HEAL_CHANNEL       = 22011,                // Spirit Heal Channel
 
     SPELL_SPIRIT_HEAL               = 22012,                // Spirit Heal
+    SPELL_SPIRIT_HEAL_MANA          = 44535,                // in battlegrounds player get this no-mana-cost-buff
 
     SPELL_WAITING_TO_RESURRECT      = 2584                  // players who cancel this aura don't want a resurrection
 };
@@ -84,6 +83,13 @@ struct npc_spirit_guideAI : public ScriptedAI
             pPlayer->RepopAtGraveyard();
         }
     }
+
+    void SpellHitTarget(Unit* pUnit, const SpellEntry* pSpellEntry) override
+    {
+        if (pSpellEntry->Id == SPELL_SPIRIT_HEAL && pUnit->GetTypeId() == TYPEID_PLAYER
+                && pUnit->HasAura(SPELL_WAITING_TO_RESURRECT))
+            pUnit->CastSpell(pUnit, SPELL_SPIRIT_HEAL_MANA, TRIGGERED_OLD_TRIGGERED);
+    }
 };
 
 bool GossipHello_npc_spirit_guide(Player* pPlayer, Creature* /*pCreature*/)
@@ -94,7 +100,7 @@ bool GossipHello_npc_spirit_guide(Player* pPlayer, Creature* /*pCreature*/)
 
 struct GYMidTrigger : public SpellScript
 {
-    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const
+    void OnEffectExecute(Spell* spell, SpellEffectIndex /*effIdx*/) const
     {
         // TODO: Fix when go casting is fixed
         WorldObject* obj = spell->GetAffectiveCasterObject();

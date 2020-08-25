@@ -19,14 +19,12 @@ SDName: Ironforge
 SD%Complete: 0
 SDComment: Placeholder
 SDCategory: Ironforge
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 
 void AddSC_ironforge()
 {

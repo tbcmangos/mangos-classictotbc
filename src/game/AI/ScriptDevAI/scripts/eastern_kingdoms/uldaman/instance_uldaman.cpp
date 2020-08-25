@@ -20,7 +20,6 @@ SD%Complete: 60
 SDComment:
 SDCategory: Uldaman
 EndScriptData
-
 */
 
 #include "AI/ScriptDevAI/include/sc_common.h"

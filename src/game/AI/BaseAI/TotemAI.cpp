@@ -20,7 +20,7 @@
 #include "Entities/Totem.h"
 #include "Entities/Creature.h"
 #include "Server/DBCStores.h"
-#include "Spells/SpellMgr.h"
+#include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"
@@ -126,4 +126,11 @@ void TotemAI::AttackStart(Unit* /*who*/)
 Totem& TotemAI::getTotem() const
 {
     return static_cast<Totem&>(*m_creature);
+}
+
+void TotemAI::SpellHit(Unit* /*unit*/, const SpellEntry* /*spellInfo*/)
+{
+    // TODO: Give grounding totem SD2
+    if (m_creature->GetEntry() == 5925 && !m_creature->HasAura(8178) && m_creature->IsAlive()) // Grounding Totem redirection aura
+        m_creature->CastSpell(nullptr, 45317, TRIGGERED_NONE); // Grounding Totem - Suicide spell - verified vs sniff
 }

@@ -19,9 +19,7 @@ SDName: Boss_Vaelastrasz
 SD%Complete: 100
 SDComment:
 SDCategory: Blackwing Lair
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackwing_lair.h"
@@ -124,7 +122,7 @@ struct boss_vaelastraszAI : public CombatAI
             m_instance->SetData(TYPE_VAELASTRASZ, SPECIAL);
     }
 
-    void BeginSpeech(Player* target)
+    void BeginSpeech(Player* /*target*/)
     {
         // 10 seconds
         DoScriptText(SAY_LINE_1, m_creature);

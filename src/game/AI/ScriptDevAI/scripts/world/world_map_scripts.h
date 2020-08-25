@@ -7,6 +7,14 @@
 
 enum
 {
+    // Transports
+    NPC_NEZRAZ                  = 3149,
+    NPC_HINDENBURG              = 3150,
+    NPC_FREZZA                  = 9564,
+    NPC_ZAPETTA                 = 9566,
+    NPC_SNURK_BUCKSQUICK        = 12136,
+    NPC_SQUIBBY_OVERSPECK       = 12137,
+
     // Elemental invasions
     NPC_THE_WINDREAVER          = 14454,
     NPC_PRINCESS_TEMPESTRIA     = 14457,
@@ -17,6 +25,9 @@ enum
     GO_WATER_RIFT               = 179665,
     GO_FIRE_RIFT                = 179666,
     GO_AIR_RIFT                 = 179667,
+
+    // Quest 1126
+    NPC_HIVE_ASHI_DRONES        = 13136,
 };
 
 enum ElementalInvasionIndexes

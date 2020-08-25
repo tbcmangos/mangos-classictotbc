@@ -17,17 +17,19 @@
 /* ScriptData
 SDName: Item_Scripts
 SD%Complete: 100
-SDComment: quest 4743
+SDComment: Items for a range of different items. See content below (in script)
 SDCategory: Items
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
+item_arcane_charges                 Prevent use if player is not flying (cannot cast while on ground)
+item_flying_machine(i34060,i34061)  Engineering crafted flying machines
+item_gor_dreks_ointment(i30175)     Protecting Our Own(q10488)
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "Spells/Spell.h"
+
 
 /*#####
 # item_orb_of_draconic_energy
@@ -51,7 +53,75 @@ bool ItemUse_item_orb_of_draconic_energy(Player* pPlayer, Item* pItem, const Spe
         pPlayer->SendEquipError(EQUIP_ERR_NONE, pItem, nullptr);
 
         if (const SpellEntry* pSpellInfo = GetSpellStore()->LookupEntry<SpellEntry>(SPELL_DOMINION_SOUL))
-            Spell::SendCastResult(pPlayer, pSpellInfo, SPELL_FAILED_TARGET_AURASTATE);
+            Spell::SendCastResult(pPlayer, pSpellInfo, 1, SPELL_FAILED_TARGET_AURASTATE);
+
+        return true;
+    }
+
+    return false;
+}
+
+/*#####
+# item_arcane_charges
+#####*/
+
+enum
+{
+    SPELL_ARCANE_CHARGES    = 45072
+};
+
+bool ItemUse_item_arcane_charges(Player* pPlayer, Item* pItem, const SpellCastTargets& /*pTargets*/)
+{
+    if (pPlayer->IsTaxiFlying())
+        return false;
+
+    pPlayer->SendEquipError(EQUIP_ERR_NONE, pItem, nullptr);
+
+    if (const SpellEntry* pSpellInfo = GetSpellStore()->LookupEntry<SpellEntry>(SPELL_ARCANE_CHARGES))
+        Spell::SendCastResult(pPlayer, pSpellInfo, 1, SPELL_FAILED_ERROR);
+
+    return true;
+}
+
+/*#####
+# item_flying_machine
+#####*/
+
+bool ItemUse_item_flying_machine(Player* pPlayer, Item* pItem, const SpellCastTargets& /*pTargets*/)
+{
+    uint32 itemId = pItem->GetEntry();
+
+    if (itemId == 34060)
+        if (pPlayer->GetSkillValueBase(SKILL_RIDING) >= 225)
+            return false;
+
+    if (itemId == 34061)
+        if (pPlayer->GetSkillValueBase(SKILL_RIDING) == 300)
+            return false;
+
+    debug_log("SD2: Player attempt to use item %u, but did not meet riding requirement", itemId);
+    pPlayer->SendEquipError(EQUIP_ERR_CANT_EQUIP_SKILL, pItem, nullptr);
+    return true;
+}
+
+/*#####
+# item_gor_dreks_ointment
+#####*/
+
+enum
+{
+    NPC_TH_DIRE_WOLF        = 20748,
+    SPELL_GORDREKS_OINTMENT = 32578
+};
+
+bool ItemUse_item_gor_dreks_ointment(Player* pPlayer, Item* pItem, const SpellCastTargets& pTargets)
+{
+    if (pTargets.getUnitTarget() && pTargets.getUnitTarget()->GetTypeId() == TYPEID_UNIT && pTargets.getUnitTarget()->HasAura(SPELL_GORDREKS_OINTMENT))
+    {
+        pPlayer->SendEquipError(EQUIP_ERR_NONE, pItem, nullptr);
+
+        if (const SpellEntry* pSpellInfo = GetSpellStore()->LookupEntry<SpellEntry>(SPELL_GORDREKS_OINTMENT))
+            Spell::SendCastResult(pPlayer, pSpellInfo, 1, SPELL_FAILED_TARGET_AURASTATE);
 
         return true;
     }
@@ -64,5 +134,20 @@ void AddSC_item_scripts()
     Script* pNewScript = new Script;
     pNewScript->Name = "item_orb_of_draconic_energy";
     pNewScript->pItemUse = &ItemUse_item_orb_of_draconic_energy;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "item_arcane_charges";
+    pNewScript->pItemUse = &ItemUse_item_arcane_charges;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "item_flying_machine";
+    pNewScript->pItemUse = &ItemUse_item_flying_machine;
+    pNewScript->RegisterSelf();
+
+    pNewScript = new Script;
+    pNewScript->Name = "item_gor_dreks_ointment";
+    pNewScript->pItemUse = &ItemUse_item_gor_dreks_ointment;
     pNewScript->RegisterSelf();
 }

@@ -19,15 +19,13 @@ SDName: Burning_Steppes
 SD%Complete: 100
 SDComment: Quest support: 4121, 4122
 SDCategory: Burning Steppes
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 npc_grark_lorkrub
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 
 /*######
@@ -211,6 +209,7 @@ struct npc_grark_lorkrubAI : public npc_escortAI, private DialogueHelper
                 m_creature->ClearComboPointHolders();
                 m_creature->RemoveAllAurasOnDeath();
                 m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_20_PERCENT, false);
+                m_creature->ModifyAuraState(AURA_STATE_HEALTHLESS_35_PERCENT, false);
                 m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                 m_creature->ClearAllReactives();
                 m_creature->GetMotionMaster()->Clear();

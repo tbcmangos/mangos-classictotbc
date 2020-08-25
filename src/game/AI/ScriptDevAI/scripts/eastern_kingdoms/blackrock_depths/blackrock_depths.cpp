@@ -19,11 +19,9 @@ SDName: Blackrock_Depths
 SD%Complete: 95
 SDComment: Quest support: 4134, 4201, 4322, 7604, 9015.
 SDCategory: Blackrock Depths
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
 go_bar_beer_keg
 go_shadowforge_brazier
 go_relic_coffer_door
@@ -44,7 +42,7 @@ go_bar_ale_mug
 npc_ironhand_guardian
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackrock_depths.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 

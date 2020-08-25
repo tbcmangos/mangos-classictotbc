@@ -19,9 +19,7 @@ SDName: Boss_Huhuran
 SD%Complete: 100
 SDComment:
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"

@@ -19,9 +19,7 @@ SDName: Boss_Ouro
 SD%Complete: 90
 SDComment: Some minor adjustments may be required
 SDCategory: Temple of Ahn'Qiraj
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "temple_of_ahnqiraj.h"
@@ -43,7 +41,7 @@ enum
 
     // submerge spells
     SPELL_SUBMERGE_VISUAL   = 26063,
-    SPELL_SUMMON_OURO_MOUNDS = 26058,                       // summons 5 dirt mounds
+    SPELL_SUMMON_OURO_MOUNDS = 26058,                        // summons 5 dirt mounds
     SPELL_SUMMON_TRIGGER    = 26284,
 
     SPELL_SUMMON_OURO_TRIGG = 26642,
@@ -64,7 +62,7 @@ enum
     NPC_OURO                = 15517,
     // NPC_OURO_SCARAB       = 15718,                       // summoned by Dirt Mounds
     NPC_OURO_TRIGGER        = 15717,
-    NPC_DIRT_MOUND          = 15712,
+    NPC_DIRT_MOUND          = 15712,                        // summoned also by missing spell 26617
 };
 
 enum OuroActions
@@ -337,7 +335,6 @@ struct npc_ouro_spawnerAI : public Scripted_NoMovementAI
         }
     }
 
-    void UpdateAI(const uint32 /*uiDiff*/) override { }
 };
 
 struct npc_ouro_moundAI : public ScriptedAI, public TimerManager
@@ -361,7 +358,7 @@ struct npc_ouro_moundAI : public ScriptedAI, public TimerManager
         m_creature->ForcedDespawn(1000); // despawn on wipe
     }
 
-    void JustSummoned(Creature* summoned) override
+    void JustSummoned(Creature* /*summoned*/) override
     {
         m_creature->ForcedDespawn(1);
     }
@@ -429,7 +426,7 @@ struct OuroScarab : public CombatAI
         m_creature->ForcedDespawn(1000); // despawn on wipe
     }
 
-    void ExecuteAction(uint32 action) override
+    void ExecuteAction(uint32 /*action*/) override
     {
     }
 };

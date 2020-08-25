@@ -146,8 +146,8 @@ SpellEntry const* ScriptedAI::SelectSpell(Unit* target, int32 school, int32 mech
             continue;
 
         // Check for school if specified
-        // if (uiSchool >= 0 && pTempSpell->SchoolMask & uiSchool)
-        //    continue;
+        if (school >= 0 && tempSpellInfo->SchoolMask & school)
+            continue;
 
         // Check for spell mechanic if specified
         if (mechanic >= 0 && tempSpellInfo->Mechanic != (uint32)mechanic)
@@ -388,6 +388,25 @@ void ScriptedAI::SetEquipmentSlots(bool loadDefault, int32 mainHand, int32 offHa
 enum
 {
     NPC_BROODLORD               = 12017,
+    NPC_TALON_KING_IKISS        = 18473,
+    NPC_KARGATH_BLADEFIST       = 16808,
+    NPC_MOROES                  = 15687,
+    NPC_MOROGRIM_TIDEWALKER     = 21213,
+    NPC_KELIDAN_THE_BREAKER     = 17377,
+    NPC_NAZAN                   = 17536,
+    NPC_VAZRUDEN                = 17537,
+    NPC_LEOTHERAS               = 21215,
+
+    // Black Temple
+    NPC_HIGH_WARLORD_NAJENTUS   = 22887,
+    NPC_GURTOGG_BLOODBOIL       = 22948,
+
+    // Zul'Aman
+    NPC_AKILZON                 = 23574,
+    NPC_NALORAKK                = 23576,
+    NPC_JANALAI                 = 23578,
+    NPC_HALAZZI                 = 23577,
+    NPC_MALACRASS               = 24239,
 };
 
 bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 diff)
@@ -411,6 +430,66 @@ bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 diff)
     {
         case NPC_BROODLORD:                                 // broodlord (not move down stairs)
             if (z > 448.60f)
+                return false;
+            break;
+        case NPC_TALON_KING_IKISS:
+        {
+            m_creature->GetRespawnCoord(x, y, z);
+            if (m_creature->GetDistance2d(x, y) < 70.0f)
+                return false;
+            break;
+        }
+        case NPC_KARGATH_BLADEFIST:
+            if (x < 270.0f && x > 185.0f)
+                return false;
+            break;
+        case NPC_MOROES:                                    // Moroes - Generate bounding box - TODO: Despawn Remaining Adds upon Evade after Death
+            if (x > -11030.f && x < -10943.f && y > -1955.f && y < -1860.f)
+                return false;
+            break;
+        case NPC_MOROGRIM_TIDEWALKER:                       // Morogrim - Natural Box made by room
+            if (x > 304.12f && x < 457.35f)
+                return false;
+            break;
+        case NPC_KELIDAN_THE_BREAKER:   // out of his room
+            if (y > -158.23)
+                return false;
+            break;
+        case NPC_VAZRUDEN:
+        case NPC_NAZAN:
+            if (x < -1336.0f)
+                return false;
+            break;
+        case NPC_LEOTHERAS:
+            if (x < 409.0f && y > -524.0f &&  x > 300.0f && y < -301.0f)
+                return false;
+            break;
+        case NPC_HIGH_WARLORD_NAJENTUS:
+            if (x > 300.f)
+                return false;
+            break;
+        case NPC_GURTOGG_BLOODBOIL:
+            if (y > 140.f)
+                return false;
+            break;
+        case NPC_AKILZON:
+            if (x > 336.259f)
+                return false;
+            break;
+        case NPC_NALORAKK:
+            if (y < 1378.009f)
+                return false;
+            break;
+        case NPC_JANALAI:
+            if (x < -8.f && x > -57.f)
+                return false;
+            break;
+        case NPC_HALAZZI:
+            if (x > 307.f && y > 1036.f)
+                return false;
+            break;
+        case NPC_MALACRASS:
+            if (y < 1025.f)
                 return false;
             break;
         default:

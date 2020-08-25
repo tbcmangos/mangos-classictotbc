@@ -19,19 +19,155 @@ SDName: Moonglade
 SD%Complete: 100
 SDComment: Quest support: 8736, 8868, 10965.
 SDCategory: Moonglade
-EndScriptData
+EndScriptData */
 
-*/
-
-#include "AI/ScriptDevAI/include/sc_common.h"/* ContentData
+/* ContentData
+npc_clintar_dw_spirit
 npc_keeper_remulos
 boss_eranikus
 EndContentData */
 
-
+#include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
 #include "Globals/ObjectMgr.h"
 #include "AI/ScriptDevAI/scripts/kalimdor/world_kalimdor.h"
+
+/*######
+# npc_clintar_dw_spirit
+####*/
+
+enum
+{
+    SAY_START               = -1000280,
+    SAY_AGGRO_1             = -1000281,
+    SAY_AGGRO_2             = -1000282,
+    SAY_RELIC1              = -1000283,
+    SAY_RELIC2              = -1000284,
+    SAY_RELIC3              = -1000285,
+    SAY_END                 = -1000286,
+
+    QUEST_MERE_DREAM        = 10965,
+    SPELL_EMERALD_DREAM     = 39601,
+    NPC_CLINTAR_DW_SPIRIT   = 22916,
+    NPC_CLINTAR_SPIRIT      = 22901,
+    NPC_ASPECT_OF_RAVEN     = 22915,
+};
+
+struct npc_clintar_dw_spiritAI : public npc_escortAI
+{
+    npc_clintar_dw_spiritAI(Creature* pCreature) : npc_escortAI(pCreature) { Reset(); }
+
+    void WaypointReached(uint32 i) override
+    {
+        Player* pPlayer = GetPlayerForEscort();
+
+        if (!pPlayer)
+            return;
+
+        // visual details here probably need refinement
+        switch (i)
+        {
+            case 1:
+                DoScriptText(SAY_START, m_creature, pPlayer);
+                break;
+            case 14:
+                m_creature->HandleEmote(EMOTE_STATE_USESTANDING_NOSHEATHE);
+                break;
+            case 15:
+                DoScriptText(SAY_RELIC1, m_creature, pPlayer);
+                break;
+            case 27:
+                m_creature->HandleEmote(EMOTE_STATE_USESTANDING_NOSHEATHE);
+                break;
+            case 28:
+                DoScriptText(SAY_RELIC2, m_creature, pPlayer);
+                break;
+            case 32:
+                m_creature->SummonCreature(NPC_ASPECT_OF_RAVEN, 7465.321f, -3088.515f, 429.006f, 5.550f, TEMPSPAWN_TIMED_OOC_DESPAWN, 10000);
+                break;
+            case 36:
+                m_creature->HandleEmote(EMOTE_STATE_USESTANDING_NOSHEATHE);
+                break;
+            case 37:
+                DoScriptText(SAY_RELIC3, m_creature, pPlayer);
+                break;
+            case 50:
+                DoScriptText(SAY_END, m_creature, pPlayer);
+                pPlayer->TalkedToCreature(m_creature->GetEntry(), m_creature->GetObjectGuid());
+                break;
+        }
+    }
+
+    void Aggro(Unit* /*who*/) override
+    {
+        DoScriptText(urand(0, 1) ? SAY_AGGRO_1 : SAY_AGGRO_2, m_creature);
+    }
+
+    void Reset() override
+    {
+        if (HasEscortState(STATE_ESCORT_ESCORTING))
+            return;
+
+        // m_creature are expected to always be spawned, but not visible for player
+        // spell casted from quest_template.SrcSpell require this to be this way
+        // we handle the triggered spell to get a "hook" to our guy so he can be escorted on quest accept
+
+        if (CreatureInfo const* pTemp = GetCreatureTemplateStore(m_creature->GetEntry()))
+            m_creature->SetDisplayId(Creature::ChooseDisplayId(pTemp));
+
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_NPC);
+        m_creature->SetVisibility(VISIBILITY_OFF);
+    }
+
+    // called only from EffectDummy
+    void DoStart(Unit* pStarter)
+    {
+        // not the best way, maybe check in DummyEffect if this creature are "free" and not in escort.
+        if (HasEscortState(STATE_ESCORT_ESCORTING))
+            return;
+
+        m_creature->SetVisibility(VISIBILITY_ON);
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_NPC);
+        Start(false, pStarter && pStarter->GetTypeId() == TYPEID_PLAYER ? (Player*)pStarter : nullptr);
+    }
+
+    void JustSummoned(Creature* summoned) override
+    {
+        summoned->AI()->AttackStart(m_creature);
+    }
+};
+
+UnitAI* GetAI_npc_clintar_dw_spirit(Creature* pCreature)
+{
+    return new npc_clintar_dw_spiritAI(pCreature);
+}
+
+// we expect this spell to be triggered from spell casted at questAccept
+bool EffectDummyCreature_npc_clintar_dw_spirit(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Creature* pCreatureTarget, ObjectGuid /*originalCasterGuid*/)
+{
+    // always check spellid and effectindex
+    if (spellId == SPELL_EMERALD_DREAM && effIndex == EFFECT_INDEX_0)
+    {
+        if (pCaster->GetTypeId() != TYPEID_PLAYER || pCaster->HasAura(SPELL_EMERALD_DREAM))
+            return true;
+
+        if (pCreatureTarget->GetEntry() != NPC_CLINTAR_DW_SPIRIT)
+            return true;
+
+        if (CreatureInfo const* pTemp = GetCreatureTemplateStore(NPC_CLINTAR_SPIRIT))
+            pCreatureTarget->SetDisplayId(Creature::ChooseDisplayId(pTemp));
+        else
+            return true;
+
+        // done here, escort can start
+        if (npc_clintar_dw_spiritAI* pSpiritAI = dynamic_cast<npc_clintar_dw_spiritAI*>(pCreatureTarget->AI()))
+            pSpiritAI->DoStart(pCaster);
+
+        // always return true when we are handling this spell and effect
+        return true;
+    }
+    return true;
+}
 
 /*######
 ## npc_keeper_remulos
@@ -850,7 +986,11 @@ bool GOUse_go_omen_cluster(Player* /*pPlayer*/, GameObject* pGo)
 
 void AddSC_moonglade()
 {
-    Script* pNewScript;
+    Script* pNewScript = new Script;
+    pNewScript->Name = "npc_clintar_dw_spirit";
+    pNewScript->GetAI = &GetAI_npc_clintar_dw_spirit;
+    pNewScript->pEffectDummyNPC = &EffectDummyCreature_npc_clintar_dw_spirit;
+    pNewScript->RegisterSelf();
 
     pNewScript = new Script;
     pNewScript->Name = "npc_keeper_remulos";

@@ -19,9 +19,7 @@ SDName: Boss_Flamegor
 SD%Complete: 100
 SDComment:
 SDCategory: Blackwing Lair
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "blackwing_lair.h"

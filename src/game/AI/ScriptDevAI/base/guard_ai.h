@@ -5,8 +5,6 @@
 #ifndef SC_GUARDAI_H
 #define SC_GUARDAI_H
 
-#include "AI/ScriptDevAI/include/sc_creature.h"
-
 enum
 {
     GENERIC_CREATURE_COOLDOWN       = 5000,
@@ -16,6 +14,14 @@ enum
     SAY_GUARD_SIL_AGGRO3            = -1000200,
 
     NPC_CENARION_INFANTRY           = 15184
+};
+
+enum eShattrathGuard
+{
+    SPELL_BANISHED_SHATTRATH_A      = 36642,
+    SPELL_BANISHED_SHATTRATH_S      = 36671,
+    SPELL_BANISH_TELEPORT           = 36643,
+    SPELL_EXILE                     = 39533
 };
 
 struct guardAI : public ScriptedAI

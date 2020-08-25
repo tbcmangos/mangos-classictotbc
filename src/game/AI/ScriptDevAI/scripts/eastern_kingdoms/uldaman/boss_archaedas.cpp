@@ -19,9 +19,7 @@ SDName: Boss_Archaedas
 SD%Complete: 100
 SDComment:
 SDCategory: Uldaman
-EndScriptData
-
-*/
+EndScriptData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "uldaman.h"
