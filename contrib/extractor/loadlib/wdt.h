@@ -1,21 +1,3 @@
-/*
- * This file is part of the Continued-MaNGOS Project
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 #ifndef WDT_H
 #define WDT_H
 #include "loadlib.h"
@@ -23,15 +5,18 @@
 //**************************************************************************************
 // WDT file class and structures
 //**************************************************************************************
+
 #define WDT_MAP_SIZE 64
+
+#define fcc_MWMO 0x4d574d4f // MWMO
+#define fcc_MPHD 0x4d504844 // MPHD
+#define fcc_MAIN 0x4d41494e // MAIN
 
 class wdt_MWMO
 {
-        union
-        {
-            uint32 fcc;
-            char   fcc_txt[4];
-        };
+    private:
+        uint32 fcc;
+
     public:
         uint32 size;
         bool prepareLoadedData();
@@ -39,14 +24,11 @@ class wdt_MWMO
 
 class wdt_MPHD
 {
-        union
-        {
-            uint32 fcc;
-            char   fcc_txt[4];
-        };
+    private:
+        uint32 fcc;
+
     public:
         uint32 size;
-
         uint32 data1;
         uint32 data2;
         uint32 data3;
@@ -60,14 +42,11 @@ class wdt_MPHD
 
 class wdt_MAIN
 {
-        union
-        {
-            uint32 fcc;
-            char   fcc_txt[4];
-        };
+    private:
+        uint32 fcc;
+
     public:
         uint32 size;
-
         struct adtData
         {
             uint32 exist;
@@ -80,7 +59,7 @@ class wdt_MAIN
 class WDT_file : public FileLoader
 {
     public:
-        bool   prepareLoadedData();
+        bool prepareLoadedData();
 
         WDT_file();
         ~WDT_file();

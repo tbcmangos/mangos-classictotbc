@@ -1,21 +1,3 @@
-/*
-* This file is part of the Continued-MaNGOS Project
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
-
 #include "mpq_libmpq.h"
 #include <deque>
 #include <cstdio>
@@ -30,24 +12,24 @@ MPQArchive::MPQArchive(const char* filename)
     {
         switch (result)
         {
-        case LIBMPQ_ERROR_OPEN:
-            printf("Error opening archive '%s': Does file really exist?\n", filename);
-            break;
-        case LIBMPQ_ERROR_FORMAT:            /* bad file format */
-            printf("Error opening archive '%s': Bad file format\n", filename);
-            break;
-        case LIBMPQ_ERROR_SEEK:         /* seeking in file failed */
-            printf("Error opening archive '%s': Seeking in file failed\n", filename);
-            break;
-        case LIBMPQ_ERROR_READ:              /* Read error in archive */
-            printf("Error opening archive '%s': Read error in archive\n", filename);
-            break;
-        case LIBMPQ_ERROR_MALLOC:               /* maybe not enough memory? :) */
-            printf("Error opening archive '%s': Maybe not enough memory\n", filename);
-            break;
-        default:
-            printf("Error opening archive '%s': Unknown error\n", filename);
-            break;
+            case LIBMPQ_ERROR_OPEN :
+                printf("Error opening archive '%s': Does file really exist?\n", filename);
+                break;
+            case LIBMPQ_ERROR_FORMAT :            /* bad file format */
+                printf("Error opening archive '%s': Bad file format\n", filename);
+                break;
+            case LIBMPQ_ERROR_SEEK :         /* seeking in file failed */
+                printf("Error opening archive '%s': Seeking in file failed\n", filename);
+                break;
+            case LIBMPQ_ERROR_READ :              /* Read error in archive */
+                printf("Error opening archive '%s': Read error in archive\n", filename);
+                break;
+            case LIBMPQ_ERROR_MALLOC :               /* maybe not enough memory? :) */
+                printf("Error opening archive '%s': Maybe not enough memory\n", filename);
+                break;
+            default:
+                printf("Error opening archive '%s': Unknown error\n", filename);
+                break;
         }
         return;
     }
@@ -60,7 +42,7 @@ void MPQArchive::close()
     libmpq__archive_close(mpq_a);
 }
 
-MPQFile::MPQFile(const char* filename) :
+MPQFile::MPQFile(const char* filename):
     eof(false),
     buffer(0),
     pointer(0),

@@ -60,3 +60,4 @@ install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR}/tools)
 
 # add_executable(vmap_test coordinate_test.cpp)
 # target_link_libraries(vmap_test vmap)
+

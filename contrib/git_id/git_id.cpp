@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,10 +55,10 @@
 
 char remotes[NUM_REMOTES][MAX_REMOTE] =
 {
-    "git@github.com:cmangos/mangos-classic.git",
-    "git://github.com/cmangos/mangos-classic.git",          // used for fetch if present
-    "https://github.com/cmangos/mangos-classic.git",
-    "https://github.com/cmangos/mangos-classic/"
+    "git@github.com:cmangos/mangos-tbc.git",
+    "git://github.com/cmangos/mangos-tbc.git",      // used for fetch if present
+    "https://github.com/cmangos/mangos-tbc.git",
+    "https://github.com/cmangos/mangos-tbc/"
 };
 
 char remote_branch[MAX_REMOTE] = "master";
@@ -97,26 +97,26 @@ char db_sql_rev_field[NUM_DATABASES][MAX_PATH] =
 // last milestone's file information
 char last_sql_update[NUM_DATABASES][MAX_PATH] =
 {
-    "z2678_01_realmd",
-    "z2679_03_characters_guild_member",
-    "z2681_01_mangos_mangos_string",
+    "s2325_01_realmd",
+    "s2325_02_characters",
+    "s2326_01_mangos_mangos_string",
 };
 
 int last_sql_rev[NUM_DATABASES] =
 {
-    2678,
-    2679,
-    2681
+    2325,
+    2325,
+    2326
 };
 
 int last_sql_nr[NUM_DATABASES] =
 {
     1,
-    3,
+    2,
     1
 };
 
-#define REV_PREFIX "z"
+#define REV_PREFIX "s"
 #define REV_SCAN   REV_PREFIX "%d"
 #define REV_PRINT  REV_PREFIX "%04d"
 #define REV_FORMAT "[" REV_PRINT "]"

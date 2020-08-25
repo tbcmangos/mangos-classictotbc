@@ -109,6 +109,7 @@ class WMOGroup
 
         bool open();
         int ConvertToVMAPGroupWmo(FILE* output, WMORoot* rootWMO, bool pPreciseVectorData);
+        int ConvertLiquidType(int hlqLiquid, std::string& filename);
 
     private:
         std::string filename;

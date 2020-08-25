@@ -1,21 +1,3 @@
-/*
- * This file is part of the Continued-MaNGOS Project
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include <stdio.h>
@@ -97,13 +79,21 @@ float CONF_flat_height_delta_limit = 0.005f; // If max - min less this value - s
 float CONF_flat_liquid_delta_limit = 0.001f; // If max - min less this value - liquid surface is flat
 
 // List MPQ for extract from
-const char* CONF_mpq_list[] =
+static char const* CONF_mpq_list[] =
 {
-    "dbc.MPQ",
-    "terrain.MPQ",
+    "common.MPQ",
+    "common-2.MPQ",
+    "lichking.MPQ",
+    "expansion.MPQ",
     "patch.MPQ",
     "patch-2.MPQ",
+    "patch-3.MPQ",
+    "patch-4.MPQ",
+    "patch-5.MPQ",
 };
+
+static char const* langs[] = {"enGB", "enUS", "deDE", "esES", "frFR", "koKR", "zhCN", "zhTW", "enCN", "enTW", "esMX", "ruRU" };
+#define LANG_COUNT 12
 
 void CreateDir(const std::string& Path)
 {
@@ -258,7 +248,7 @@ void ReadLiquidTypeTableDBC()
 
 // Map file format data
 static char const* MAP_MAGIC         = "MAPS";
-static char const* MAP_VERSION_MAGIC = "z1.4";
+static char const* MAP_VERSION_MAGIC = "s1.4";
 static char const* MAP_AREA_MAGIC    = "AREA";
 static char const* MAP_HEIGHT_MAGIC  = "MHGT";
 static char const* MAP_LIQUID_MAGIC  = "MLIQ";
@@ -897,7 +887,7 @@ bool ExtractFile(char const* mpq_name, std::string const& filename)
     return true;
 }
 
-void ExtractDBCFiles()
+void ExtractDBCFiles(int locale, bool basicLocale)
 {
     printf("Extracting dbc files...\n");
 
@@ -916,6 +906,12 @@ void ExtractDBCFiles()
     std::string path = output_path;
     path += "/dbc/";
     CreateDir(path);
+    if (!basicLocale)
+    {
+        path += langs[locale];
+        path += "/";
+        CreateDir(path);
+    }
 
     // extract DBCs
     int count = 0;
@@ -930,7 +926,7 @@ void ExtractDBCFiles()
     printf("Extracted %u DBC files\n\n", count);
 }
 
-void ExtractCameraFiles()
+void ExtractCameraFiles(int locale, bool basicLocale)
 {
     printf("Extracting camera files...\n");
     DBCFile camdbc("DBFilesClient\\CinematicCamera.dbc");
@@ -957,6 +953,12 @@ void ExtractCameraFiles()
     std::string path = output_path;
     path += "/Cameras/";
     CreateDir(path);
+    if (!basicLocale)
+    {
+        path += langs[locale];
+        path += "/";
+        CreateDir(path);
+    }
 
     // extract M2s
     uint32 count = 0;
@@ -972,6 +974,25 @@ void ExtractCameraFiles()
             ++count;
     }
     printf("Extracted %u camera files\n", count);
+}
+
+void LoadLocaleMPQFiles(int const locale)
+{
+    char filename[512];
+
+    sprintf(filename, "%s/Data/%s/locale-%s.MPQ", input_path, langs[locale], langs[locale]);
+    new MPQArchive(filename);
+
+    for (int i = 1; i < 5; ++i)
+    {
+        char ext[3] = "";
+        if (i > 1)
+            sprintf(ext, "-%i", i);
+
+        sprintf(filename, "%s/Data/%s/patch-%s%s.MPQ", input_path, langs[locale], langs[locale], ext);
+        if (FileExists(filename))
+            new MPQArchive(filename);
+    }
 }
 
 void LoadCommonMPQFiles()
@@ -999,22 +1020,72 @@ int main(int argc, char* arg[])
 
     HandleArgs(argc, arg);
 
-    // Open MPQs
-    LoadCommonMPQFiles();
+    int FirstLocale = -1;
 
-    // Extract dbc
-    if (CONF_extract & EXTRACT_DBC)
-        ExtractDBCFiles();
+    for (int i = 0; i < LANG_COUNT; i++)
+    {
+        char tmp1[512];
+        sprintf(tmp1, "%s/Data/%s/locale-%s.MPQ", input_path, langs[i], langs[i]);
+        if (FileExists(tmp1))
+        {
+            printf("Detected locale: %s\n", langs[i]);
+
+            //Open MPQs
+            LoadLocaleMPQFiles(i);
+
+            if ((CONF_extract & EXTRACT_DBC) == 0)
+            {
+                FirstLocale = i;
+                break;
+            }
+
+            //Extract DBC files
+            if (FirstLocale < 0)
+            {
+                FirstLocale = i;
+                ExtractDBCFiles(i, true);
+            }
+            else
+                ExtractDBCFiles(i, false);
+
+            //Close MPQs
+            CloseMPQFiles();
+        }
+    }
+
+    if (FirstLocale < 0)
+    {
+        printf("No locales detected\n");
+        return 0;
+    }
 
     if (CONF_extract & EXTRACT_CAMERA)
-        ExtractCameraFiles();
+    {
+        printf("Using locale: %s\n", langs[FirstLocale]);
 
-    // Extract maps
+        // Open MPQs
+        LoadLocaleMPQFiles(FirstLocale);
+        LoadCommonMPQFiles();
+
+        ExtractCameraFiles(FirstLocale, true);
+        // Close MPQs
+        CloseMPQFiles();
+    }
+
     if (CONF_extract & EXTRACT_MAP)
+    {
+        printf("Using locale: %s\n", langs[FirstLocale]);
+
+        // Open MPQs
+        LoadLocaleMPQFiles(FirstLocale);
+        LoadCommonMPQFiles();
+
+        // Extract maps
         ExtractMapsFromMpq();
 
-    // Close MPQs
-    CloseMPQFiles();
+        // Close MPQs
+        CloseMPQFiles();
+    }
 
     return 0;
 }

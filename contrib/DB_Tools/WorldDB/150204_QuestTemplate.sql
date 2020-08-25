@@ -6,5 +6,4 @@
 
 -- Related commit [12843] as of Feb. 2015 
 -- Related commit [s2281] as of Mar. 2015
--- Related commit [z2639] as of Mar. 2015
 SELECT * FROM quest_template WHERE RewMailTemplateId != 0 LIMIT 20;

@@ -768,6 +768,7 @@ namespace MMAP
             {
                 case 0:
                 case 1:
+                case 530:
                     return true;
                 default:
                     break;
@@ -796,6 +797,7 @@ namespace MMAP
                 case 37:    // ?
                 case 489:   // WSG
                 case 529:   // AB
+                case 566:   // EotS
                     return true;
                 default:
                     break;
@@ -807,13 +809,22 @@ namespace MMAP
     /**************************************************************************/
     bool MapBuilder::isTransportMap(uint32 mapID)
     {
-        /*switch (mapID)
+        switch (mapID)
         {
-            // no transport maps
+            // transport maps
+            case 582:
+            case 584:
+            case 586:
+            case 587:
+            case 588:
+            case 589:
+            case 590:
+            case 591:
+            case 593:
+                return true;
             default:
                 return false;
-        }*/
-        return false;
+        }
     }
 
     /**************************************************************************/

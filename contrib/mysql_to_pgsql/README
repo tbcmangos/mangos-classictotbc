@@ -11,3 +11,4 @@ Using cmake on a Unix/Linux
     2. cmake .
     3. make
     4. ./mysql2pgsql
+

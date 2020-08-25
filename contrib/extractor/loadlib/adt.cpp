@@ -1,7 +1,6 @@
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include "adt.h"
-#include <string.h>
 
 // Helper
 int holetab_h[4] = {0x1111, 0x2222, 0x4444, 0x8888};
@@ -54,7 +53,7 @@ bool ADT_file::prepareLoadedData()
 
 bool adt_MHDR::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MHDR", 4))
+    if (fcc != fcc_MHDR)
         return false;
 
     if (size != sizeof(adt_MHDR) - 8)
@@ -73,7 +72,7 @@ bool adt_MHDR::prepareLoadedData()
 
 bool adt_MCIN::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MCIN", 4))
+    if (fcc != fcc_MCIN)
         return false;
 
     // Check cells data
@@ -87,7 +86,7 @@ bool adt_MCIN::prepareLoadedData()
 
 bool adt_MH2O::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MH2O", 4))
+    if (fcc != fcc_MH2O)
         return false;
 
     // Check liquid data
@@ -99,7 +98,7 @@ bool adt_MH2O::prepareLoadedData()
 
 bool adt_MCNK::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MCNK", 4))
+    if (fcc != fcc_MCNK)
         return false;
 
     // Check height map
@@ -114,7 +113,7 @@ bool adt_MCNK::prepareLoadedData()
 
 bool adt_MCVT::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MCVT", 4))
+    if (fcc != fcc_MCVT)
         return false;
 
     if (size != sizeof(adt_MCVT) - 8)
@@ -125,8 +124,5 @@ bool adt_MCVT::prepareLoadedData()
 
 bool adt_MCLQ::prepareLoadedData()
 {
-    if (!strncmp(fcc_txt, "MCLQ", 4))
-        return false;
-
-    return true;
+    return fcc == fcc_MCLQ;
 }

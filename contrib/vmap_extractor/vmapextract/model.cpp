@@ -199,20 +199,4 @@ ModelInstance::ModelInstance(MPQFile& f, const char* ModelInstName, uint32 mapID
     uint32 nlen = strlen(ModelInstName);
     fwrite(&nlen, sizeof(uint32), 1, pDirfile);
     fwrite(ModelInstName, sizeof(char), nlen, pDirfile);
-
-    /* int realx1 = (int) ((float) pos.x / 533.333333f);
-    int realy1 = (int) ((float) pos.z / 533.333333f);
-    int realx2 = (int) ((float) pos.x / 533.333333f);
-    int realy2 = (int) ((float) pos.z / 533.333333f);
-
-    fprintf(pDirfile,"%s/%s %f,%f,%f_%f,%f,%f %f %d %d %d,%d %d\n",
-        MapName,
-        ModelInstName,
-        (float) pos.x, (float) pos.y, (float) pos.z,
-        (float) rot.x, (float) rot.y, (float) rot.z,
-        sc,
-        nVertices,
-        realx1, realy1,
-        realx2, realy2
-        ); */
 }

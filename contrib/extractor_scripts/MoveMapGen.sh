@@ -36,12 +36,16 @@ DETAIL_LOG_FILE="MoveMapGen_detailed.log"
 LIST_A="1"
 LIST_B="0"
 LIST_C="169"
-LIST_D="269 533 35 44 389 129 109 450 34 249 48"
-LIST_E="531 37 309 369"
-LIST_F="229 409 43 70 90 189"
-LIST_G="36 33 209 451 47"
-LIST_H="509 30 289 230"
-LIST_I="42 449 25 529 489 329 429 349 469 13"
+LIST_D="533 509 230"
+LIST_E="30 36 33 47 429"
+LIST_F="489 562 369 559"
+LIST_G="543 595 650 599 25 553 560 532 585 566 550 542 554 552 540 209 37 309"
+LIST_H="469 13 289 572 529"
+LIST_I="590 591 576 545 530 575 574 568 593 451 582 584 546 547 409 43 48 189 90 70"
+LIST_J="598 564 548 558 534 580 556 565 544 586 587 588"
+LIST_K="531 329"
+LIST_L="44 109 129 389 35 450 34 249 269 555 42 589 449"
+LIST_M="349 229"
 
 badParam()
 {
@@ -117,30 +121,31 @@ fi
 case "$1" in
  "1" )
    createHeader $1
-   createMMaps $LIST_A $LIST_B $LIST_C $LIST_D $LIST_F $LIST_G $LIST_H $LIST_I &
+   createMMaps $LIST_A $LIST_B $LIST_C $LIST_D $LIST_E $LIST_F $LIST_G $LIST_H $LIST_I $LIST_J $LIST_K $LIST_L $LIST_M &
    ;;
  "2" )
    createHeader $1
-   createMMaps $LIST_A $LIST_E $LIST_H $LIST_I &
-   createMMaps $LIST_B $LIST_C $LIST_D $LIST_F $LIST_G &
+   createMMaps $LIST_A $LIST_D $LIST_F $LIST_G $LIST_I $LIST_J $LIST_M &
+   createMMaps $LIST_B $LIST_C $LIST_E $LIST_H $LIST_K $LIST_L &
    ;;
  "4" )
    createHeader $1
    createMMaps $LIST_A &
    createMMaps $LIST_B &
-   createMMaps $LIST_C $LIST_F $LIST_G &
-createMMaps $LIST_D $LIST_E $LIST_H $LIST_I &
+   createMMaps $LIST_C $LIST_G $LIST_I $LIST_J $LIST_L $LIST_M &
+   createMMaps $LIST_D $LIST_E $LIST_F $LIST_H $LIST_K &
+
    ;;
  "8" )
    createHeader $1
    createMMaps $LIST_A &
    createMMaps $LIST_B &
    createMMaps $LIST_C &
-   createMMaps $LIST_D &
-   createMMaps $LIST_E &
-   createMMaps $LIST_F $LIST_H &
-   createMMaps $LIST_G &
-   createMMaps $LIST_I &
+   createMMaps $LIST_D $LIST_I &
+   createMMaps $LIST_E $LIST_J &
+   createMMaps $LIST_F $LIST_K &
+   createMMaps $LIST_G $LIST_L &
+   createMMaps $LIST_H $LIST_M &
    ;;
  "offmesh" )
    echo "`date`: Recreate offmeshs from file $OFFMESH_FILE" | tee -a $LOG_FILE
