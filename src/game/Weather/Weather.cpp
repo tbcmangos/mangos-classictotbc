@@ -21,7 +21,6 @@
 */
 
 #include "Weather/Weather.h"
-#include "Server/WorldSession.h"
 #include "Entities/Player.h"
 #include "Maps/Map.h"
 #include "World/World.h"
@@ -29,21 +28,6 @@
 #include "Log.h"
 #include "Util.h"
 #include "ProgressBar.h"
-
-/// Weather sound defines ( only for 1.12 )
-enum WeatherSounds
-{
-    WEATHER_NOSOUND                = 0,
-    WEATHER_RAINLIGHT              = 8533,
-    WEATHER_RAINMEDIUM             = 8534,
-    WEATHER_RAINHEAVY              = 8535,
-    WEATHER_SNOWLIGHT              = 8536,
-    WEATHER_SNOWMEDIUM             = 8537,
-    WEATHER_SNOWHEAVY              = 8538,
-    WEATHER_SANDSTORMLIGHT         = 8556,
-    WEATHER_SANDSTORMMEDIUM        = 8557,
-    WEATHER_SANDSTORMHEAVY         = 8558
-};
 
 /// Create the Weather object
 Weather::Weather(uint32 zone, WeatherZoneChances const* weatherChances) :
@@ -208,10 +192,9 @@ void Weather::SendWeatherUpdateToPlayer(Player* player)
 {
     NormalizeGrade();
 
-    WorldPacket data(SMSG_WEATHER, 4 + 4 + 4 + 1);
-    data << uint32(m_type);
+    WorldPacket data(SMSG_WEATHER, 4 + 4 + 1);
+    data << uint32(GetWeatherState());
     data << float(m_grade);
-    data << uint32(GetSound()); // 1.12 soundid
     data << uint8(0);       // 1 = instant change, 0 = smooth change
 
     player->GetSession()->SendPacket(data);
@@ -222,10 +205,11 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
 {
     NormalizeGrade();
 
-    WorldPacket data(SMSG_WEATHER, 4 + 4 + 4 + 1);
-    data << uint32(m_type);
+    WeatherState state = GetWeatherState();
+
+    WorldPacket data(SMSG_WEATHER, 4 + 4 + 1);
+    data << uint32(state);
     data << float(m_grade);
-    data << uint32(GetSound()); // 1.12 soundid
     data << uint8(0);       // 1 = instant change, 0 = smooth change
 
     ///- Send the weather packet to all players in this zone
@@ -233,7 +217,7 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
         return false;
 
     ///- Log the event
-    LogWeatherState(GetWeatherState());
+    LogWeatherState(state);
     return true;
 }
 
@@ -282,6 +266,10 @@ WeatherState Weather::GetWeatherState() const
                 return WEATHER_STATE_MEDIUM_SANDSTORM;
             return WEATHER_STATE_HEAVY_SANDSTORM;
         }
+        case WEATHER_TYPE_BLACKRAIN:
+            return WEATHER_STATE_BLACKRAIN;
+        case WEATHER_TYPE_THUNDERS:
+            return WEATHER_STATE_THUNDERS;
         case WEATHER_TYPE_FINE:
         default:
             return WEATHER_STATE_FINE;
@@ -328,6 +316,12 @@ void Weather::LogWeatherState(WeatherState state) const
             break;
         case WEATHER_STATE_HEAVY_SANDSTORM:
             wthstr = "heavy sandstorm";
+            break;
+        case WEATHER_STATE_THUNDERS:
+            wthstr = "thunders";
+            break;
+        case WEATHER_STATE_BLACKRAIN:
+            wthstr = "black rain";
             break;
         case WEATHER_STATE_FINE:
         default:
@@ -383,48 +377,6 @@ void WeatherSystem::UpdateWeathers(uint32 diff)
         else
             ++itr;
     }
-}
-
-// Get the sound number associated with the current weather
-uint32 Weather::GetSound()
-{
-    uint32 sound;
-    switch (m_type)
-    {
-        case WEATHER_TYPE_RAIN:                             // rain
-            // A minimum grade value of 0.27 is required for rain to be seen on all weather intensity settings.
-            // Rain without sound is better than sound without rain so we pick this value.
-            if (m_grade < 0.27f)
-                sound = WEATHER_NOSOUND;
-            else if (m_grade < 0.40f)
-                sound = WEATHER_RAINLIGHT;
-            else if (m_grade < 0.70f)
-                sound = WEATHER_RAINMEDIUM;
-            else
-                sound = WEATHER_RAINHEAVY;
-            break;
-        case WEATHER_TYPE_SNOW:                             // snow
-            if (m_grade < 0.40f)
-                sound = WEATHER_SNOWLIGHT;
-            else if (m_grade < 0.70f)
-                sound = WEATHER_SNOWMEDIUM;
-            else
-                sound = WEATHER_SNOWHEAVY;
-            break;
-        case WEATHER_TYPE_STORM:                            // storm
-            if (m_grade < 0.40f)
-                sound = WEATHER_SANDSTORMLIGHT;
-            else if (m_grade < 0.70f)
-                sound = WEATHER_SANDSTORMMEDIUM;
-            else
-                sound = WEATHER_SANDSTORMHEAVY;
-            break;
-        case WEATHER_TYPE_FINE:                             // fine
-        default:
-            sound = WEATHER_NOSOUND;
-            break;
-    }
-    return sound;
 }
 
 /// Load Weather chanced from table game_weather

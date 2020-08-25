@@ -45,7 +45,9 @@ enum WeatherState
     WEATHER_STATE_HEAVY_SNOW        = 8,
     WEATHER_STATE_LIGHT_SANDSTORM   = 22,
     WEATHER_STATE_MEDIUM_SANDSTORM  = 41,
-    WEATHER_STATE_HEAVY_SANDSTORM   = 42
+    WEATHER_STATE_HEAVY_SANDSTORM   = 42,
+    WEATHER_STATE_THUNDERS          = 86,
+    WEATHER_STATE_BLACKRAIN         = 90
 };
 
 struct WeatherZoneChances;
@@ -72,6 +74,8 @@ class Weather
                 case WEATHER_TYPE_RAIN:
                 case WEATHER_TYPE_SNOW:
                 case WEATHER_TYPE_STORM:
+                case WEATHER_TYPE_THUNDERS:
+                case WEATHER_TYPE_BLACKRAIN:
                     return true;
                 default:
                     return false;
@@ -79,7 +83,6 @@ class Weather
         }
 
     private:
-        uint32 GetSound();
         /// Send SMSG_WEATHER to all players in the zone
         bool SendWeatherForPlayersInZone(Map const* _map);
         /// Calculate new weather
