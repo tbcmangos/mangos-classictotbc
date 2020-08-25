@@ -27,7 +27,9 @@ class Player;
 class Unit;
 class WorldPacket;
 
-#define MIN_AUCTION_TIME (2*HOUR)
+#define MIN_AUCTION_TIME (12*HOUR)
+#define MAX_AUCTION_SORT 12
+#define AUCTION_SORT_REVERSED 0x10
 
 #define MAX_AUCTION_ITEMS_CLIENT_UI_PAGE 50
 
@@ -59,6 +61,7 @@ struct AuctionEntry
     uint32 itemCount;
     int32 itemRandomPropertyId;
     uint32 owner;                                           // player low guid, can be 0 for server generated auction
+    std::wstring ownerName;                                 // cache name for sorting
     uint32 startbid;                                        // start minimal bid value
     uint32 bid;                                             // current bid, =0 meaning no bids
     uint32 buyout;
@@ -76,6 +79,10 @@ struct AuctionEntry
     void DeleteFromDB() const;
     void SaveToDB() const;
     void AuctionBidWinning(Player* newbidder = nullptr);
+
+    // -1,0,+1 order result
+    int CompareAuctionEntry(uint32 column, const AuctionEntry* auc, Player* viewPlayer) const;
+
     bool UpdateBid(uint32 newbid, Player* newbidder = nullptr);// true if normal bid, false if buyout, bidder==nullptr for generated bid
 };
 
@@ -116,13 +123,22 @@ class AuctionHouseObject
 
         void BuildListBidderItems(WorldPacket& data, Player* player, uint32 listfrom, uint32& count, uint32& totalcount);
         void BuildListOwnerItems(WorldPacket& data, Player* player, uint32 listfrom, uint32& count, uint32& totalcount);
-        void BuildListAuctionItems(WorldPacket& data, Player* player,
-                                   std::wstring const& searchedname, uint32 listfrom, uint32 levelmin, uint32 levelmax, uint32 usable,
-                                   uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality,
-                                   uint32& count, uint32& totalcount);
+
         AuctionEntry* AddAuction(AuctionHouseEntry const* auctionHouseEntry, Item* newItem, uint32 etime, uint32 bid, uint32 buyout = 0, uint32 deposit = 0, Player* pl = nullptr);
     private:
         AuctionEntryMap AuctionsMap;
+};
+
+class AuctionSorter
+{
+    public:
+        AuctionSorter(AuctionSorter const& sorter) : m_sort(sorter.m_sort), m_viewPlayer(sorter.m_viewPlayer) {}
+        AuctionSorter(uint8* sort, Player* viewPlayer) : m_sort(sort), m_viewPlayer(viewPlayer) {}
+        bool operator()(const AuctionEntry* auc1, const AuctionEntry* auc2) const;
+
+    private:
+        uint8* m_sort;
+        Player* m_viewPlayer;
 };
 
 enum AuctionHouseType
@@ -157,6 +173,7 @@ class AuctionHouseMgr
 
         // auction messages
         void SendAuctionWonMail(AuctionEntry* auction);
+        void SendAuctionSalePendingMail(AuctionEntry* auction);
         static void SendAuctionSuccessfulMail(AuctionEntry* auction);
         void SendAuctionExpiredMail(AuctionEntry* auction);
         static uint32 GetAuctionDeposit(AuctionHouseEntry const* entry, uint32 time, Item* pItem);

@@ -164,7 +164,7 @@ void WorldSession::SendAuctionOutbiddedMail(AuctionEntry* auction)
 }
 
 // this function sends mail, when auction is cancelled to old bidder
-void WorldSession::SendAuctionCancelledToBidderMail(AuctionEntry* auction) const
+void WorldSession::SendAuctionCancelledToBidderMail(AuctionEntry* auction)
 {
     ObjectGuid bidder_guid = ObjectGuid(HIGHGUID_PLAYER, auction->bidder);
     Player* bidder = sObjectMgr.GetPlayer(bidder_guid);
@@ -254,8 +254,8 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
     switch (etime)
     {
         case 1*MIN_AUCTION_TIME:
+        case 2*MIN_AUCTION_TIME:
         case 4*MIN_AUCTION_TIME:
-        case 12*MIN_AUCTION_TIME:
             break;
         default:
             return;
@@ -290,13 +290,13 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
 
     if (!it->CanBeTraded())
     {
-        SendAuctionCommandResult(nullptr, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
+        SendAuctionCommandResult(nullptr, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_CANNOT_TRADE_THAT);
         return;
     }
 
     if ((it->GetProto()->Flags & ITEM_FLAG_CONJURED) || it->GetUInt32Value(ITEM_FIELD_DURATION))
     {
-        SendAuctionCommandResult(nullptr, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
+        SendAuctionCommandResult(nullptr, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_CANNOT_TRADE_THAT);
         return;
     }
 
@@ -513,6 +513,7 @@ void WorldSession::HandleAuctionListBidderItems(WorldPacket& recv_data)
     auctionHouse->BuildListBidderItems(data, pl, listfrom, count, totalcount);
     data.put<uint32>(0, count);                             // add count to placeholder
     data << uint32(totalcount);
+    data << uint32(300);                                    // unk 2.3.0 delay for next isFull request?
     SendPacket(data);
 }
 
@@ -534,8 +535,8 @@ void WorldSession::HandleAuctionListOwnerItems(WorldPacket& recv_data)
     // always return pointer
     AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(auctionHouseEntry);
 
-    WorldPacket data(SMSG_AUCTION_OWNER_LIST_RESULT, (4 + 4));
-    data << (uint32) 0;                                     // amount place holder
+    WorldPacket data(SMSG_AUCTION_OWNER_LIST_RESULT, (4 + 4 + 4));
+    data << uint32(0);                                      // amount place holder
 
     uint32 count = 0;
     uint32 totalcount = 0;
@@ -543,6 +544,7 @@ void WorldSession::HandleAuctionListOwnerItems(WorldPacket& recv_data)
     auctionHouse->BuildListOwnerItems(data, _player, listfrom, count, totalcount);
     data.put<uint32>(0, count);
     data << uint32(totalcount);
+    data << uint32(300);                                    // 2.3.0 delay for next isFull request?
     SendPacket(data);
 }
 
@@ -553,7 +555,7 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)
 
     ObjectGuid auctioneerGuid;
     std::string searchedname;
-    uint8 levelmin, levelmax, usable;
+    uint8 levelmin, levelmax, usable, isFull, sortCount;
     uint32 listfrom, auctionSlotID, auctionMainCategory, auctionSubCategory, quality;
 
     recv_data >> auctioneerGuid;
@@ -562,7 +564,26 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)
 
     recv_data >> levelmin >> levelmax;
     recv_data >> auctionSlotID >> auctionMainCategory >> auctionSubCategory >> quality;
-    recv_data >> usable;
+    recv_data >> usable >> isFull >> sortCount;
+
+    if (sortCount >= MAX_AUCTION_SORT)
+        return;
+
+    uint8 Sort[MAX_AUCTION_SORT];
+    memset(Sort, MAX_AUCTION_SORT, MAX_AUCTION_SORT);
+
+    // auction columns sorting
+    for (uint32 i = 0; i < sortCount; ++i)
+    {
+        uint8 column, reversed;
+        recv_data >> column;
+
+        if (column >= MAX_AUCTION_SORT)
+            return;
+
+        recv_data >> reversed;
+        Sort[i] = (reversed > 0) ? (column |= AUCTION_SORT_REVERSED) : column;
+    }
 
     AuctionHouseEntry const* auctionHouseEntry = GetCheckedAuctionHouseForAuctioneer(auctioneerGuid);
     if (!auctionHouseEntry)
@@ -571,10 +592,25 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)
     // always return pointer
     AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(auctionHouseEntry);
 
+    // Sort
+    AuctionHouseObject::AuctionEntryMap const& aucs = auctionHouse->GetAuctions();
+    std::vector<AuctionEntry*> auctions;
+    auctions.reserve(aucs.size());
+
+    for (const auto& auc : aucs)
+        auctions.push_back(auc.second);
+
+    AuctionSorter sorter(Sort, GetPlayer());
+    std::sort(auctions.begin(), auctions.end(), sorter);
+
+    // remove fake death
+    if (GetPlayer()->IsFeigningDeath())
+        GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+
     // DEBUG_LOG("Auctionhouse search %s list from: %u, searchedname: %s, levelmin: %u, levelmax: %u, auctionSlotID: %u, auctionMainCategory: %u, auctionSubCategory: %u, quality: %u, usable: %u",
     //  auctioneerGuid.GetString().c_str(), listfrom, searchedname.c_str(), levelmin, levelmax, auctionSlotID, auctionMainCategory, auctionSubCategory, quality, usable);
 
-    WorldPacket data(SMSG_AUCTION_LIST_RESULT, (4 + 4));
+    WorldPacket data(SMSG_AUCTION_LIST_RESULT, (4 + 4 + 4));
     uint32 count = 0;
     uint32 totalcount = 0;
     data << uint32(0);
@@ -586,12 +622,11 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)
 
     wstrToLower(wsearchedname);
 
-    auctionHouse->BuildListAuctionItems(data, _player,
-                                        wsearchedname, listfrom, levelmin, levelmax, usable,
-                                        auctionSlotID, auctionMainCategory, auctionSubCategory, quality,
-                                        count, totalcount);
+    BuildListAuctionItems(auctions, data, wsearchedname, listfrom, levelmin, levelmax, usable,
+                          auctionSlotID, auctionMainCategory, auctionSubCategory, quality, count, totalcount, isFull != 0);
 
     data.put<uint32>(0, count);
     data << uint32(totalcount);
+    data << uint32(300);                                    // 2.3.0 delay for next isFull request?
     SendPacket(data);
 }
