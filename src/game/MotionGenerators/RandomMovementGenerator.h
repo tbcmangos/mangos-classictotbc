@@ -19,7 +19,7 @@
 #ifndef MANGOS_RANDOMMOTIONGENERATOR_H
 #define MANGOS_RANDOMMOTIONGENERATOR_H
 
-#include "MovementGenerator.h"
+#include "MotionGenerators/MovementGenerator.h"
 #include "Entities/ObjectGuid.h"
 
 class AbstractRandomMovementGenerator : public MovementGenerator

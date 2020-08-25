@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "WaypointManager.h"
+#include "MotionGenerators/WaypointManager.h"
 #include "Database/DatabaseEnv.h"
 #include "Maps/GridDefines.h"
 #include "Policies/Singleton.h"

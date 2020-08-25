@@ -19,7 +19,7 @@
 #include "Log.h"
 #include "World/World.h"
 #include "Entities/Creature.h"
-#include "MoveMap.h"
+#include "MotionGenerators/MoveMap.h"
 #include "MoveMapSharedDefines.h"
 
 namespace MMAP

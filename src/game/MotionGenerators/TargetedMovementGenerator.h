@@ -22,7 +22,6 @@
 #include "Movement/MoveSplineInit.h"
 #include "MotionGenerators/MovementGenerator.h"
 #include "MotionGenerators/FollowerReference.h"
-#include <G3D/Vector3.h>
 
 class PathFinder;
 
@@ -46,7 +45,7 @@ class TargetedMovementGeneratorMedium
             i_recheckDistance(0),
             i_offset(offset), i_angle(angle),
             i_speedChanged(false), i_targetReached(false),
-            i_path(nullptr), i_faceTarget(true)
+            i_faceTarget(true), i_path(nullptr)
         {
         }
         ~TargetedMovementGeneratorMedium() { delete i_path; }

@@ -16,13 +16,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "WaypointMovementGenerator.h"
+#include "MotionGenerators/WaypointMovementGenerator.h"
 #include "Globals/ObjectMgr.h"
 #include "Entities/Player.h"
 #include "Entities/Creature.h"
 #include "Entities/TemporarySpawn.h"
 #include "AI/BaseAI/CreatureAI.h"
-#include "WaypointManager.h"
+#include "MotionGenerators/WaypointManager.h"
 #include "DBScripts/ScriptMgr.h"
 #include "Movement/MoveSplineInit.h"
 #include "Movement/MoveSpline.h"

@@ -19,7 +19,7 @@
 #ifndef MANGOS_IDLEMOVEMENTGENERATOR_H
 #define MANGOS_IDLEMOVEMENTGENERATOR_H
 
-#include "MovementGenerator.h"
+#include "MotionGenerators/MovementGenerator.h"
 
 class IdleMovementGenerator : public MovementGenerator
 {

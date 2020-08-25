@@ -19,7 +19,7 @@
 #ifndef MANGOS_HOMEMOVEMENTGENERATOR_H
 #define MANGOS_HOMEMOVEMENTGENERATOR_H
 
-#include "MovementGenerator.h"
+#include "MotionGenerators/MovementGenerator.h"
 
 class Creature;
 

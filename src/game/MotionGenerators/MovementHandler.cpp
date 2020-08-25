@@ -25,11 +25,14 @@
 #include "Maps/MapManager.h"
 #include "Entities/Transports.h"
 #include "BattleGround/BattleGround.h"
-#include "WaypointMovementGenerator.h"
+#include "MotionGenerators/WaypointMovementGenerator.h"
 #include "Maps/MapPersistentStateMgr.h"
 #include "Globals/ObjectMgr.h"
+#include "World/World.h"
 
-#define MOVEMENT_PACKET_TIME_DELAY 0
+#include <boost/accumulators/statistics/variance.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics.hpp>
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPacket& /*recv_data*/)
 {
@@ -69,7 +72,7 @@ void WorldSession::HandleMoveWorldportAckOpcode()
     Map* pMap = nullptr;
 
     // prevent crash at attempt landing to not existed battleground instance
-    if (mEntry->IsBattleGround())
+    if (mEntry->IsBattleGroundOrArena())
     {
         if (GetPlayer()->GetBattleGroundId())
             pMap = sMapMgr.FindMap(loc.mapid, GetPlayer()->GetBattleGroundId());
@@ -134,8 +137,8 @@ void WorldSession::HandleMoveWorldportAckOpcode()
     // only add to bg group and object, if the player was invited (else he entered through command)
     if (_player->InBattleGround())
     {
-        // cleanup seting if outdated
-        if (!mEntry->IsBattleGround())
+        // cleanup setting if outdated
+        if (!mEntry->IsBattleGroundOrArena())
         {
             // We're not in BG
             _player->SetBattleGroundId(0, BATTLEGROUND_TYPE_NONE);
@@ -238,7 +241,7 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
 {
-    uint16 opcode = recv_data.GetOpcode();
+    Opcodes opcode = recv_data.GetOpcode();
     if (!sLog.HasLogFilter(LOG_FILTER_PLAYER_MOVES))
     {
         DEBUG_LOG("WORLD: Received opcode %s (%u, 0x%X)", LookupOpcodeName(opcode), opcode, opcode);
@@ -267,6 +270,10 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
     if (opcode == MSG_MOVE_FALL_LAND && plMover && !plMover->IsTaxiFlying())
         plMover->HandleFall(movementInfo);
 
+    // Remove auras that should be removed at landing on ground or water
+    if (opcode == MSG_MOVE_FALL_LAND || opcode == MSG_MOVE_START_SWIM)
+        mover->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_LANDING); // Parachutes
+
     /* process position-change */
     HandleMoverRelocation(movementInfo);
 
@@ -274,14 +281,14 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recv_data)
         plMover->UpdateFallInformationIfNeed(movementInfo, opcode);
 
     WorldPacket data(opcode, recv_data.size());
-    data << mover->GetPackGUID();             // write guid
+    data << mover->GetPackGUID();                           // write guid
     movementInfo.Write(data);                               // write data
     mover->SendMessageToSetExcept(data, _player);
 }
 
 void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
 {
-    uint16 opcode = recv_data.GetOpcode();
+    Opcodes opcode = recv_data.GetOpcode();
     DEBUG_LOG("WORLD: Received %s (%u, 0x%X) opcode", recv_data.GetOpcodeName(), opcode, opcode);
 
     /* extract packet */
@@ -304,7 +311,7 @@ void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
     UnitMoveType move_type;
     UnitMoveType force_move_type;
 
-    static char const* move_type_name[MAX_MOVE_TYPE] = {  "Walk", "Run", "RunBack", "Swim", "SwimBack", "TurnRate" };
+    static char const* move_type_name[MAX_MOVE_TYPE] = {  "Walk", "Run", "RunBack", "Swim", "SwimBack", "TurnRate", "Flight", "FlightBack" };
 
     switch (opcode)
     {
@@ -314,6 +321,8 @@ void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
         case CMSG_FORCE_SWIM_SPEED_CHANGE_ACK:          move_type = MOVE_SWIM;          force_move_type = MOVE_SWIM;        break;
         case CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK:     move_type = MOVE_SWIM_BACK;     force_move_type = MOVE_SWIM_BACK;   break;
         case CMSG_FORCE_TURN_RATE_CHANGE_ACK:           move_type = MOVE_TURN_RATE;     force_move_type = MOVE_TURN_RATE;   break;
+        case CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK:        move_type = MOVE_FLIGHT;        force_move_type = MOVE_FLIGHT;      break;
+        case CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK:   move_type = MOVE_FLIGHT_BACK;   force_move_type = MOVE_FLIGHT_BACK; break;
         default:
             sLog.outError("WorldSession::HandleForceSpeedChangeAck: Unknown move type opcode: %u", opcode);
             return;
@@ -420,6 +429,9 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recv_data)
 
     HandleMoverRelocation(movementInfo);
 
+    if (plMover->IsFreeFlying())
+        plMover->SetCanFly(true);
+
     WorldPacket data(MSG_MOVE_KNOCK_BACK, recv_data.size() + 15);
     data << mover->GetObjectGuid();
     data << movementInfo;
@@ -475,34 +487,11 @@ void WorldSession::HandleSummonResponseOpcode(WorldPacket& recv_data)
         return;
 
     ObjectGuid summonerGuid;
+    bool agree;
     recv_data >> summonerGuid;
+    recv_data >> agree;
 
-    _player->SummonIfPossible(true);
-}
-
-void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recv_data)
-{
-    /*  WorldSession::Update( WorldTimer::getMSTime() );*/
-    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
-
-    ObjectGuid guid;
-    uint32 timeSkipped;
-    recv_data >> guid;
-    recv_data >> timeSkipped;
-
-    Unit* mover = _player->GetMover();
-
-    // Ignore updates not for current player
-    if (mover == nullptr || guid != mover->GetObjectGuid())
-        return;
-
-    mover->m_movementInfo.UpdateTime(mover->m_movementInfo.GetTime() + timeSkipped);
-
-    // Send to other players
-    WorldPacket data(MSG_MOVE_TIME_SKIPPED, 16);
-    data << mover->GetPackGUID();
-    data << timeSkipped;
-    mover->SendMessageToSetExcept(data, _player);
+    _player->SummonIfPossible(agree);
 }
 
 bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo, ObjectGuid const& guid) const
@@ -538,9 +527,7 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo) const
 
 void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
 {
-    if (m_clientTimeDelay == 0)
-        m_clientTimeDelay = WorldTimer::getMSTime() - movementInfo.GetTime();
-    movementInfo.UpdateTime(movementInfo.GetTime() + m_clientTimeDelay + MOVEMENT_PACKET_TIME_DELAY);
+    SynchronizeMovement(movementInfo);
 
     Unit* mover = _player->GetMover();
 
@@ -569,17 +556,13 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
             movementInfo.ClearTransportData();
         }
 
-        plMover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
         plMover->m_movementInfo = movementInfo;
+        plMover->SetPosition(movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
 
         if (movementInfo.GetPos()->z < -500.0f)
         {
-            if (plMover->GetBattleGround()
-                    && plMover->GetBattleGround()->HandlePlayerUnderMap(_player))
-            {
-                // do nothing, the handle already did if returned true
-            }
-            else
+            // make sure the background didnt already handle this
+            if (!(plMover->GetBattleGround() && plMover->GetBattleGround()->HandlePlayerUnderMap(_player)))
             {
                 // NOTE: this is actually called many times while falling
                 // even after the player has been teleported away
@@ -606,5 +589,103 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo)
     {
         if (mover->IsInWorld())
             mover->GetMap()->CreatureRelocation((Creature*)mover, movementInfo.GetPos()->x, movementInfo.GetPos()->y, movementInfo.GetPos()->z, movementInfo.GetPos()->o);
+    }
+}
+
+void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recv_data)
+{
+    /*  WorldSession::Update( WorldTimer::getMSTime() );*/
+    DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_TIME_SKIPPED");
+
+    ObjectGuid guid;
+    uint32 timeSkipped;
+    recv_data >> guid;
+    recv_data >> timeSkipped;
+
+    Unit* mover = _player->GetMover();
+
+    // Ignore updates not for current player
+    if (mover == nullptr || guid != mover->GetObjectGuid())
+        return;
+
+    mover->m_movementInfo.UpdateTime(mover->m_movementInfo.GetTime() + timeSkipped);
+
+    // Send to other players
+    WorldPacket data(MSG_MOVE_TIME_SKIPPED, 16);
+    data << mover->GetPackGUID();
+    data << timeSkipped;
+    mover->SendMessageToSetExcept(data, _player);
+}
+
+void WorldSession::HandleTimeSyncResp(WorldPacket& recvData)
+{
+    DEBUG_LOG("CMSG_TIME_SYNC_RESP");
+
+    uint32 counter, clientTimestamp;
+    recvData >> counter >> clientTimestamp;
+
+    if (m_pendingTimeSyncRequests.count(counter) == 0)
+        return;
+
+    uint32 serverTimeAtSent = m_pendingTimeSyncRequests.at(counter);
+    m_pendingTimeSyncRequests.erase(counter);
+
+    // time it took for the request to travel to the client, for the client to process it and reply and for response to travel back to the server.
+    // we are going to make 2 assumptions:
+    // 1) we assume that the request processing time equals 0.
+    // 2) we assume that the packet took as much time to travel from server to client than it took to travel from client to server.
+    uint32 roundTripDuration = WorldTimer::getMSTimeDiff(serverTimeAtSent, recvData.GetReceivedTime());
+    uint32 lagDelay = roundTripDuration / 2;
+
+    /*
+    clockDelta = serverTime - clientTime
+    where
+    serverTime: time that was displayed on the clock of the SERVER at the moment when the client processed the SMSG_TIME_SYNC_REQUEST packet.
+    clientTime:  time that was displayed on the clock of the CLIENT at the moment when the client processed the SMSG_TIME_SYNC_REQUEST packet.
+    Once clockDelta has been computed, we can compute the time of an event on server clock when we know the time of that same event on the client clock,
+    using the following relation:
+    serverTime = clockDelta + clientTime
+    */
+    int64 clockDelta = (int64)(serverTimeAtSent + lagDelay) - (int64)clientTimestamp;
+    m_timeSyncClockDeltaQueue.push_back(std::pair<int64, uint32>(clockDelta, roundTripDuration));
+    ComputeNewClockDelta();
+}
+
+void WorldSession::ComputeNewClockDelta()
+{
+    // implementation of the technique described here: https://web.archive.org/web/20180430214420/http://www.mine-control.com/zack/timesync/timesync.html
+    // to reduce the skew induced by dropped TCP packets that get resent.
+
+    using namespace boost::accumulators;
+
+    accumulator_set<uint32, features<tag::mean, tag::median, tag::variance(lazy)> > latencyAccumulator;
+
+    for (auto pair : m_timeSyncClockDeltaQueue)
+        latencyAccumulator(pair.second);
+
+    uint32 latencyMedian = static_cast<uint32>(std::round(median(latencyAccumulator)));
+    uint32 latencyStandardDeviation = static_cast<uint32>(std::round(sqrt(variance(latencyAccumulator))));
+
+    accumulator_set<int64, features<tag::mean> > clockDeltasAfterFiltering;
+    uint32 sampleSizeAfterFiltering = 0;
+    for (auto pair : m_timeSyncClockDeltaQueue)
+    {
+        if (pair.second < latencyStandardDeviation + latencyMedian)
+        {
+            clockDeltasAfterFiltering(pair.first);
+            sampleSizeAfterFiltering++;
+        }
+    }
+
+    if (sampleSizeAfterFiltering != 0)
+    {
+        int64 meanClockDelta = static_cast<int64>(std::round(mean(clockDeltasAfterFiltering)));
+        if (std::abs(meanClockDelta - m_timeSyncClockDelta) > 25)
+            m_timeSyncClockDelta = meanClockDelta;
+    }
+    else if (m_timeSyncClockDelta == 0)
+    {
+        std::pair<int64, uint32> back = m_timeSyncClockDeltaQueue.back();
+        m_timeSyncClockDelta = back.first;
     }
 }

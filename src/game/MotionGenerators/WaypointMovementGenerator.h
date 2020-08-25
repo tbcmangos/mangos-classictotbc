@@ -25,8 +25,8 @@
  * packets for the players.
  */
 
-#include "MovementGenerator.h"
-#include "WaypointManager.h"
+#include "MotionGenerators/MovementGenerator.h"
+#include "MotionGenerators/WaypointManager.h"
 #include "Server/DBCStructure.h"
 #include "Entities/Object.h"
 

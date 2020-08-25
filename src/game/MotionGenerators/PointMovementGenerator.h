@@ -19,7 +19,7 @@
 #ifndef MANGOS_POINTMOVEMENTGENERATOR_H
 #define MANGOS_POINTMOVEMENTGENERATOR_H
 
-#include "MovementGenerator.h"
+#include "MotionGenerators/MovementGenerator.h"
 
 class PointMovementGenerator : public MovementGenerator
 {

@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "MoveMap.h"
+#include "MotionGenerators/MoveMap.h"
 #include "Maps/GridMap.h"
 #include "Entities/Creature.h"
-#include "PathFinder.h"
+#include "MotionGenerators/PathFinder.h"
 #include "Log.h"
 #include "World/World.h"
 

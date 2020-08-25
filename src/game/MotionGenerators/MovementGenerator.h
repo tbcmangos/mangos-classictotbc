@@ -21,7 +21,7 @@
 
 #include "Platform/Define.h"
 #include "Dynamic/FactoryHolder.h"
-#include "MotionMaster.h"
+#include "MotionGenerators/MotionMaster.h"
 #include "Timer.h"
 #include "Globals/SharedDefines.h"
 

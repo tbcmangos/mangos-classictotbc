@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "MotionMaster.h"
+#include "MotionGenerators/MotionMaster.h"
 #include "HomeMovementGenerator.h"
 #include "IdleMovementGenerator.h"
 #include "MotionGenerators/PathMovementGenerator.h"

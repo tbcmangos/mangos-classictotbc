@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "PointMovementGenerator.h"
+#include "MotionGenerators/PointMovementGenerator.h"
 #include "Movement/MoveSpline.h"
 #include "Movement/MoveSplineInit.h"
 #include "Entities/Creature.h"

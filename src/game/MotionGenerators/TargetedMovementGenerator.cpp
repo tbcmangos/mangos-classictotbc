@@ -17,7 +17,7 @@
  */
 
 #include "MotionGenerators/TargetedMovementGenerator.h"
-#include "PathFinder.h"
+#include "MotionGenerators/PathFinder.h"
 #include "Entities/Unit.h"
 #include "Entities/Creature.h"
 #include "Entities/Player.h"
@@ -77,7 +77,7 @@ bool TargetedMovementGeneratorMedium<T, D>::Update(T& owner, const uint32& time_
 
     HandleTargetedMovement(owner, time_diff);
 
-    if (owner.movespline->Finalized() && !i_targetReached)
+    if (owner.movespline->Finalized() && !i_targetReached) 
         HandleFinalizedMovement(owner);
 
     return true;
@@ -608,7 +608,7 @@ bool FollowMovementGenerator::IsBoostAllowed(Unit& owner) const
 
     // Do not allow speed boosting when in pvp instances
     if (const MapEntry* map = sMapStore.LookupEntry(owner.GetMapId()))
-        if (map->IsBattleGround())
+        if (map->IsBattleGroundOrArena())
             return false;
 
     // Allow boosting when out of master's line of sight:

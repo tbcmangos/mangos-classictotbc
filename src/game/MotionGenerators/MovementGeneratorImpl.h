@@ -19,7 +19,7 @@
 #ifndef MANGOS_MOVEMENTGENERATOR_IMPL_H
 #define MANGOS_MOVEMENTGENERATOR_IMPL_H
 
-#include "MovementGenerator.h"
+#include "MotionGenerators/MovementGenerator.h"
 
 template<class MOVEMENT_GEN>
 inline MovementGenerator*
