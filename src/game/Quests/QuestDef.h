@@ -28,7 +28,7 @@ class Player;
 
 class ObjectMgr;
 
-#define MAX_QUEST_LOG_SIZE 20
+#define MAX_QUEST_LOG_SIZE 25
 
 #define QUEST_OBJECTIVES_COUNT 4
 #define QUEST_ITEM_OBJECTIVES_COUNT QUEST_OBJECTIVES_COUNT
@@ -39,19 +39,22 @@ class ObjectMgr;
 #define QUEST_REPUTATIONS_COUNT 5
 #define QUEST_EMOTE_COUNT 4
 
-// [-ZERO] need update
 enum QuestFailedReasons
 {
     INVALIDREASON_DONT_HAVE_REQ                       = 0,  // this is default case
     INVALIDREASON_QUEST_FAILED_LOW_LEVEL              = 1,  // You are not high enough level for that quest.
     INVALIDREASON_QUEST_FAILED_INVENTORY_FULL         = 4,  // Inventory is full
     INVALIDREASON_QUEST_FAILED_WRONG_RACE             = 6,  // That quest is not available to your race.
+    INVALIDREASON_QUEST_ALREADY_DONE                  = 7,  // You have completed that quest.
     INVALIDREASON_QUEST_ONLY_ONE_TIMED                = 12, // You can only be on one timed quest at a time.
     INVALIDREASON_QUEST_ALREADY_ON                    = 13, // You are already on that quest.
     INVALIDREASON_QUEST_FAILED_EXPANSION              = 16, // This quest requires an expansion enabled account.
     INVALIDREASON_QUEST_FAILED_DUPLICATE_ITEM         = 17, // Duplicate item found.
+    INVALIDREASON_QUEST_ALREADY_ON2                   = 18, // You are already on that quest.
     INVALIDREASON_QUEST_FAILED_MISSING_ITEMS          = 21, // You don't have the required items with you. Check storage.
     INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY       = 23, // You don't have enough money for that quest.
+    INVALIDREASON_DAILY_QUESTS_REMAINING              = 26, // You have already completed 10 daily quests today.
+    INVALIDREASON_QUEST_FAILED_CAIS                   = 27  // You cannot complete quests once you have reached tired time.
 };
 
 enum QuestShareMessages
@@ -83,6 +86,7 @@ enum __QuestTradeSkill
     QUEST_TRSKILL_MINING         = 11,
     QUEST_TRSKILL_FISHING        = 12,
     QUEST_TRSKILL_SKINNING       = 13,
+    QUEST_TRSKILL_JEWELCRAFTING  = 14,
 };
 
 enum QuestStatus
@@ -96,18 +100,17 @@ enum QuestStatus
     MAX_QUEST_STATUS
 };
 
-// TODO: Add comments
 enum __QuestGiverStatus
 {
     DIALOG_STATUS_NONE                     = 0,
-    DIALOG_STATUS_UNAVAILABLE              = 1,
-    DIALOG_STATUS_CHAT                     = 2,
-    DIALOG_STATUS_INCOMPLETE               = 3,
-    DIALOG_STATUS_REWARD_REP               = 4,
-    DIALOG_STATUS_AVAILABLE                = 5,
-    DIALOG_STATUS_REWARD_OLD               = 6,             // red dot on minimap
-    DIALOG_STATUS_REWARD2                  = 7,             // yellow dot on minimap
-    // [-ZERO] tbc?  DIALOG_STATUS_REWARD                   = 8              // yellow dot on minimap
+    DIALOG_STATUS_UNAVAILABLE              = 1,             // Grey Exclamation Mark
+    DIALOG_STATUS_CHAT                     = 2,             // No marker
+    DIALOG_STATUS_INCOMPLETE               = 3,             // Grey Question Mark - quest taken
+    DIALOG_STATUS_REWARD_REP               = 4,             // Blue Question Mark - non-daily repeatable available
+    DIALOG_STATUS_AVAILABLE_REP            = 5,             // Blue Exclamation Mark - daily available
+    DIALOG_STATUS_AVAILABLE                = 6,             // Yellow Exclamation Mark - quest available
+    DIALOG_STATUS_REWARD2                  = 7,             // no yellow dot on minimap
+    DIALOG_STATUS_REWARD                   = 8,             // yellow dot on minimap
     DIALOG_STATUS_UNDEFINED                = 100            // Used as result for unassigned ScriptCall
 };
 
@@ -119,10 +122,10 @@ enum QuestTypes
     QUEST_TYPE_PVP                 = 41,
     QUEST_TYPE_RAID                = 62,
     QUEST_TYPE_DUNGEON             = 81,
-    // tbc?
     QUEST_TYPE_WORLD_EVENT         = 82,
     QUEST_TYPE_LEGENDARY           = 83,
     QUEST_TYPE_ESCORT              = 84,
+    QUEST_TYPE_HEROIC              = 85,
 };
 
 enum QuestFlags
@@ -136,10 +139,14 @@ enum QuestFlags
     // QUEST_FLAGS_NONE2        = 0x00000010,               // Not used currently
     QUEST_FLAGS_EPIC           = 0x00000020,                // Not used currently: Unsure of content
     QUEST_FLAGS_RAID           = 0x00000040,                // Not used currently
-
+    QUEST_FLAGS_TBC            = 0x00000080,                // Not used currently: Available if TBC expansion enabled only
     QUEST_FLAGS_UNK2           = 0x00000100,                // Not used currently: _DELIVER_MORE Quest needs more than normal _q-item_ drops from mobs
     QUEST_FLAGS_HIDDEN_REWARDS = 0x00000200,                // Items and money rewarded only sent in SMSG_QUESTGIVER_OFFER_REWARD (not in SMSG_QUESTGIVER_QUEST_DETAILS or in client quest log(SMSG_QUEST_QUERY_RESPONSE))
     QUEST_FLAGS_AUTO_REWARDED  = 0x00000400,                // These quests are automatically rewarded on quest complete and they will never appear in quest log client side.
+    QUEST_FLAGS_TBC_RACES      = 0x00000800,                // Not used currently: Blood elf/Draenei starting zone quests
+    QUEST_FLAGS_DAILY          = 0x00001000,                // Daily quest. Can be done once a day. Quests reset at regular intervals for all players.
+    QUEST_FLAGS_FLAGS_PVP      = 0x00002000,                // activates PvP on accept
+    QUEST_FLAGS_UNK4           = 0x00004000,                // ? Membership Card Renewal
     QUEST_FLAGS_WEEKLY         = 0x00008000,                // Weekly quest. Can be done once a week. Quests reset at regular intervals for all players.
 };
 
@@ -148,7 +155,7 @@ enum QuestSpecialFlags
     // Mangos flags for set SpecialFlags in DB if required but used only at server
     QUEST_SPECIAL_FLAG_REPEATABLE           = 0x001,        // |1 in SpecialFlags from DB
     QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT = 0x002,        // |2 in SpecialFlags from DB (if required area explore, spell SPELL_EFFECT_QUEST_COMPLETE casting, table `*_script` command SCRIPT_COMMAND_QUEST_EXPLORED use, set from script DLL)
-    // reserved for future versions           0x004,        // |4 in SpecialFlags.
+    QUEST_SPECIAL_FLAG_MONTHLY              = 0x004,        // |4 in SpecialFlags. Quest reset for player at beginning of month.
 
     // Mangos flags for internal use only
     QUEST_SPECIAL_FLAG_DELIVER              = 0x008,        // Internal flag computed only
@@ -157,7 +164,7 @@ enum QuestSpecialFlags
     QUEST_SPECIAL_FLAG_TIMED                = 0x040,        // Internal flag computed only
 };
 
-#define QUEST_SPECIAL_FLAG_DB_ALLOWED (QUEST_SPECIAL_FLAG_REPEATABLE | QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT)
+#define QUEST_SPECIAL_FLAG_DB_ALLOWED (QUEST_SPECIAL_FLAG_REPEATABLE | QUEST_SPECIAL_FLAG_EXPLORATION_OR_EVENT | QUEST_SPECIAL_FLAG_MONTHLY)
 
 struct QuestLocale
 {
@@ -192,8 +199,7 @@ class Quest
         uint32 GetQuestMethod() const { return QuestMethod; }
         int32  GetZoneOrSort() const { return ZoneOrSort; }
         uint32 GetMinLevel() const { return MinLevel; }
-        uint32 GetMaxLevel() const { return MaxLevel; }
-        uint32 GetQuestLevel() const { return QuestLevel; }
+        int32  GetQuestLevel() const { return QuestLevel; }
         uint32 GetType() const { return Type; }
         uint32 GetRequiredClasses() const { return RequiredClasses; }
         uint32 GetRequiredRaces() const { return RequiredRaces; }
@@ -212,7 +218,8 @@ class Quest
         int32  GetNextQuestId() const { return NextQuestId; }
         int32  GetExclusiveGroup() const { return ExclusiveGroup; }
         uint32 GetNextQuestInChain() const { return NextQuestInChain; }
-        // [-ZERO] not exist
+        uint32 GetCharTitleId() const { return CharTitleId; }
+        uint32 GetCharTitleBitIndex() const;                // in 2.x in different from 3.x in some quest packets used bit index insed id
         uint32 GetSrcItemId() const { return SrcItemId; }
         uint32 GetSrcItemCount() const { return SrcItemCount; }
         uint32 GetSrcSpell() const { return SrcSpell; }
@@ -223,6 +230,7 @@ class Quest
         std::string GetRequestItemsText() const { return RequestItemsText; }
         std::string GetEndText() const { return EndText; }
         int32  GetRewOrReqMoney() const;
+        uint32 GetRewHonorableKills() const { return RewHonorableKills; }
         uint32 GetRewMoneyMaxLevel() const { return RewMoneyMaxLevel; }
         // use in XP calculation at client
         uint32 GetRewSpell() const { return RewSpell; }
@@ -243,7 +251,10 @@ class Quest
 
         bool   IsRepeatable() const { return (m_SpecialFlags & QUEST_SPECIAL_FLAG_REPEATABLE) != 0; }
         bool   IsAutoComplete() const { return !QuestMethod; }
+        bool   IsDaily() const { return (m_QuestFlags & QUEST_FLAGS_DAILY) != 0; }
         bool   IsWeekly() const { return (m_QuestFlags & QUEST_FLAGS_WEEKLY) != 0; }
+        bool   IsMonthly() const { return (m_SpecialFlags & QUEST_SPECIAL_FLAG_MONTHLY) != 0; }
+        bool   IsDailyOrWeekly() const { return (m_QuestFlags & (QUEST_FLAGS_DAILY | QUEST_FLAGS_WEEKLY)) != 0; }
         bool   IsAllowedInRaid() const;
 
         // quest can be fully deactivated and will not be available for any player
@@ -265,6 +276,7 @@ class Quest
         uint32 RewItemCount[QUEST_REWARDS_COUNT];
         uint32 RewRepFaction[QUEST_REPUTATIONS_COUNT];
         int32  RewRepValue[QUEST_REPUTATIONS_COUNT];
+        int32  RewMaxRepValue[QUEST_REPUTATIONS_COUNT];
         uint32 DetailsEmote[QUEST_EMOTE_COUNT];
         uint32 DetailsEmoteDelay[QUEST_EMOTE_COUNT];
         uint32 OfferRewardEmote[QUEST_EMOTE_COUNT];
@@ -296,8 +308,7 @@ class Quest
         uint32 QuestMethod;
         int32  ZoneOrSort;
         uint32 MinLevel;
-        uint32 MaxLevel;
-        uint32 QuestLevel;
+        int32  QuestLevel;
         uint32 Type;
         uint32 RequiredClasses;
         uint32 RequiredRaces;
@@ -314,6 +325,7 @@ class Quest
         uint32 LimitTime;
         uint32 m_QuestFlags;
         uint32 m_SpecialFlags;
+        uint32 CharTitleId;
         int32  PrevQuestId;
         int32  NextQuestId;
         int32  ExclusiveGroup;
@@ -327,6 +339,7 @@ class Quest
         std::string OfferRewardText;
         std::string RequestItemsText;
         std::string EndText;
+        uint32 RewHonorableKills;
         int32  RewOrReqMoney;
         uint32 RewMoneyMaxLevel;
         uint32 RewSpell;

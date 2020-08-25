@@ -330,6 +330,16 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPacket& recv_data)
             {
                 if (pQuest->HasSpecialFlag(QUEST_SPECIAL_FLAG_TIMED))
                     _player->RemoveTimedQuest(quest);
+
+                for (int i = 0; i < QUEST_SOURCE_ITEM_IDS_COUNT; ++i)
+                {
+                    if (pQuest->ReqSourceId[i])
+                    {
+                        ItemPrototype const* iProto = ObjectMgr::GetItemPrototype(pQuest->ReqSourceId[i]);
+                        if (iProto && iProto->Bonding == BIND_QUEST_ITEM)
+                            _player->DestroyItemCount(pQuest->ReqSourceId[i], pQuest->ReqSourceCount[i], true, false, true);
+                    }
+                }
             }
 
             _player->SetQuestStatus(quest, QUEST_STATUS_NONE);
@@ -496,10 +506,9 @@ void WorldSession::HandleQuestPushResult(WorldPacket& recvPacket)
 
     if (Player* pPlayer = ObjectAccessor::FindPlayer(_player->GetDividerGuid()))
     {
-        WorldPacket data(MSG_QUEST_PUSH_RESULT, (8 + 4 + 1));
+        WorldPacket data(MSG_QUEST_PUSH_RESULT, (8 + 1));
         data << ObjectGuid(guid);
-        data << uint32(msg);                             // valid values: 0-8
-        data << uint8(0);
+        data << uint8(msg);                             // valid values: 0-8
         pPlayer->GetSession()->SendPacket(data);
         _player->ClearDividerGuid();
     }
@@ -553,10 +562,9 @@ uint32 WorldSession::getDialogStatus(const Player* pPlayer, const Object* questg
         QuestStatus status = pPlayer->GetQuestStatus(quest_id);
 
         if (status == QUEST_STATUS_COMPLETE && !pPlayer->GetQuestRewardStatus(quest_id))
-            dialogStatusNew = pQuest->IsRepeatable() && pQuest->GetQuestMethod() != 2 ?
-                              DIALOG_STATUS_REWARD_REP : DIALOG_STATUS_REWARD2;
+            dialogStatusNew = pQuest->IsRepeatable() && pQuest->IsDailyOrWeekly() ? DIALOG_STATUS_REWARD_REP : DIALOG_STATUS_REWARD;
         else if (pQuest->IsAutoComplete() && pPlayer->CanTakeQuest(pQuest, false))
-            dialogStatusNew = pQuest->IsRepeatable() ? DIALOG_STATUS_REWARD_REP : DIALOG_STATUS_AVAILABLE;
+            dialogStatusNew = pQuest->IsRepeatable() ? pQuest->IsDailyOrWeekly() ? DIALOG_STATUS_AVAILABLE_REP : DIALOG_STATUS_REWARD_REP : DIALOG_STATUS_AVAILABLE;
         else if (status == QUEST_STATUS_INCOMPLETE)
             dialogStatusNew = DIALOG_STATUS_INCOMPLETE;
 
@@ -576,22 +584,31 @@ uint32 WorldSession::getDialogStatus(const Player* pPlayer, const Object* questg
 
         QuestStatus status = pPlayer->GetQuestStatus(quest_id);
 
-        // For all other cases the mark is handled either at some place else, or with involved-relations already
-        if (status == QUEST_STATUS_NONE && pPlayer->CanSeeStartQuest(pQuest))
+        if (status == QUEST_STATUS_NONE)                    // For all other cases the mark is handled either at some place else, or with involved-relations already
         {
-            if (pPlayer->SatisfyQuestLevel(pQuest, false))
+            if (pPlayer->CanSeeStartQuest(pQuest))
             {
-                int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
+                if (pPlayer->SatisfyQuestLevel(pQuest, false))
+                {
+                    int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
 
-                if (pQuest->IsAutoComplete())
-                    dialogStatusNew = DIALOG_STATUS_REWARD_REP;
-                else if (lowLevelDiff < 0 || pPlayer->getLevel() <= (pPlayer->GetQuestLevelForPlayer(pQuest) + uint32(lowLevelDiff)))
-                    dialogStatusNew = DIALOG_STATUS_AVAILABLE;
+                    if (pQuest->IsAutoComplete())
+                    {
+                        dialogStatusNew = DIALOG_STATUS_REWARD_REP;
+                    }
+                    else if (lowLevelDiff < 0 || pPlayer->getLevel() <= pPlayer->GetQuestLevelForPlayer(pQuest) + uint32(lowLevelDiff))
+                    {
+                        if (pQuest->HasQuestFlag(QUEST_FLAGS_DAILY) || pQuest->HasQuestFlag(QUEST_FLAGS_WEEKLY))
+                            dialogStatusNew = DIALOG_STATUS_AVAILABLE_REP;
+                        else
+                            dialogStatusNew = DIALOG_STATUS_AVAILABLE;
+                    }
+                    else
+                        dialogStatusNew = DIALOG_STATUS_CHAT;
+                }
                 else
-                    dialogStatusNew = DIALOG_STATUS_CHAT;
+                    dialogStatusNew = DIALOG_STATUS_UNAVAILABLE;
             }
-            else
-                dialogStatusNew = DIALOG_STATUS_UNAVAILABLE;
         }
 
         if (dialogStatusNew > dialogStatus)
@@ -605,6 +622,7 @@ void WorldSession::HandleQuestgiverStatusMultipleQuery(WorldPacket& /*recvPacket
 {
     DEBUG_LOG("WORLD: Received opcode CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY");
 
+    // TODO: Add parsing
     _player->SendQuestGiverStatusMultiple();
 }
 
